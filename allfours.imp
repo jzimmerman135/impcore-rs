@@ -1,0 +1,13 @@
+;; this is a comment
+(define all-fours? (n)
+  (if (< n 10)
+      (= n 4)
+      (&& (= (mod n 10) 4)
+          (all-fours? (/ n 10)))))
+
+        (check-assert (not (all-fours? 0)))
+        (check-assert      (all-fours? 4))
+        (check-assert (not (all-fours? 7)))
+        (check-assert      (all-fours? 4444))
+        (check-assert (not (all-fours? 4474)))
+        (check-assert (not (all-fours? 1287)))

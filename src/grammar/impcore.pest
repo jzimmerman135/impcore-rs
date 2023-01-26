@@ -1,0 +1,37 @@
+COMMENT = { ";;" ~ ANY* ~ NEWLINE }
+WHITESPACE = _{ (" " | NEWLINE ) }
+
+lpar = _{ "(" ~ WHITESPACE* }
+rpar = _{ WHITESPACE* ~ ")" }
+
+
+top_level_expr = { (use | test | def ) }
+
+def = { lpar ~ (func_def | val_def) ~ rpar }
+func_def = { "define" ~ name ~ param_def ~ expr }
+param_def = @{ lpar ~ (name ~ WHITESPACE*)+ ~ rpar }
+val_def = { "val" ~ WHITESPACE+ ~ name ~ WHITESPACE+ ~ literal }
+
+test = { lpar ~ (assert_test | expect_test | error_test) ~ rpar }
+assert_test = { "check-assert" ~ expr }
+assert_test = { "check-expect" ~ expr ~ expr }
+
+// literal = @{ int }
+name = @{ WHITESPACE+ ~ letter ~ (letter | "_" | "-" )* ~ letter ~ WHITESPACE+ }
+// primitive = @{ (arithmetic_op | bitwise_op | comparison_op | save_op | unary_op ) }
+
+// // ascii
+int = { ("+", "-")? ~ digit+ }
+digit = { '0'..'9' }
+letter = { ^('a'..'z') }
+
+// // binary operators
+// arithmetic_op = { ( "+" | "-" | "*" | "/" | "%" ) }
+// bitwise_op = { ( "&" | "|" | "^" | "<<" | ">>" )}
+// comparison_op = { ( ">" | ">=" | "<" | "<=" | "=" | "!" | "&&" | "||" ) }
+// save_op = { "$" }
+
+// // unary operators
+// unary_op = { ("printu" | "print" | "println" | "@" ) }
+
+impcore = { SOI ~ top_level_expr* ~ EOI }
