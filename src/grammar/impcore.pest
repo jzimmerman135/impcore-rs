@@ -1,42 +1,48 @@
-impcore = { SOI ~ ( top_level | WSP | COMMENT )* ~ EOI }
-top_level = { def | expr | test }
+impcore = { SOI ~ ( top_level_expr )* ~ EOI }
 
+// CONSTANTS
+WHITESPACE = _{ " " | NEWLINE }
 COMMENT = _{ ";;" ~ ( !NEWLINE ~ ANY )* }
+
+// LITERALS, VARIABLES, FUNCTIONS
 CHAR = _{ ASCII_ALPHANUMERIC | "_" }
-WSP = _{ " " | NEWLINE } // whitespace
-lpar = _{ "(" ~ WSP* } // left parenthesis
-rpar = _{ WSP* ~ ")"  } // right parenthesis
+literal = @{ ( "+" | "-" )? ~ ASCII_DIGIT+ }
+var_name = @{ ASCII_ALPHA ~ ( CHAR | "-" )* ~ CHAR* }
+func_name = @{ ASCII_ALPHA ~ ( CHAR | "-" )* ~ CHAR* ~ "?"? }
 
-literal = { ( "+" | "-" )? ~ ASCII_DIGIT+ }
-var_name = { ASCII_ALPHA ~ ( CHAR | "-" )* ~ CHAR* }
-func_name = { ( ASCII_ALPHA | "-" | "_"  )+ ~ "?"? }
-
+// OPERATIONS
+unary_op = { "++" | "--" | "@" | "not" | "!" }
 arithmetic_op = { "+" | "-" | "/" | "*" | "%" | "mod" }
 bitwise_op = { ">>" | "<<" | "^" | "&" | "|" }
 comparison_op = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
 assign_op = { "set" | "$" }
-unary_op = { "++" | "--" | "@" | "not" | "!" }
+// group for readability
+binary_op = _{ comparison_op | arithmetic_op | bitwise_op | assign_op } 
 
-param_def = ${ WSP+ ~ lpar ~ ( var_name | WSP+ )* ~ rpar }
-val_def = ${ "val" ~ WSP+ ~ var_name ~ arg }
-func_def = ${ "define" ~ WSP+ ~ func_name ~ param_def ~ arg }
+// DEFINITION TYPES
+val_def = { "val" ~ var_name ~ arg }
+param_def = { "(" ~ var_name* ~ ")" }
+func_def = { "define" ~ func_name ~ param_def ~ arg }
 
-assert_test = ${ "check-assert" ~ WSP+ ~ arg } 
-expect_test = ${ "check-expect" ~ ( WSP+ ~ arg ){2} } 
-error_test = ${ "check-error" ~ WSP+ ~ arg }
+// TEST TYPES
+assert_test = { "check-assert" ~ arg } 
+expect_test = { "check-expect" ~ arg{2} }
+error_test = { "check-error" ~ arg }
 
-def = { lpar ~ ( val_def | func_def ) ~ rpar}
-test = { lpar ~ ( assert_test | expect_test | error_test ) ~ rpar }
+// EXPRESSION TYPES
+error = { "error" }
+unary = { unary_op ~ arg }
+binary = { binary_op ~ arg ~ arg }
+if = { "if" ~ arg{3} }
+while = { "while" ~ arg{2} }
+begin = { "begin" ~ arg+ }
+user = { func_name ~ arg+ }
 
-binary_op = ${ comparison_op | arithmetic_op | bitwise_op | assign_op }
+// HIGH LEVEL CONTAINERS
+arg = _{ expr | literal | var_name }
+top_level_expr = _{ def | test | expr  }
 
-error_expr = { "error" }
-unary_expr = ${ unary_op ~ arg }
-binary_expr = ${ binary_op ~ arg{2} }
-if_expr = ${ "if" ~ arg{3} }
-while_expr = ${ "while" ~ arg{2} }
-begin_expr = ${ "begin" ~ arg+ }
-user_expr = ${ func_name ~ arg+ }
-
-expr = { lpar ~ ( error_expr | unary_expr | binary_expr | if_expr | while_expr | user_expr ) ~ rpar }
-arg = { WSP* ~ expr | WSP+ ~ ( literal | var_name )}
+// TOP LEVEL TYPES
+def = { "(" ~ ( val_def | func_def ) ~ ")" }
+test = { "(" ~ ( assert_test | expect_test | error_test ) ~ ")" }
+expr = { "(" ~ ( error | unary | binary | if | while | user ) ~ ")" }
