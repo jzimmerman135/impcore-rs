@@ -4,6 +4,8 @@ extern crate pest_derive;
 
 mod environment;
 mod functions;
+mod globals;
+mod io;
 mod parser;
 
 use std::process;
@@ -12,46 +14,31 @@ use environment::Env;
 use parser::{ImpcoreParser, Rule};
 use pest::{iterators::Pairs, Parser};
 
-fn eval_file_use(_pairs: Pairs<Rule>) {
-    eprintln!("FILE USED");
-}
+fn eval(_pairs: Pairs<Rule>, _env: &mut Env) {}
 
-fn eval_val(_pairs: Pairs<Rule>) {}
-
-fn eval_function(pairs: Pairs<Rule>) {
+pub fn eval_def(pairs: Pairs<Rule>, env: &mut Env) {
     for pair in pairs {
         match pair.as_rule() {
-            Rule::binary => functions::eval_binary(pair.into_inner()),
-            Rule::unary => functions::eval_unary(pair.into_inner()),
-            Rule::user => functions::eval_user(pair.into_inner()),
+            Rule::define => functions::eval_define(pair.into_inner(), env),
+            Rule::val => globals::eval_val(pair.into_inner(), env),
+            Rule::check_assert => eval(pair.into_inner(), env),
+            Rule::check_error => eval(pair.into_inner(), env),
+            Rule::check_expect => eval(pair.into_inner(), env),
+            Rule::file_use => io::eval_file_use(pair.into_inner(), env),
             _ => unreachable!(),
         }
     }
 }
 
-fn eval_def(pairs: Pairs<Rule>, _env: &mut Env) {
+pub fn eval_exp(pairs: Pairs<Rule>, env: &mut Env) {
     for pair in pairs {
         match pair.as_rule() {
-            Rule::define => functions::eval_define(pair.into_inner()),
-            Rule::val => eval_val(pair.into_inner()),
-            Rule::check_assert => eval_val(pair.into_inner()),
-            Rule::check_error => eval_val(pair.into_inner()),
-            Rule::check_expect => eval_val(pair.into_inner()),
-            Rule::usex => eval_file_use(pair.into_inner()),
-            _ => unreachable!(),
-        }
-    }
-}
-
-fn eval_exp(pairs: Pairs<Rule>, _env: &mut Env) {
-    for pair in pairs {
-        match pair.as_rule() {
-            Rule::error => eval_function(pair.into_inner()),
-            Rule::set => eval_function(pair.into_inner()),
-            Rule::ifx => eval_function(pair.into_inner()),
-            Rule::whilex => eval_function(pair.into_inner()),
-            Rule::begin => eval_function(pair.into_inner()),
-            Rule::function => eval_function(pair.into_inner()),
+            Rule::error => eval(pair.into_inner(), env),
+            Rule::set => globals::eval_set(pair.into_inner(), env),
+            Rule::ifx => eval(pair.into_inner(), env),
+            Rule::whilex => eval(pair.into_inner(), env),
+            Rule::begin => eval(pair.into_inner(), env),
+            Rule::function => functions::eval_function(pair.into_inner(), env),
             _ => unreachable!(),
         }
     }
