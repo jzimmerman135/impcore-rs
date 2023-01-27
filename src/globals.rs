@@ -1,5 +1,5 @@
+use crate::ast::Rule;
 use crate::environment::Env;
-use crate::parser::Rule;
 use pest::iterators::Pairs;
 
 pub struct Global {}

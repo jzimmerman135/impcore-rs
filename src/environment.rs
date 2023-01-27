@@ -1,11 +1,16 @@
-use std::{collections::HashMap, hash::Hash, vec};
+use std::collections::HashMap;
 
-use crate::{functions::Function, globals::Global};
+use crate::{
+    functions::{Formal, Function},
+    globals::Global,
+    tests::TestExpr,
+};
 
 pub struct Env<'a> {
     pub globals: HashMap<&'a str, Global>,
     pub functions: HashMap<&'a str, Function>,
     pub formals: HashMap<&'a str, Formal>,
+    pub tests: Vec<TestExpr>,
     pub memory: Vec<i32>,
 }
 
@@ -15,9 +20,13 @@ impl<'a> Env<'a> {
             globals: HashMap::new(),
             functions: HashMap::new(),
             formals: HashMap::new(),
+            tests: Vec::new(),
             memory: Vec::with_capacity(vram_bytes),
         }
     }
-}
 
-pub struct Formal {}
+    #[allow(dead_code)]
+    pub fn run_tests(&self) {
+        todo!()
+    }
+}

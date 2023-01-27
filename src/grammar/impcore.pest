@@ -26,12 +26,15 @@ arithmetic = { "+" | "-" | "/" | "*" | "%" }
 bitwise = { ">>" | "<<" | "^" | "&" | "|" }
 comparison = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
 assignment = { "set" | "$" }
-printer = { "println" | "printu" | "print" }
+print = { "println" | "printu" | "print" }
 
 // FUNCTIONS
-unary = { "++" | "--" | "@" | "not" | "!" | printer }
+function_call = _{ ( unary ~ exp | binary ~ exp{2} | print ~ exp | user ~ exp+ ) }
+
+unary = { "++" | "--" | "@" | "not" | "!" }
 binary = @{ comparison | arithmetic | bitwise | assignment } 
 user = @{ func_name }
+
 
 // EXPRESSION TYPES
 exp = { integer_literal | error | variable | set | ifx | whilex | begin | function }
@@ -41,7 +44,7 @@ set = { "(" ~ "set" ~ variable ~ exp ~ ")" }
 ifx = { "(" ~ "if" ~ exp{3} ~ ")" }
 whilex = { "(" ~ "while" ~ exp{2} ~ ")" }
 begin = { "(" ~ "begin" ~ exp* ~ ")" }
-function = { "(" ~ ( unary ~ exp | binary ~ exp{2} | user ~ exp+ ) ~ ")" }
+function = { "(" ~ function_call ~ ")" }
 
 // DEFINITION TYPES
 def = { define | val | file_use | check_expect | check_error | check_assert }
