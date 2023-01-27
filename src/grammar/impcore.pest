@@ -1,37 +1,42 @@
-COMMENT = { ";;" ~ ANY* ~ NEWLINE }
-WHITESPACE = _{ (" " | NEWLINE ) }
+impcore = { SOI ~ ( top_level | WSP | COMMENT )* ~ EOI }
+top_level = { def | expr | test }
 
-lpar = _{ "(" ~ WHITESPACE* }
-rpar = _{ WHITESPACE* ~ ")" }
+COMMENT = _{ ";;" ~ ( !NEWLINE ~ ANY )* }
+CHAR = _{ ASCII_ALPHANUMERIC | "_" }
+WSP = _{ " " | NEWLINE } // whitespace
+lpar = _{ "(" ~ WSP* } // left parenthesis
+rpar = _{ WSP* ~ ")"  } // right parenthesis
 
+literal = { ( "+" | "-" )? ~ ASCII_DIGIT+ }
+var_name = { ASCII_ALPHA ~ ( CHAR | "-" )* ~ CHAR* }
+func_name = { ( ASCII_ALPHA | "-" | "_"  )+ ~ "?"? }
 
-top_level_expr = { (use | test | def ) }
+arithmetic_op = { "+" | "-" | "/" | "*" | "%" | "mod" }
+bitwise_op = { ">>" | "<<" | "^" | "&" | "|" }
+comparison_op = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
+assign_op = { "set" | "$" }
+unary_op = { "++" | "--" | "@" | "not" | "!" }
 
-def = { lpar ~ (func_def | val_def) ~ rpar }
-func_def = { "define" ~ name ~ param_def ~ expr }
-param_def = @{ lpar ~ (name ~ WHITESPACE*)+ ~ rpar }
-val_def = { "val" ~ WHITESPACE+ ~ name ~ WHITESPACE+ ~ literal }
+param_def = ${ WSP+ ~ lpar ~ ( var_name | WSP+ )* ~ rpar }
+val_def = ${ "val" ~ WSP+ ~ var_name ~ arg }
+func_def = ${ "define" ~ WSP+ ~ func_name ~ param_def ~ arg }
 
-test = { lpar ~ (assert_test | expect_test | error_test) ~ rpar }
-assert_test = { "check-assert" ~ expr }
-assert_test = { "check-expect" ~ expr ~ expr }
+assert_test = ${ "check-assert" ~ WSP+ ~ arg } 
+expect_test = ${ "check-expect" ~ ( WSP+ ~ arg ){2} } 
+error_test = ${ "check-error" ~ WSP+ ~ arg }
 
-// literal = @{ int }
-name = @{ WHITESPACE+ ~ letter ~ (letter | "_" | "-" )* ~ letter ~ WHITESPACE+ }
-// primitive = @{ (arithmetic_op | bitwise_op | comparison_op | save_op | unary_op ) }
+def = { lpar ~ ( val_def | func_def ) ~ rpar}
+test = { lpar ~ ( assert_test | expect_test | error_test ) ~ rpar }
 
-// // ascii
-int = { ("+", "-")? ~ digit+ }
-digit = { '0'..'9' }
-letter = { ^('a'..'z') }
+binary_op = ${ comparison_op | arithmetic_op | bitwise_op | assign_op }
 
-// // binary operators
-// arithmetic_op = { ( "+" | "-" | "*" | "/" | "%" ) }
-// bitwise_op = { ( "&" | "|" | "^" | "<<" | ">>" )}
-// comparison_op = { ( ">" | ">=" | "<" | "<=" | "=" | "!" | "&&" | "||" ) }
-// save_op = { "$" }
+error_expr = { "error" }
+unary_expr = ${ unary_op ~ arg }
+binary_expr = ${ binary_op ~ arg{2} }
+if_expr = ${ "if" ~ arg{3} }
+while_expr = ${ "while" ~ arg{2} }
+begin_expr = ${ "begin" ~ arg+ }
+user_expr = ${ func_name ~ arg+ }
 
-// // unary operators
-// unary_op = { ("printu" | "print" | "println" | "@" ) }
-
-impcore = { SOI ~ top_level_expr* ~ EOI }
+expr = { lpar ~ ( error_expr | unary_expr | binary_expr | if_expr | while_expr | user_expr ) ~ rpar }
+arg = { WSP* ~ expr | WSP+ ~ ( literal | var_name )}

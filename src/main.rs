@@ -2,12 +2,12 @@ extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 
-use pest::Parser;
-use std::{error::Error, fs};
+use parser::CSVParser;
+pub use std::{error::Error, fs};
 
-#[derive(Parser)]
-#[grammar = "grammar/csv.pest"]
-struct CSVParser;
+use pest::Parser;
+
+mod parser;
 
 fn csv_parse() -> Result<(), Box<dyn Error>> {
     let unparsed_file =
@@ -37,8 +37,6 @@ fn csv_parse() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn parse() {}
-
 fn main() {
-    println!("nothin");
+    csv_parse().unwrap();
 }
