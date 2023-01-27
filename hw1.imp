@@ -186,3 +186,5 @@
         (check-expect (nthprime 4) 7)
         (check-expect (nthprime 5) 11)
         (check-expect (nthprime 16) 53)
+    
+(define badFunc (n) (* n 10))

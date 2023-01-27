@@ -1,48 +1,53 @@
-impcore = { SOI ~ ( top_level_expr )* ~ EOI }
+impcore = { SOI ~ ( def | exp )* ~ EOI }
 
-// CONSTANTS
+// SILENTS
 WHITESPACE = _{ " " | NEWLINE }
 COMMENT = _{ ";;" ~ ( !NEWLINE ~ ANY )* }
+NAMECHAR = _{ ASCII_ALPHANUMERIC | "_" } // helper
 
-// LITERALS, VARIABLES, FUNCTIONS
-CHAR = _{ ASCII_ALPHANUMERIC | "_" }
-literal = @{ ( "+" | "-" )? ~ ASCII_DIGIT+ }
-var_name = @{ ASCII_ALPHA ~ ( CHAR | "-" )* ~ CHAR* }
-func_name = @{ ASCII_ALPHA ~ ( CHAR | "-" )* ~ CHAR* ~ "?"? }
+// RESERVED KEYWORDS INDEX
+RESERVED = _{ TEST_KEYWORDS | PRIM_KEYWORDS | EXP_KEYWORDS | DEF_KEYWORDS }
+TEST_KEYWORDS = _{ "check-assert" | "check-error" | "check-expect" }
+PRIM_KEYWORDS = _{ binary | unary | "error" }
+EXP_KEYWORDS = _{ "if" | "while" | "set" | "begin" }
+DEF_KEYWORDS = _{ "define" | "val" | "use" }
 
-// OPERATIONS
-unary_op = { "++" | "--" | "@" | "not" | "!" }
-arithmetic_op = { "+" | "-" | "/" | "*" | "%" | "mod" }
-bitwise_op = { ">>" | "<<" | "^" | "&" | "|" }
-comparison_op = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
-assign_op = { "set" | "$" }
-// group for readability
-binary_op = _{ comparison_op | arithmetic_op | bitwise_op | assign_op } 
+// LITERALS, VARIABLES
+name = @{ ASCII_ALPHA ~ ( NAMECHAR | "-" )* ~ NAMECHAR* }
+func_name = @{ name ~ "?"? }
+file_name = @{ ASCII_ALPHANUMERIC ~ ( NAMECHAR | "-" | "." )* }
+integer_literal = @{ ( "+" | "-" )? ~ ASCII_DIGIT+ }
+variable = @{ name }
+parameter = @{ name }
 
-// DEFINITION TYPES
-val_def = { "val" ~ var_name ~ arg }
-param_def = { "(" ~ var_name* ~ ")" }
-func_def = { "define" ~ func_name ~ param_def ~ arg }
+// OPERATORS
+arithmetic = { "+" | "-" | "/" | "*" | "%" }
+bitwise = { ">>" | "<<" | "^" | "&" | "|" }
+comparison = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
+assignment = { "set" | "$" }
 
-// TEST TYPES
-assert_test = { "check-assert" ~ arg } 
-expect_test = { "check-expect" ~ arg{2} }
-error_test = { "check-error" ~ arg }
+// FUNCTIONS
+unary = @{ "++" | "--" | "@" | "not" | "!" }
+binary = @{ comparison | arithmetic | bitwise | assignment } 
+primitive = _{ unary{1} | binary{1} }
+user = @{ !RESERVED ~ func_name }
 
 // EXPRESSION TYPES
-error = { "error" }
-unary = { unary_op ~ arg }
-binary = { binary_op ~ arg ~ arg }
-if = { "if" ~ arg{3} }
-while = { "while" ~ arg{2} }
-begin = { "begin" ~ arg+ }
-user = { func_name ~ arg+ }
+exp = { integer_literal | error | variable | set | ifx | whilex | begin | function }
 
-// HIGH LEVEL CONTAINERS
-arg = _{ expr | literal | var_name }
-top_level_expr = _{ def | test | expr  }
+error = { "(" ~ "error" ~ ")" }                                                             
+set = { "(" ~ "set" ~ variable ~ exp ~ ")" }
+ifx = { "(" ~ "if" ~ exp{3} ~ ")" }
+whilex = { "(" ~ "while" ~ exp{2} ~ ")" }
+begin = { "(" ~ "begin" ~ exp* ~ ")" }
+function = { "(" ~ ( primitive | user ) ~ exp+ ~ ")" }
 
-// TOP LEVEL TYPES
-def = { "(" ~ ( val_def | func_def ) ~ ")" }
-test = { "(" ~ ( assert_test | expect_test | error_test ) ~ ")" }
-expr = { "(" ~ ( error | unary | binary | if | while | user ) ~ ")" }
+// DEFINITION TYPES
+def = { define | val | usex | check_expect | check_error | check_assert }
+
+define = { "(" ~ "define" ~ func_name ~ "(" ~ parameter* ~ ")" ~ exp ~ ")" }
+val =  { "(" ~ "val" ~ variable ~ exp ~ ")" }
+usex =  { "(" ~ "use" ~ file_name ~ ")" }
+check_expect = { "(" ~ "check-expect" ~ exp{2} ~ ")" }
+check_assert = { "(" ~ "check-assert" ~ exp ~ ")" }
+check_error = { "(" ~ "check-error" ~ exp ~ ")" }
