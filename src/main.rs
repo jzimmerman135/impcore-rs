@@ -3,7 +3,6 @@ extern crate pest;
 extern crate pest_derive;
 
 mod ast;
-mod environment;
 mod flow;
 mod functions;
 mod globals;
@@ -12,11 +11,8 @@ mod jit;
 mod tests;
 
 use ast::{ImpcoreParser, Rule};
-use environment::Env;
 use pest::Parser;
 use std::{fs, process};
-
-const MB: usize = 1 << 20;
 
 fn main() {
     let filename = "./imp/ez.imp";
@@ -41,7 +37,7 @@ fn main() {
 
     let mut compiler = jit::JIT::default();
 
-    let code = compiler
+    let _code = compiler
         .compile(top_level_expressions)
         .map_err(|e| {
             eprintln!("Parsing Error: {}", e);

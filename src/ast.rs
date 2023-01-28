@@ -1,12 +1,11 @@
-use crate::{environment::Env, functions, globals};
-use pest::iterators::{Pair, Pairs};
-
-pub type ImpcoreValue = i32;
+use crate::{flow, functions, globals};
+use pest::iterators::Pair;
 
 #[derive(Parser)]
 #[grammar = "grammar/impcore.pest"]
 pub struct ImpcoreParser;
 
+#[allow(unused)]
 pub enum Expr {
     Literal(String),
     Identifier(String),
@@ -65,6 +64,7 @@ pub fn parse_exp(pair: Pair<Rule>) -> Expr {
         Rule::binary => functions::parse_binary(expr),
         Rule::unary => functions::parse_unary(expr),
         Rule::integer_literal => globals::parse_literal(expr),
+        Rule::ifx => flow::parse_ifx(expr),
         // Rule::accessor => globals::eval_accessor(pair.into_inner(), env),
         _ => unreachable!(),
     }

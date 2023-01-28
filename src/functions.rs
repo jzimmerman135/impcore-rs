@@ -1,5 +1,4 @@
 use crate::ast::{self, Expr, Rule};
-use crate::environment::Env;
 use pest::iterators::{Pair, Pairs};
 
 #[allow(dead_code)]

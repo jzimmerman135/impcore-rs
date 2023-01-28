@@ -1,12 +1,10 @@
-use crate::ast::{self, Expr, Rule};
+use crate::ast::{Expr, Rule};
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataContext, Linkage, Module};
-use pest::Parser;
 use std::{collections::HashMap, slice};
 
-use crate::ast::ImpcoreParser;
-
+#[allow(unused)]
 pub struct JIT {
     builder_context: FunctionBuilderContext,
     ctx: codegen::Context,

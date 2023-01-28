@@ -1,11 +1,12 @@
-use crate::ast::{self, ImpcoreValue, Rule};
-use crate::environment::Env;
+use crate::ast::{Expr, Rule};
 use pest::iterators::{Pair, Pairs};
 
 #[allow(dead_code)]
-pub fn eval_file_use(_pairs: Pairs<Rule>, _env: &mut Env) {
+pub fn parse_file_use(_pairs: Pairs<Rule>) -> Expr {
     todo!()
 }
 
 #[allow(dead_code)]
-pub fn eval_print(func_call: Pair<Rule>, env: &mut Env) {}
+pub fn parse_print(_func_call: Pair<Rule>) -> Expr {
+    todo!();
+}
