@@ -1,4 +1,4 @@
-use crate::ast::{ImpcoreValue, Rule};
+use crate::ast::{Expr, ImpcoreValue, Rule};
 use crate::environment::Env;
 use pest::iterators::{Pair, Pairs};
 
@@ -22,26 +22,6 @@ impl Globals {
     }
 }
 
-#[allow(dead_code)]
-pub fn eval_set(_pairs: Pairs<Rule>, _env: &mut Env) -> ImpcoreValue {
-    todo!()
-}
-
-#[allow(dead_code)]
-pub fn eval_accessor(mut _pairs: Pairs<Rule>, _env: &mut Env) -> ImpcoreValue {
-    todo!()
-}
-
-#[allow(dead_code)]
-pub fn eval_val(_pairs: Pairs<Rule>, _env: &mut Env) {
-    todo!()
-}
-
-#[allow(dead_code)]
-pub fn eval_alloc(_pairs: Pairs<Rule>, _env: &mut Env) {
-    todo!()
-}
-
-pub fn eval_literal(integer_literal: Pair<Rule>) -> ImpcoreValue {
-    integer_literal.as_str().parse().unwrap()
+pub fn parse_literal(integer_literal: Pair<Rule>) -> Expr {
+    Expr::Literal(integer_literal.as_str().to_string())
 }

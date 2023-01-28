@@ -8,6 +8,7 @@ mod flow;
 mod functions;
 mod globals;
 mod io;
+mod jit;
 mod tests;
 
 use ast::{ImpcoreParser, Rule};
@@ -26,15 +27,25 @@ fn main() {
         })
         .unwrap();
 
-    let top_level_pair = ImpcoreParser::parse(Rule::impcore, &contents)
+    let top_level_expressions = ImpcoreParser::parse(Rule::impcore, &contents)
         .map_err(|e| {
             eprintln!("Parsing Error: {}", e);
             process::exit(1);
         })
         .unwrap()
         .next()
-        .unwrap();
+        .unwrap()
+        .into_inner()
+        .filter_map(ast::parse_top_level)
+        .collect();
 
-    let mut environment = Env::new(64 * MB);
-    ast::eval_top_level(top_level_pair, &mut environment);
+    let mut compiler = jit::JIT::default();
+
+    let code = compiler
+        .compile(top_level_expressions)
+        .map_err(|e| {
+            eprintln!("Parsing Error: {}", e);
+            process::exit(1);
+        })
+        .unwrap();
 }

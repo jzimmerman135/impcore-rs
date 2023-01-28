@@ -30,21 +30,21 @@ unary_operator = { "++" | "--" | "not" | "!" } // functions.rs
 binary_operator = @{ comparison_operator | arithmetic_operator | bitwise_operator } // functions.rs
 
 // EXPRESSION TYPES
-exp = { error | integer_literal | accessor | control_flow | function_call } // ast.rs
+exp = { error | integer_literal | accessor | control_flow | function_call } // ast.rs PAIR
 
 // ACCESSORS
+accessor = _{ array | variable } // globals.rs PAIRbk
 array = { variable ~ "[" ~ exp ~ "]"  } // globals.rs
-accessor = { array | variable } // globals.rs
 
 // FUNCTIONS
-function_call = { "(" ~ ( unary | binary | print | user ) ~ ")" } // functions.rs
+function_call = _{ "(" ~ ( unary | binary | print | user ) ~ ")" } // functions.rs PAIR
 unary = { unary_operator ~ exp } // functions.rs
 binary = { binary_operator ~ exp{2} } // functions.rs
 print = { print_operator ~ exp } // functions.rs
 user = { function_name ~ exp+ } // functions.rs
 
 // FLOW
-control_flow = { "(" ~ ( ifx | whilex | begin | error | set ) ~ ")" } // flow.rs
+control_flow = _{ "(" ~ ( ifx | whilex | begin | error | set ) ~ ")" } // flow.rs PAIR
 error = { "error" } // flow.rs
 set = { "set" ~ variable ~ exp } // globals.rs
 ifx = { "if" ~ exp{3} } // flow.rs
@@ -52,7 +52,7 @@ whilex = { "while" ~ exp{2} } // flow.rs
 begin = { "begin" ~ exp* } // flow.rs
 
 // GLOBAL DEFINITIONS
-def = { define | val | file_use | check_expect | check_error | check_assert } // ast.rs
+def = { define | val | file_use | check_expect | check_error | check_assert } // ast.rs PAIR
 
 define = { "(" ~ "define" ~ function_name ~ "(" ~ parameter* ~ ")" ~ exp ~ ")" } // functions.rs
 val =  { "(" ~ "val" ~ variable ~ exp ~ ")" } // globals.rs
