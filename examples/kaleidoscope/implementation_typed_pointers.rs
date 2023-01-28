@@ -12,7 +12,7 @@ use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::values::{BasicMetadataValueEnum, FloatValue, FunctionValue, PointerValue};
 use inkwell::FloatPredicate;
 
-use crate::Token::*;
+use Token::*;
 
 const ANONYMOUS_FUNCTION_NAME: &str = "anonymous";
 

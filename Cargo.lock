@@ -34,9 +34,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.0.78"
+version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a20104e2335ce8a659d6dd92a51a767a0c062599c73b343fd152cb401e828c3d"
+checksum = "50d30906286121d95be3d479533b458f87493b30a4b5f79a607db8f5d11aa91f"
 
 [[package]]
 name = "cfg-if"
@@ -94,7 +94,6 @@ name = "impcore-rs"
 version = "0.1.0"
 dependencies = [
  "inkwell",
- "inkwell_internals 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pest",
  "pest_derive",
 ]
@@ -102,10 +101,11 @@ dependencies = [
 [[package]]
 name = "inkwell"
 version = "0.1.0"
-source = "git+https://github.com/TheDan64/inkwell?branch=master#468320973ec40c237ad34e266a680a875605aa3a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6572fb91d5e09a2a40c99721bdf94ed554a74b09db684276cb1bba39e844da4"
 dependencies = [
  "either",
- "inkwell_internals 0.7.0 (git+https://github.com/TheDan64/inkwell?branch=master)",
+ "inkwell_internals",
  "libc",
  "llvm-sys",
  "once_cell",
@@ -117,16 +117,6 @@ name = "inkwell_internals"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87d00c17e264ce02be5bc23d7bff959188ec7137beddd06b8b6b05a7c680ea85"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "inkwell_internals"
-version = "0.7.0"
-source = "git+https://github.com/TheDan64/inkwell?branch=master#468320973ec40c237ad34e266a680a875605aa3a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -147,9 +137,9 @@ checksum = "201de327520df007757c1f0adce6e827fe8562fbc28bfd9c15571c66ca1f5f79"
 
 [[package]]
 name = "llvm-sys"
-version = "120.2.5"
+version = "130.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1c9655eec036faf512507746ce70765bda72ed98e52b4328f0d7b93e970c6d8"
+checksum = "7e12061782e78da1f5e5f7f758dcdda04bc97af90e8e55bef5f56f1162759ffc"
 dependencies = [
  "cc",
  "lazy_static",

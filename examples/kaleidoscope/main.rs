@@ -19,13 +19,8 @@ use inkwell::context::Context;
 use inkwell::passes::PassManager;
 use inkwell::OptimizationLevel;
 
-use inkwell_internals::llvm_versions;
-
-#[cfg(not(any(feature = "llvm15-0")))]
 mod implementation_typed_pointers;
-
-#[llvm_versions(4.0..=14.0)]
-use crate::implementation_typed_pointers::*;
+use crate::implementation_typed_pointers::{Compiler, Lexer, Parser, Token};
 
 // ======================================================================================
 // PROGRAM ==============================================================================
@@ -58,7 +53,6 @@ pub extern "C" fn printd(x: f64) -> f64 {
 static EXTERNAL_FNS: [extern "C" fn(f64) -> f64; 2] = [putchard, printd];
 
 /// Entry point of the program; acts as a REPL.
-#[llvm_versions(4.0..=14.0)]
 pub fn main() {
     // use self::inkwell::support::add_symbol;
     let mut display_lexer_output = false;
@@ -197,9 +191,4 @@ pub fn main() {
             }
         }
     }
-}
-
-#[llvm_versions(15.0..=latest)]
-pub fn main() {
-    eprintln!("Kaleidoscope example does not work yet with this llvm version");
 }
