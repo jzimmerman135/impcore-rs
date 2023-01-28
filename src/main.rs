@@ -18,7 +18,7 @@ use std::{fs, process};
 const MB: usize = 1 << 20;
 
 fn main() {
-    let filename = "../imp/hw1.imp";
+    let filename = "./imp/ez.imp";
     let contents = fs::read_to_string(filename)
         .map_err(|_| {
             eprintln!("Failed to open file {}", filename);

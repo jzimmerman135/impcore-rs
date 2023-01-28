@@ -10,48 +10,54 @@ RESERVED = _{ TEST_KEYWORDS | PRIM_KEYWORDS | EXP_KEYWORDS | DEF_KEYWORDS | PRIN
 TEST_KEYWORDS = _{ "check-assert" | "check-error" | "check-expect" }
 PRIM_KEYWORDS = _{ binary | unary | "error" }
 EXP_KEYWORDS = _{ "if" | "while" | "set" | "begin" }
-DEF_KEYWORDS = _{ "define" | "val" | "use" }
+DEF_KEYWORDS = _{ "define" | "val" | "use" | "alloc" }
 PRINT_KEYWORDS = _{ "print" | "printu" | "println" }
 
-// LITERALS, VARIABLES
+// LITERALS, VARIABLES, PARAMETERS
 name = @{ ASCII_ALPHA ~ ( NAMECHAR | "-" )* ~ NAMECHAR* }
-func_name = @{ !RESERVED ~ name ~ "?"? }
+function_name = @{ !RESERVED ~ name ~ "?"? }
 file_name = @{ ASCII_ALPHANUMERIC ~ ( NAMECHAR | "-" | "." )* }
 integer_literal = @{ ( "+" | "-" )? ~ ASCII_DIGIT+ }
 variable = @{ name }
 parameter = @{ name }
 
 // OPERATORS
-arithmetic = { "+" | "-" | "/" | "*" | "%" }
-bitwise = { ">>" | "<<" | "^" | "&" | "|" }
-comparison = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
-assignment = { "set" | "$" }
-print = { "println" | "printu" | "print" }
-
-// FUNCTIONS
-function_call = _{ ( unary ~ exp | binary ~ exp{2} | print ~ exp | user ~ exp+ ) }
-
-unary = { "++" | "--" | "@" | "not" | "!" }
-binary = @{ comparison | arithmetic | bitwise | assignment } 
-user = @{ func_name }
-
+arithmetic_operator = { "+" | "-" | "/" | "*" | "%" } // functions.rs
+bitwise_operator = { ">>" | "<<" | "^" | "&" | "|" }  // functions.rs
+comparison_operator = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }  // functions.rs
+print_operator = { "println" | "printu" | "print" } // functions.rs
+unary_operator = { "++" | "--" | "not" | "!" } // functions.rs
+binary_operator = @{ comparison_operator | arithmetic_operator | bitwise_operator } // functions.rs
 
 // EXPRESSION TYPES
-exp = { integer_literal | error | variable | set | ifx | whilex | begin | function }
+exp = { error | integer_literal | accessor | control_flow | function_call } // ast.rs
 
-error = { "(" ~ "error" ~ ")" }                                                             
-set = { "(" ~ "set" ~ variable ~ exp ~ ")" }
-ifx = { "(" ~ "if" ~ exp{3} ~ ")" }
-whilex = { "(" ~ "while" ~ exp{2} ~ ")" }
-begin = { "(" ~ "begin" ~ exp* ~ ")" }
-function = { "(" ~ function_call ~ ")" }
+// ACCESSORS
+array = { variable ~ "[" ~ exp ~ "]"  } // globals.rs
+accessor = { array | variable } // globals.rs
 
-// DEFINITION TYPES
-def = { define | val | file_use | check_expect | check_error | check_assert }
+// FUNCTIONS
+function_call = { "(" ~ ( unary | binary | print | user ) ~ ")" } // functions.rs
+unary = { unary_operator ~ exp } // functions.rs
+binary = { binary_operator ~ exp{2} } // functions.rs
+print = { print_operator ~ exp } // functions.rs
+user = { function_name ~ exp+ } // functions.rs
 
-define = { "(" ~ "define" ~ func_name ~ "(" ~ parameter* ~ ")" ~ exp ~ ")" }
-val =  { "(" ~ "val" ~ variable ~ exp ~ ")" }
-file_use =  { "(" ~ "use" ~ file_name ~ ")" }
-check_expect = { "(" ~ "check-expect" ~ exp{2} ~ ")" }
-check_assert = { "(" ~ "check-assert" ~ exp ~ ")" }
-check_error = { "(" ~ "check-error" ~ exp ~ ")" }
+// FLOW
+control_flow = { "(" ~ ( ifx | whilex | begin | error | set ) ~ ")" } // flow.rs
+error = { "error" } // flow.rs
+set = { "set" ~ variable ~ exp } // globals.rs
+ifx = { "if" ~ exp{3} } // flow.rs
+whilex = { "while" ~ exp{2} } // flow.rs
+begin = { "begin" ~ exp* } // flow.rs
+
+// GLOBAL DEFINITIONS
+def = { define | val | file_use | check_expect | check_error | check_assert } // ast.rs
+
+define = { "(" ~ "define" ~ function_name ~ "(" ~ parameter* ~ ")" ~ exp ~ ")" } // functions.rs
+val =  { "(" ~ "val" ~ variable ~ exp ~ ")" } // globals.rs
+alloc = { "(" ~ "alloc" ~ variable ~ "[" ~ exp ~ "]" ~ ")" } // globals.rs
+file_use =  { "(" ~ "use" ~ file_name ~ ")" } // io.rs
+check_expect = { "(" ~ "check-expect" ~ exp{2} ~ ")" } // tests.rs
+check_assert = { "(" ~ "check-assert" ~ exp ~ ")" } // tests.rs
+check_error = { "(" ~ "check-error" ~ exp ~ ")" } // tests.rs

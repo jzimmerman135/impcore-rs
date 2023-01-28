@@ -4,12 +4,17 @@ use pest::iterators::Pairs;
 
 pub struct TestExpr {}
 
-pub fn eval_assert(_pairs: Pairs<Rule>, _env: &mut Env) -> i32 {
+#[allow(dead_code)]
+pub fn eval_assert(_pairs: Pairs<Rule>, _env: &mut Env) {
     todo!()
 }
-pub fn eval_error(_pairs: Pairs<Rule>, _env: &mut Env) -> i32 {
+
+#[allow(dead_code)]
+pub fn eval_error(_pairs: Pairs<Rule>, _env: &mut Env) {
     todo!()
 }
-pub fn eval_expect(_pairs: Pairs<Rule>, _env: &mut Env) -> i32 {
+
+#[allow(dead_code)]
+pub fn eval_expect(_pairs: Pairs<Rule>, _env: &mut Env) {
     todo!()
 }

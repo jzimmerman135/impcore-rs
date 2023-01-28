@@ -1,25 +1,23 @@
-use std::collections::HashMap;
-
 use crate::{
-    functions::{Formal, Function},
-    globals::Global,
+    functions::{Formals, Functions},
+    globals::Globals,
     tests::TestExpr,
 };
 
-pub struct Env<'a> {
-    pub globals: HashMap<&'a str, Global>,
-    pub functions: HashMap<&'a str, Function>,
-    pub formals: HashMap<&'a str, Formal>,
+pub struct Env {
+    pub globals: Globals,
+    pub functions: Functions,
+    pub formals: Formals,
     pub tests: Vec<TestExpr>,
     pub memory: Vec<i32>,
 }
 
-impl<'a> Env<'a> {
+impl Env {
     pub fn new(vram_bytes: usize) -> Self {
         Self {
-            globals: HashMap::new(),
-            functions: HashMap::new(),
-            formals: HashMap::new(),
+            globals: Globals::new(),
+            functions: Functions::new(),
+            formals: Formals::new(),
             tests: Vec::new(),
             memory: Vec::with_capacity(vram_bytes),
         }
