@@ -1,63 +1,55 @@
-impcore = { SOI ~ ( def | exp )* ~ EOI }
+impcore = { SOI ~ ( def | exp | WSP )* ~ EOI }
 
-// SILENTS
-WHITESPACE = _{ " " | NEWLINE }
+WSP = _{ " " | NEWLINE }
 COMMENT = _{ ";;" ~ ( !NEWLINE ~ ANY )* }
-NAMECHAR = _{ ASCII_ALPHANUMERIC | "_" } // helper
+LPAREN = _{ "(" ~ WSP* }
+RPAREN = _{ WSP* ~ ")" }
+LBRACK = _{ "[" ~ WSP* }
+RBRACK = _{ WSP* ~ "]" }
 
-// RESERVED KEYWORDS INDEX
-RESERVED = _{ TEST_KEYWORDS | PRIM_KEYWORDS | EXP_KEYWORDS | DEF_KEYWORDS | PRINT_KEYWORDS }
-TEST_KEYWORDS = _{ "check-assert" | "check-error" | "check-expect" }
-PRIM_KEYWORDS = _{ binary | unary | "error" }
-EXP_KEYWORDS = _{ "if" | "while" | "set" | "begin" }
-DEF_KEYWORDS = _{ "define" | "val" | "use" | "alloc" }
-PRINT_KEYWORDS = _{ "print" | "printu" | "println" }
+RESERVED = _{ "define" | "alloc" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
 
-// LITERALS, VARIABLES, PARAMETERS
-name = @{ ASCII_ALPHA ~ ( NAMECHAR | "-" )* ~ NAMECHAR* }
-function_name = @{ !RESERVED ~ name ~ "?"? }
-file_name = @{ ASCII_ALPHANUMERIC ~ ( NAMECHAR | "-" | "." )* }
-integer_literal = @{ ( "+" | "-" )? ~ ASCII_DIGIT+ }
-variable = @{ name }
-parameter = @{ name }
+NUMBER = _{ ( "-" | "+" )? ~ "0x"? ~ ASCII_DIGIT+ }
+NAMED = _{ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-" )* }
 
-// OPERATORS
-arithmetic_operator = { "+" | "-" | "/" | "*" | "%" } // functions.rs
-bitwise_operator = { ">>" | "<<" | "^" | "&" | "|" }  // functions.rs
-comparison_operator = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }  // functions.rs
-print_operator = { "println" | "printu" | "print" } // functions.rs
-unary_operator = { "++" | "--" | "not" | "!" } // functions.rs
-binary_operator = @{ comparison_operator | arithmetic_operator | bitwise_operator } // functions.rs
+function_name = @{ !RESERVED ~ NAMED ~ "?"? }
+literal = @{ NUMBER }
+parameter = @{ NAMED }
+variable = @{ NAMED }
+array_value = { variable ~ LBRACK ~ exp ~ RBRACK }
+ACCESSOR = _{ literal | array_value | variable }
 
-// EXPRESSION TYPES
-exp = { error | integer_literal | accessor | control_flow | function_call } // ast.rs PAIR
+arithmetic_operator = { "+" | "-" | "/" | "*" | "%" }
+bitwise_operator = { ">>" | "<<" | "^" | "&" | "|" }
+comparison_operator = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
+print_operator = { "println" | "printu" | "print" }
+unary_operator = { "++" | "--" | "not" | "!" }
+binary_operator = @{ comparison_operator | arithmetic_operator | bitwise_operator }
 
-// ACCESSORS
-accessor = _{ array | variable } // globals.rs PAIRbk
-array = { variable ~ "[" ~ exp ~ "]"  } // globals.rs
+unary = { unary_operator ~ WSP+ ~ exp }
+print = { print_operator ~ WSP+ ~ exp }
+binary = { binary_operator ~ WSP+ ~ exp{2} }
+user = { function_name ~ WSP+ ~ exp+ }
+FUNCTION_CALL = _{ unary | binary | print | user }
 
-// FUNCTIONS
-function_call = _{ "(" ~ ( unary | binary | print | user ) ~ ")" } // functions.rs PAIR
-unary = { unary_operator ~ exp } // functions.rs
-binary = { binary_operator ~ exp{2} } // functions.rs
-print = { print_operator ~ exp } // functions.rs
-user = { function_name ~ exp+ } // functions.rs
+ifx = { "if" ~ WSP+ ~ exp{3} }
+whilex = { "while" ~ WSP+ ~ exp{2} }
+begin = { "begin" ~ WSP+ ~ exp+ }
+set = { "set" ~ WSP+ ~ ( array_value | variable ) ~ WSP* ~ exp }
+error = { "error" }
+CONTROL_FLOW = _{ ifx | whilex | begin | set | error }
 
-// FLOW
-control_flow = _{ "(" ~ ( ifx | whilex | begin | error | set ) ~ ")" } // flow.rs PAIR
-error = { "error" } // flow.rs
-set = { "set" ~ variable ~ exp } // globals.rs
-ifx = { "if" ~ exp{3} } // flow.rs
-whilex = { "while" ~ exp{2} } // flow.rs
-begin = { "begin" ~ exp* } // flow.rs
+exp = { ( ACCESSOR | LPAREN ~ ( CONTROL_FLOW | FUNCTION_CALL ) ~ RPAREN ) ~ WSP* }
 
-// GLOBAL DEFINITIONS
-def = { define | val | file_use | check_expect | check_error | check_assert } // ast.rs PAIR
+PARAMS = _{ LPAREN ~ parameter ~ ( WSP+ ~ parameter )* ~ RPAREN }
+define = { "define" ~ WSP+ ~ function_name ~ WSP* ~ PARAMS ~ WSP* ~ exp }
+val =  { "val" ~ WSP+ ~ variable ~ exp ~ ")" }
+alloc = { "alloc" ~ WSP+ ~ variable ~ LBRACK ~ exp ~ RBRACK }
+GLOBAL = _{ define | val | alloc }
 
-define = { "(" ~ "define" ~ function_name ~ "(" ~ parameter* ~ ")" ~ exp ~ ")" } // functions.rs
-val =  { "(" ~ "val" ~ variable ~ exp ~ ")" } // globals.rs
-alloc = { "(" ~ "alloc" ~ variable ~ "[" ~ exp ~ "]" ~ ")" } // globals.rs
-file_use =  { "(" ~ "use" ~ file_name ~ ")" } // io.rs
-check_expect = { "(" ~ "check-expect" ~ exp{2} ~ ")" } // tests.rs
-check_assert = { "(" ~ "check-assert" ~ exp ~ ")" } // tests.rs
-check_error = { "(" ~ "check-error" ~ exp ~ ")" } // tests.rs
+check_expect = { "check-expect" ~ WSP+ ~ exp{2} }
+check_assert = { "check-assert" ~ WSP+ ~ exp }
+check_error = { "check-error" ~ WSP+ ~ exp }
+TEST = _{ check_expect | check_assert | check_error }
+
+def = { LPAREN ~ ( GLOBAL | TEST ) ~ RPAREN }

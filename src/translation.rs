@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cranelift::prelude::{settings::Value, types, FunctionBuilder, Variable};
 use cranelift_jit::JITModule;
 
-use crate::ast::Expr;
+use crate::ast::AstNode;
 
 #[allow(unused)]
 pub struct FunctionTranslator<'a> {
@@ -15,7 +15,7 @@ pub struct FunctionTranslator<'a> {
 
 impl<'a> FunctionTranslator<'a> {
     #[allow(unused)]
-    fn translate_expr(&mut self, expr: Expr) -> Value {
+    fn translate_expr(&mut self, expr: AstNode) -> Value {
         todo!()
     }
 }

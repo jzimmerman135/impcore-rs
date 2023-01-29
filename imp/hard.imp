@@ -19,3 +19,4 @@ v[2] v[(++ 1)]
 (define myFunc( n y)(+ 10 n))
 ;; (define myFunc( n 20)(+ 10 n)) FAILS
 (+ (set x[5] 10)10)
+(prinln (if 5 10 (* 10 20)))
