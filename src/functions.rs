@@ -1,19 +1,19 @@
-use crate::ast::{self, parse_exp, Expr, Rule};
+use crate::ast::{self, Expr, Rule};
 use pest::iterators::Pair;
 
 pub fn parse_define(def: Pair<Rule>) -> Expr {
     let mut func_def = def.into_inner();
     let function_name = func_def.next().unwrap().as_str().to_string();
     let mut params = vec![];
-    let mut body = Expr::Error;
-    while let Some(expr) = func_def.next() {
-        match expr.as_rule() {
-            Rule::parameter => params.push(Expr::Identifier(expr.as_str().to_string())),
-            Rule::exp => body = parse_exp(expr),
-            _ => unreachable!(),
+    while let Some(def) = func_def.next() {
+        if def.as_rule() == Rule::parameter {
+            params.push(Expr::Identifier(def.as_str().to_string()))
+        } else {
+            let body = ast::parse_exp(def);
+            return Expr::Definition(function_name, params, Box::new(body));
         }
     }
-    Expr::Definition(function_name, params, Box::new(body))
+    unreachable!()
 }
 
 pub fn parse_binary(expr: Pair<Rule>) -> Expr {
@@ -51,9 +51,16 @@ pub fn parse_unary(expr: Pair<Rule>) -> Expr {
     let expr = unary_func.next().unwrap();
     let v = Box::new(ast::parse_exp(expr));
     match unary_operator.as_str() {
-        "++" => Expr::Inc(v),
-        "--" => Expr::Dec(v),
+        "++" => Expr::Incr(v),
+        "--" => Expr::Decr(v),
         "!" | "not" => Expr::Not(v),
         _ => unreachable!(),
     }
+}
+
+pub fn parse_user(expr: Pair<Rule>) -> Expr {
+    let mut func_call = expr.into_inner();
+    let func_name = func_call.next().unwrap().as_str().to_string();
+    let args = func_call.map(ast::parse_exp).collect();
+    Expr::Call(func_name, args)
 }

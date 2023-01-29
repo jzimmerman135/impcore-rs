@@ -1,23 +1,24 @@
-use crate::{flow, functions, globals};
+use crate::{flow, functions, globals, io, tests};
 use pest::iterators::Pair;
 
 #[derive(Parser)]
-#[grammar = "grammar/impcore.pest"]
+#[grammar = "grammar/new.pest"]
 pub struct ImpcoreParser;
 
-#[allow(unused)]
+#[derive(Debug)]
 pub enum Expr {
     Definition(String, Vec<Expr>, Box<Expr>),
     NewVar(String, Box<Expr>),
 
     Literal(String),
     Identifier(String),
-    GlobalDataAddr(String),
-    Call(String, Box<Expr>),
+    Indexer(String, Box<Expr>),
+    Alloc(String, Box<Expr>),
+    Call(String, Vec<Expr>),
     Assign(String, Box<Expr>),
 
-    Inc(Box<Expr>),
-    Dec(Box<Expr>),
+    Incr(Box<Expr>),
+    Decr(Box<Expr>),
     Not(Box<Expr>),
 
     Eq(Box<Expr>, Box<Expr>),
@@ -45,7 +46,8 @@ pub enum Expr {
     While(Box<Expr>, Box<Expr>),
     Begin(Vec<Expr>),
     Print(Box<Expr>),
-    Printu(Box<Expr>),
+
+    Test(Box<Expr>),
     Error,
 }
 
@@ -58,30 +60,42 @@ pub fn parse_top_level(top_level_expression: Pair<Rule>) -> Option<Expr> {
     }
 }
 
-fn parse_def(def: Pair<Rule>) -> Expr {
+fn parse_def(pair: Pair<Rule>) -> Expr {
+    let def = pair.into_inner().next().unwrap();
     match def.as_rule() {
         Rule::define => functions::parse_define(def),
         Rule::val => globals::parse_val(def),
-        // Rule::alloc => globals::eval_alloc(pair.into_inner(), env),
-        // Rule::check_assert => tests::eval_assert(pair.into_inner(), env),
-        // Rule::check_expect => tests::eval_assert(pair.into_inner(), env),
-        // Rule::check_error => tests::eval_assert(pair.into_inner(), env),
-        _ => unreachable!(),
+        Rule::alloc => globals::parse_alloc(def),
+        Rule::check_assert => tests::parse_assert(def),
+        Rule::check_expect => tests::parse_expect(def),
+        Rule::check_error => tests::parse_is_error(def),
+        _ => unreachable!(
+            "found def rule: {:?} with body {:?}",
+            def.as_rule(),
+            def.as_str()
+        ),
     }
 }
 
 pub fn parse_exp(pair: Pair<Rule>) -> Expr {
     let expr = pair.into_inner().next().unwrap();
     match expr.as_rule() {
-        Rule::integer_literal => globals::parse_literal(expr),
+        Rule::literal => globals::parse_literal(expr),
         Rule::variable => globals::parse_variable(expr),
+        Rule::array_value => globals::parse_array(expr),
         Rule::binary => functions::parse_binary(expr),
         Rule::unary => functions::parse_unary(expr),
+        Rule::user => functions::parse_user(expr),
         Rule::ifx => flow::parse_ifx(expr),
         Rule::set => globals::parse_set(expr),
         Rule::whilex => flow::parse_whilex(expr),
         Rule::begin => flow::parse_begin(expr),
+        Rule::print => io::parse_print(expr),
         Rule::error => Expr::Error,
-        _ => unreachable!(),
+        _ => unreachable!(
+            "found exp rule: {:?} with body {:?}",
+            expr.as_rule(),
+            expr.as_str()
+        ),
     }
 }

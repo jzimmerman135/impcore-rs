@@ -11,12 +11,12 @@ mod jit;
 mod tests;
 mod translation;
 
-use ast::{ImpcoreParser, Rule};
+use ast::{Expr, ImpcoreParser, Rule};
 use pest::Parser;
 use std::{fs, process};
 
 fn main() {
-    let filename = "./imp/ez.imp";
+    let filename = "./imp/hard.imp";
     let contents = fs::read_to_string(filename)
         .map_err(|_| {
             eprintln!("Failed to open file {}", filename);
@@ -24,7 +24,7 @@ fn main() {
         })
         .unwrap();
 
-    let top_level_expressions = ImpcoreParser::parse(Rule::impcore, &contents)
+    let top_level_expressions: Vec<Expr> = ImpcoreParser::parse(Rule::impcore, &contents)
         .map_err(|e| {
             eprintln!("Parsing Error: {}", e);
             process::exit(1);
@@ -36,13 +36,7 @@ fn main() {
         .filter_map(ast::parse_top_level)
         .collect();
 
-    let mut compiler = jit::JIT::default();
-
-    let _code = compiler
-        .compile(top_level_expressions)
-        .map_err(|e| {
-            eprintln!("Parsing Error: {}", e);
-            process::exit(1);
-        })
-        .unwrap();
+    for tle in top_level_expressions {
+        println!("{:?}", tle);
+    }
 }
