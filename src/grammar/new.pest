@@ -1,0 +1,55 @@
+impcore = { SOI ~ ( def | exp | WSP )* ~ EOI }
+
+WSP = _{ " " | NEWLINE }
+COMMENT = _{ ";;" ~ ( !NEWLINE ~ ANY )* }
+LPAREN = _{ "(" ~ WSP* }
+RPAREN = _{ WSP* ~ ")" }
+LBRACK = _{ "[" ~ WSP* }
+RBRACK = _{ WSP* ~ "]" }
+
+RESERVED = _{ "define" | "alloc" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
+
+NUMBER = _{ ( "-" | "+" )? ~ "0x"? ~ ASCII_DIGIT+ }
+NAMED = _{ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-" )* }
+
+function_name = @{ !RESERVED ~ NAMED ~ "?"? }
+literal = @{ NUMBER }
+parameter = @{ NAMED }
+variable = @{ NAMED }
+array_value = { variable ~ LBRACK ~ exp ~ RBRACK }
+ACCESSOR = _{ literal | array_value | variable }
+
+arithmetic_operator = { "+" | "-" | "/" | "*" | "%" }
+bitwise_operator = { ">>" | "<<" | "^" | "&" | "|" }
+comparison_operator = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
+print_operator = { "println" | "printu" | "print" }
+unary_operator = { "++" | "--" | "not" | "!" }
+binary_operator = @{ comparison_operator | arithmetic_operator | bitwise_operator }
+
+unary = { unary_operator ~ WSP+ ~ exp }
+print = { print_operator ~ WSP+ ~ exp }
+binary = { binary_operator ~ WSP+ ~ exp{2} }
+user = { function_name ~ WSP+ ~ exp+ }
+FUNCTION_CALL = _{ unary | binary | print | user }
+
+ifx = { "if" ~ WSP+ ~ exp{3} }
+whilex = { "while" ~ WSP+ ~ exp{2} }
+begin = { "begin" ~ WSP+ ~ exp+ }
+set = { "set" ~ WSP+ ~ ( array_value | variable ) ~ WSP* ~ exp }
+error = { "error" }
+CONTROL_FLOW = _{ ifx | whilex | begin | set | error }
+
+exp = { ( ACCESSOR | LPAREN ~ ( CONTROL_FLOW | FUNCTION_CALL ) ~ RPAREN ) ~ WSP* }
+
+PARAMS = _{ LPAREN ~ parameter ~ ( WSP+ ~ parameter )* ~ RPAREN }
+define = { "define" ~ WSP+ ~ function_name ~ WSP* ~ PARAMS ~ WSP* ~ exp }
+val =  { "val" ~ WSP+ ~ variable ~ exp ~ ")" }
+alloc = { "alloc" ~ WSP+ ~ variable ~ LBRACK ~ exp ~ RBRACK }
+GLOBAL = _{ define | val | alloc }
+
+check_expect = { "check-expect" ~ WSP+ ~ exp{2} }
+check_assert = { "check-assert" ~ WSP+ ~ exp }
+check_error = { "check-error" ~ WSP+ ~ exp }
+TEST = _{ check_expect | check_assert | check_error }
+
+def = { LPAREN ~ ( GLOBAL | TEST ) ~ RPAREN }

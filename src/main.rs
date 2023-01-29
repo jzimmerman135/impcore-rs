@@ -9,6 +9,7 @@ mod globals;
 mod io;
 mod jit;
 mod tests;
+mod translation;
 
 use ast::{ImpcoreParser, Rule};
 use pest::Parser;

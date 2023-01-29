@@ -7,6 +7,9 @@ pub struct ImpcoreParser;
 
 #[allow(unused)]
 pub enum Expr {
+    Definition(String, Vec<Expr>, Box<Expr>),
+    NewVar(String, Box<Expr>),
+
     Literal(String),
     Identifier(String),
     GlobalDataAddr(String),
@@ -23,17 +26,27 @@ pub enum Expr {
     Gt(Box<Expr>, Box<Expr>),
     Ge(Box<Expr>, Box<Expr>),
 
+    And(Box<Expr>, Box<Expr>),
+    Or(Box<Expr>, Box<Expr>),
+
     Add(Box<Expr>, Box<Expr>),
     Sub(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     Div(Box<Expr>, Box<Expr>),
     Mod(Box<Expr>, Box<Expr>),
 
+    BitAnd(Box<Expr>, Box<Expr>),
+    BitOr(Box<Expr>, Box<Expr>),
+    Xor(Box<Expr>, Box<Expr>),
+    ShiftLeft(Box<Expr>, Box<Expr>),
+    ShiftRight(Box<Expr>, Box<Expr>),
+
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     While(Box<Expr>, Box<Expr>),
-    Begin(Vec<Box<Expr>>),
+    Begin(Vec<Expr>),
     Print(Box<Expr>),
     Printu(Box<Expr>),
+    Error,
 }
 
 pub fn parse_top_level(top_level_expression: Pair<Rule>) -> Option<Expr> {
@@ -45,12 +58,11 @@ pub fn parse_top_level(top_level_expression: Pair<Rule>) -> Option<Expr> {
     }
 }
 
-fn parse_def(pair: Pair<Rule>) -> Expr {
-    match pair.as_rule() {
-        // Rule::define => functions::eval_define(pair.into_inner(), env),
-        // Rule::val => globals::eval_val(pair.into_inner(), env),
+fn parse_def(def: Pair<Rule>) -> Expr {
+    match def.as_rule() {
+        Rule::define => functions::parse_define(def),
+        Rule::val => globals::parse_val(def),
         // Rule::alloc => globals::eval_alloc(pair.into_inner(), env),
-        // Rule::file_use => io::eval_file_use(pair.into_inner(), env),
         // Rule::check_assert => tests::eval_assert(pair.into_inner(), env),
         // Rule::check_expect => tests::eval_assert(pair.into_inner(), env),
         // Rule::check_error => tests::eval_assert(pair.into_inner(), env),
@@ -61,11 +73,15 @@ fn parse_def(pair: Pair<Rule>) -> Expr {
 pub fn parse_exp(pair: Pair<Rule>) -> Expr {
     let expr = pair.into_inner().next().unwrap();
     match expr.as_rule() {
+        Rule::integer_literal => globals::parse_literal(expr),
+        Rule::variable => globals::parse_variable(expr),
         Rule::binary => functions::parse_binary(expr),
         Rule::unary => functions::parse_unary(expr),
-        Rule::integer_literal => globals::parse_literal(expr),
         Rule::ifx => flow::parse_ifx(expr),
-        // Rule::accessor => globals::eval_accessor(pair.into_inner(), env),
+        Rule::set => globals::parse_set(expr),
+        Rule::whilex => flow::parse_whilex(expr),
+        Rule::begin => flow::parse_begin(expr),
+        Rule::error => Expr::Error,
         _ => unreachable!(),
     }
 }

@@ -1,4 +1,7 @@
-use crate::ast::{Expr, Rule};
+use crate::{
+    ast::{Expr, Rule},
+    translation,
+};
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataContext, Linkage, Module};
@@ -43,7 +46,7 @@ impl JIT {
             .map_err(|e| e.to_string())?;
 
         self.data_ctx.clear();
-        self.module.finalize_definitions();
+        self.module.finalize_definitions().unwrap();
         let (data, len) = self.module.get_finalized_data(id);
         Ok(unsafe { slice::from_raw_parts(data, len) })
     }
@@ -81,14 +84,14 @@ impl JIT {
             entry_block,
         );
 
-        let mut trans = FunctionTranslator {
+        let mut trans = translation::FunctionTranslator {
             return_type: int_type,
             builder,
             variables,
             module: &mut self.module,
         };
 
-        Err("".to_string())
+        todo!()
     }
 }
 
@@ -101,17 +104,4 @@ fn declare_variables(
     entry_block: Block,
 ) -> HashMap<String, Variable> {
     todo!()
-}
-
-struct FunctionTranslator<'a> {
-    return_type: types::Type,
-    builder: FunctionBuilder<'a>,
-    variables: HashMap<String, Variable>,
-    module: &'a mut JITModule,
-}
-
-impl<'a> FunctionTranslator<'a> {
-    fn translate_expr(&mut self, expr: Expr) -> Value {
-        todo!()
-    }
 }
