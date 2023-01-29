@@ -16,7 +16,7 @@ use pest::Parser;
 use std::{fs, process};
 
 fn main() {
-    let filename = "./imp/hw1.imp";
+    let filename = "./imp/hard.imp";
     let contents = fs::read_to_string(filename)
         .map_err(|_| {
             eprintln!("Failed to open file {}", filename);
@@ -36,7 +36,19 @@ fn main() {
         .filter_map(ast::parse_top_level)
         .collect();
 
+    let mut tests = vec![];
+
     for tle in top_level_expressions {
-        println!("{:?}", tle);
+        match tle {
+            AstNode::Test(test_expression) => tests.push(test_expression),
+            AstNode::Definition(name, params, body) => {
+                println!("{:?}\n{}", AstNode::Definition(name, params, body), name)
+            }
+            expr @ _ => println!("{:?}", expr),
+        }
+    }
+
+    for test in tests {
+        println!("TEST 0 != {:?}", test);
     }
 }

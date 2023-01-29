@@ -1,12 +1,8 @@
-use std::ops::Deref;
-
 use inkwell::{
     builder::Builder,
     context::Context,
     execution_engine::{ExecutionEngine, JitFunction},
     module::Module,
-    types::VoidType,
-    values::BasicValue,
 };
 
 struct CodeGen<'ctx> {
@@ -16,7 +12,9 @@ struct CodeGen<'ctx> {
     execution_engine: ExecutionEngine<'ctx>,
 }
 
-type BinaryFunc = unsafe extern "C" fn(u32, u32, u32) -> u32;
+type IfFunc = unsafe extern "C" fn(u32, u32, u32) -> u32;
+type BinaryFunc = unsafe extern "C" fn(u32, u32) -> u32;
+type UnaryFunc = unsafe extern "C" fn(u32, u32) -> u32;
 
 impl<'ctx> CodeGen<'ctx> {
     fn jit_compile_binary(&self) -> Option<JitFunction<BinaryFunc>> {
