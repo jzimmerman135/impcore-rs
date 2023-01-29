@@ -12,9 +12,9 @@ struct CodeGen<'ctx> {
     execution_engine: ExecutionEngine<'ctx>,
 }
 
-type IfFunc = unsafe extern "C" fn(u32, u32, u32) -> u32;
-type BinaryFunc = unsafe extern "C" fn(u32, u32) -> u32;
-type UnaryFunc = unsafe extern "C" fn(u32, u32) -> u32;
+pub type IfFunc = unsafe extern "C" fn(u32, u32, u32) -> u32;
+pub type BinaryFunc = unsafe extern "C" fn(u32, u32) -> u32;
+pub type UnaryFunc = unsafe extern "C" fn(u32, u32) -> u32;
 
 impl<'ctx> CodeGen<'ctx> {
     fn jit_compile_binary(&self) -> Option<JitFunction<BinaryFunc>> {
