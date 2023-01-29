@@ -3,12 +3,7 @@ extern crate pest;
 extern crate pest_derive;
 
 mod ast;
-mod flow;
-mod functions;
-mod globals;
-mod io;
 mod jit;
-mod tests;
 mod translation;
 
 use ast::{AstNode, ImpcoreParser, Rule};
@@ -39,10 +34,12 @@ fn main() {
     let mut tests = vec![];
 
     for tle in top_level_expressions {
+        println!("{:?}", tle);
         match tle {
             AstNode::Test(test_expression) => tests.push(test_expression),
-            AstNode::Definition(name, params, body) => {
-                println!("{:?}\n{}", AstNode::Definition(name, params, body), name)
+            AstNode::Literal(value) => println!("{}", value.parse::<u32>().unwrap()),
+            AstNode::Definition(name, ..) => {
+                println!("{}", name);
             }
             expr @ _ => println!("{:?}", expr),
         }
