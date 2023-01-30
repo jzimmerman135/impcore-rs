@@ -38,12 +38,17 @@ fn main() {
         match tle {
             AstNode::Test(test_expression) => tests.push(test_expression),
             AstNode::Literal(value) => println!("{}", value.parse::<u32>().unwrap()),
-            AstNode::Definition(name, ..) => {
+            AstNode::Prototype(name, ..) => {
                 println!("{}", name);
             }
             expr @ _ => println!("{:?}", expr),
         }
     }
+
+    let context = inkwell::context::Context::create();
+    let compiler = jit::CodeGen::new(&context);
+
+    println!("{:?}", compiler);
 
     for test in tests {
         println!("TEST 0 != {:?}", test);

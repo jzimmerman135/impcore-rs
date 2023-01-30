@@ -52,7 +52,10 @@ pub struct LexError {
 impl LexError {
     #[allow(unused)]
     pub fn new(msg: &'static str) -> LexError {
-        LexError { error: msg, index: 0 }
+        LexError {
+            error: msg,
+            index: 0,
+        }
     }
 
     #[allow(unused)]
@@ -140,7 +143,7 @@ impl<'a> Lexer<'a> {
                 }
 
                 Ok(Token::Comment)
-            },
+            }
 
             '.' | '0'..='9' => {
                 // Parse number literal
@@ -160,7 +163,7 @@ impl<'a> Lexer<'a> {
                 }
 
                 Ok(Token::Number(src[start..pos].parse().unwrap()))
-            },
+            }
 
             'a'..='z' | 'A'..='Z' | '_' => {
                 // Parse identifier
@@ -193,12 +196,12 @@ impl<'a> Lexer<'a> {
 
                     ident => Ok(Token::Ident(ident.to_string())),
                 }
-            },
+            }
 
             op => {
                 // Parse operator
                 Ok(Token::Op(op))
-            },
+            }
         };
 
         // Update stored position, and return
@@ -319,7 +322,7 @@ impl<'a> Parser<'a> {
                 } else {
                     Ok(result)
                 }
-            },
+            }
 
             err => err,
         }
@@ -377,7 +380,7 @@ impl<'a> Parser<'a> {
                 self.advance()?;
 
                 (id, false, 0)
-            },
+            }
 
             Binary => {
                 self.advance()?;
@@ -404,7 +407,7 @@ impl<'a> Parser<'a> {
                 self.prec.insert(op, prec as i32);
 
                 (name, true, prec)
-            },
+            }
 
             Unary => {
                 self.advance()?;
@@ -421,7 +424,7 @@ impl<'a> Parser<'a> {
                 self.advance()?;
 
                 (name, true, 0)
-            },
+            }
 
             _ => return Err("Expected identifier in prototype declaration."),
         };
@@ -458,10 +461,10 @@ impl<'a> Parser<'a> {
                 RParen => {
                     self.advance();
                     break;
-                },
+                }
                 Comma => {
                     self.advance();
-                },
+                }
                 _ => return Err("Expected ',' or ')' character in prototype declaration."),
             }
         }
@@ -523,7 +526,7 @@ impl<'a> Parser<'a> {
             Number(nb) => {
                 self.advance();
                 Ok(Expr::Number(nb))
-            },
+            }
             _ => Err("Expected number literal."),
         }
     }
@@ -588,7 +591,7 @@ impl<'a> Parser<'a> {
                 self.advance();
 
                 Ok(Expr::Call { fn_name: id, args })
-            },
+            }
 
             _ => Ok(Expr::Variable(id)),
         }
@@ -600,7 +603,7 @@ impl<'a> Parser<'a> {
             Op(ch) => {
                 self.advance()?;
                 ch
-            },
+            }
             _ => return self.parse_primary(),
         };
 
@@ -711,7 +714,7 @@ impl<'a> Parser<'a> {
                 self.advance()?;
 
                 Some(self.parse_expr()?)
-            },
+            }
 
             _ => None,
         };
@@ -764,11 +767,11 @@ impl<'a> Parser<'a> {
             match self.curr() {
                 Comma => {
                     self.advance()?;
-                },
+                }
                 In => {
                     self.advance()?;
                     break;
-                },
+                }
                 _ => return Err("Expected comma or 'in' keyword in variable declaration."),
             }
         }
@@ -864,7 +867,10 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
             Expr::Number(nb) => Ok(self.context.f64_type().const_float(nb)),
 
             Expr::Variable(ref name) => match self.variables.get(name.as_str()) {
-                Some(var) => Ok(self.builder.build_load(*var, name.as_str()).into_float_value()),
+                Some(var) => Ok(self
+                    .builder
+                    .build_load(*var, name.as_str())
+                    .into_float_value()),
                 None => Err("Could not find a matching variable."),
             },
 
@@ -901,7 +907,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
 
                 Ok(body)
-            },
+            }
 
             Expr::Binary {
                 op,
@@ -914,11 +920,14 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         Expr::Variable(ref var_name) => var_name,
                         _ => {
                             return Err("Expected variable as left-hand operator of assignement.");
-                        },
+                        }
                     };
 
                     let var_val = self.compile_expr(right)?;
-                    let var = self.variables.get(var_name.as_str()).ok_or("Undefined variable.")?;
+                    let var = self
+                        .variables
+                        .get(var_name.as_str())
+                        .ok_or("Undefined variable.")?;
 
                     self.builder.build_store(*var, var_val);
 
@@ -933,20 +942,32 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         '*' => Ok(self.builder.build_float_mul(lhs, rhs, "tmpmul")),
                         '/' => Ok(self.builder.build_float_div(lhs, rhs, "tmpdiv")),
                         '<' => Ok({
-                            let cmp = self
-                                .builder
-                                .build_float_compare(FloatPredicate::ULT, lhs, rhs, "tmpcmp");
+                            let cmp = self.builder.build_float_compare(
+                                FloatPredicate::ULT,
+                                lhs,
+                                rhs,
+                                "tmpcmp",
+                            );
 
-                            self.builder
-                                .build_unsigned_int_to_float(cmp, self.context.f64_type(), "tmpbool")
+                            self.builder.build_unsigned_int_to_float(
+                                cmp,
+                                self.context.f64_type(),
+                                "tmpbool",
+                            )
                         }),
                         '>' => Ok({
-                            let cmp = self
-                                .builder
-                                .build_float_compare(FloatPredicate::ULT, rhs, lhs, "tmpcmp");
+                            let cmp = self.builder.build_float_compare(
+                                FloatPredicate::ULT,
+                                rhs,
+                                lhs,
+                                "tmpcmp",
+                            );
 
-                            self.builder
-                                .build_unsigned_int_to_float(cmp, self.context.f64_type(), "tmpbool")
+                            self.builder.build_unsigned_int_to_float(
+                                cmp,
+                                self.context.f64_type(),
+                                "tmpbool",
+                            )
                         }),
 
                         custom => {
@@ -965,16 +986,19 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                                         Some(value) => Ok(value.into_float_value()),
                                         None => Err("Invalid call produced."),
                                     }
-                                },
+                                }
 
                                 None => Err("Undefined binary operator."),
                             }
-                        },
+                        }
                     }
                 }
-            },
+            }
 
-            Expr::Call { ref fn_name, ref args } => match self.get_function(fn_name.as_str()) {
+            Expr::Call {
+                ref fn_name,
+                ref args,
+            } => match self.get_function(fn_name.as_str()) {
                 Some(fun) => {
                     let mut compiled_args = Vec::with_capacity(args.len());
 
@@ -982,8 +1006,11 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         compiled_args.push(self.compile_expr(arg)?);
                     }
 
-                    let argsv: Vec<BasicMetadataValueEnum> =
-                        compiled_args.iter().by_ref().map(|&val| val.into()).collect();
+                    let argsv: Vec<BasicMetadataValueEnum> = compiled_args
+                        .iter()
+                        .by_ref()
+                        .map(|&val| val.into())
+                        .collect();
 
                     match self
                         .builder
@@ -994,7 +1021,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                         Some(value) => Ok(value.into_float_value()),
                         None => Err("Invalid call produced."),
                     }
-                },
+                }
                 None => Err("Unknown function."),
             },
 
@@ -1008,16 +1035,20 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
 
                 // create condition by comparing without 0.0 and returning an int
                 let cond = self.compile_expr(cond)?;
-                let cond = self
-                    .builder
-                    .build_float_compare(FloatPredicate::ONE, cond, zero_const, "ifcond");
+                let cond = self.builder.build_float_compare(
+                    FloatPredicate::ONE,
+                    cond,
+                    zero_const,
+                    "ifcond",
+                );
 
                 // build branch
                 let then_bb = self.context.append_basic_block(parent, "then");
                 let else_bb = self.context.append_basic_block(parent, "else");
                 let cont_bb = self.context.append_basic_block(parent, "ifcont");
 
-                self.builder.build_conditional_branch(cond, then_bb, else_bb);
+                self.builder
+                    .build_conditional_branch(cond, then_bb, else_bb);
 
                 // build then block
                 self.builder.position_at_end(then_bb);
@@ -1041,7 +1072,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 phi.add_incoming(&[(&then_val, then_bb), (&else_val, else_bb)]);
 
                 Ok(phi.as_basic_value().into_float_value())
-            },
+            }
 
             Expr::For {
                 ref var_name,
@@ -1080,9 +1111,9 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 let end_cond = self.compile_expr(end)?;
 
                 let curr_var = self.builder.build_load(start_alloca, var_name);
-                let next_var = self
-                    .builder
-                    .build_float_add(curr_var.into_float_value(), step, "nextvar");
+                let next_var =
+                    self.builder
+                        .build_float_add(curr_var.into_float_value(), step, "nextvar");
 
                 self.builder.build_store(start_alloca, next_var);
 
@@ -1094,7 +1125,8 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 );
                 let after_bb = self.context.append_basic_block(parent, "afterloop");
 
-                self.builder.build_conditional_branch(end_cond, loop_bb, after_bb);
+                self.builder
+                    .build_conditional_branch(end_cond, loop_bb, after_bb);
                 self.builder.position_at_end(after_bb);
 
                 self.variables.remove(var_name);
@@ -1104,7 +1136,7 @@ impl<'a, 'ctx> Compiler<'a, 'ctx> {
                 }
 
                 Ok(self.context.f64_type().const_float(0.0))
-            },
+            }
         }
     }
 

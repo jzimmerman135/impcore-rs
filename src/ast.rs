@@ -9,7 +9,7 @@ pub enum AstNode<'a> {
     Literal(&'a str),   // leaf
     GlobalVar(&'a str), // leaf
 
-    Definition(&'a str, Vec<AstNode<'a>>, Box<AstNode<'a>>),
+    Prototype(&'a str, Vec<&'a str>, Box<AstNode<'a>>),
     NewVar(&'a str, Box<AstNode<'a>>),
 
     GlobalArray(&'a str, Box<AstNode<'a>>),
@@ -128,10 +128,10 @@ fn parse_define(def: Pair<Rule>) -> AstNode {
     let mut params = vec![];
     while let Some(def) = func_def.next() {
         if def.as_rule() == Rule::parameter {
-            params.push(AstNode::GlobalVar(def.as_str()))
+            params.push(def.as_str())
         } else {
             let body = parse_exp(def);
-            return AstNode::Definition(function_name, params, Box::new(body));
+            return AstNode::Prototype(function_name, params, Box::new(body));
         }
     }
     unreachable!()

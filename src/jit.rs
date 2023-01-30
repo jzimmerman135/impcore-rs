@@ -1,38 +1,90 @@
 use inkwell::{
     builder::Builder,
     context::Context,
-    execution_engine::{ExecutionEngine, JitFunction},
+    execution_engine::{self, ExecutionEngine, JitFunction},
     module::Module,
+    values::IntValue,
 };
 
-struct CodeGen<'ctx> {
+use crate::ast::AstNode;
+
+#[derive(Debug)]
+#[allow(unused)]
+pub struct CodeGen<'ctx> {
     context: &'ctx Context,
     module: Module<'ctx>,
     builder: Builder<'ctx>,
     execution_engine: ExecutionEngine<'ctx>,
 }
 
-pub type IfFunc = unsafe extern "C" fn(u32, u32, u32) -> u32;
-pub type BinaryFunc = unsafe extern "C" fn(u32, u32) -> u32;
-pub type UnaryFunc = unsafe extern "C" fn(u32, u32) -> u32;
-
 impl<'ctx> CodeGen<'ctx> {
-    fn jit_compile_binary(&self) -> Option<JitFunction<BinaryFunc>> {
-        let i64_type = self.context.i64_type();
-        let fn_type = i64_type.fn_type(&[i64_type.into(), i64_type.into(), i64_type.into()], false);
-        let function = self.module.add_function("add", fn_type, None);
+    pub fn new(context: &'ctx Context) -> Self {
+        let module = context.create_module("top level");
+        let execution_engine = module
+            .create_jit_execution_engine(inkwell::OptimizationLevel::None)
+            .expect("Failed to build LLVM JIT Engine");
+        let builder = context.create_builder();
+        Self {
+            context,
+            module,
+            builder,
+            execution_engine,
+        }
+    }
 
-        let basic_block = self.context.append_basic_block(function, "entry");
-
-        self.builder.position_at_end(basic_block);
-
-        let x = function.get_nth_param(0)?.into_int_value();
-        let y = function.get_nth_param(1)?.into_int_value();
-
-        let res = self.builder.build_int_add(x, y, "add");
-
-        self.builder.build_return(Some(&res));
-
-        unsafe { self.execution_engine.get_function("sum").ok() }
+    #[allow(unused)]
+    pub fn codegen(&mut self, expr: AstNode) -> IntValue<'ctx> {
+        match expr {
+            AstNode::Add(lhs, rhs) => {
+                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
+                self.builder.build_int_add(lhs, rhs, "add")
+            }
+            AstNode::Sub(lhs, rhs) => {
+                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
+                self.builder.build_int_sub(lhs, rhs, "sub")
+            }
+            AstNode::Mul(lhs, rhs) => {
+                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
+                self.builder.build_int_mul(lhs, rhs, "mul")
+            }
+            AstNode::Div(lhs, rhs) => {
+                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
+                self.builder.build_int_mul(lhs, rhs, "div")
+            }
+            AstNode::Mod(lhs, rhs) => {
+                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
+                self.builder.build_int_signed_rem(lhs, rhs, "mod")
+            }
+            AstNode::Eq(lhs, rhs) => {
+                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
+                self.builder
+                    .build_int_compare(inkwell::IntPredicate::EQ, lhs, rhs, "eq")
+            }
+            AstNode::Le(lhs, rhs) => {
+                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
+                self.builder
+                    .build_int_compare(inkwell::IntPredicate::SLE, lhs, rhs, "eq")
+            }
+            AstNode::Lt(lhs, rhs) => {
+                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
+                self.builder
+                    .build_int_compare(inkwell::IntPredicate::SLT, lhs, rhs, "eq")
+            }
+            AstNode::Ge(lhs, rhs) => {
+                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
+                self.builder
+                    .build_int_compare(inkwell::IntPredicate::SGE, lhs, rhs, "eq")
+            }
+            AstNode::Gt(lhs, rhs) => {
+                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
+                self.builder
+                    .build_int_compare(inkwell::IntPredicate::SGT, lhs, rhs, "eq")
+            }
+            AstNode::Not(expr) => {
+                let expr = self.codegen(*expr);
+                self.builder.build_not(expr, "not")
+            }
+            _ => unreachable!("reached unreachable {:?}", expr),
+        }
     }
 }

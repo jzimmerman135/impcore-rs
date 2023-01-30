@@ -19,12 +19,8 @@ use inkwell::context::Context;
 use inkwell::passes::PassManager;
 use inkwell::OptimizationLevel;
 
-use inkwell_internals::llvm_versions;
-
-#[cfg(not(any(feature = "llvm15-0")))]
 mod implementation_typed_pointers;
 
-#[llvm_versions(4.0..=14.0)]
 use crate::implementation_typed_pointers::*;
 
 // ======================================================================================
@@ -58,7 +54,6 @@ pub extern "C" fn printd(x: f64) -> f64 {
 static EXTERNAL_FNS: [extern "C" fn(f64) -> f64; 2] = [putchard, printd];
 
 /// Entry point of the program; acts as a REPL.
-#[llvm_versions(4.0..=14.0)]
 pub fn main() {
     // use self::inkwell::support::add_symbol;
     let mut display_lexer_output = false;
@@ -164,29 +159,32 @@ pub fn main() {
                         }
 
                         (function.get_name().to_str().unwrap().to_string(), is_anon)
-                    },
+                    }
                     Err(err) => {
                         println!("!> Error compiling function: {}", err);
                         continue;
-                    },
+                    }
                 }
-            },
+            }
             Err(err) => {
                 println!("!> Error parsing expression: {}", err);
                 continue;
-            },
+            }
         };
 
         if is_anonymous {
-            let ee = module.create_jit_execution_engine(OptimizationLevel::None).unwrap();
+            let ee = module
+                .create_jit_execution_engine(OptimizationLevel::None)
+                .unwrap();
 
-            let maybe_fn = unsafe { ee.get_function::<unsafe extern "C" fn() -> f64>(name.as_str()) };
+            let maybe_fn =
+                unsafe { ee.get_function::<unsafe extern "C" fn() -> f64>(name.as_str()) };
             let compiled_fn = match maybe_fn {
                 Ok(f) => f,
                 Err(err) => {
                     println!("!> Error during execution: {:?}", err);
                     continue;
-                },
+                }
             };
 
             unsafe {
@@ -194,9 +192,4 @@ pub fn main() {
             }
         }
     }
-}
-
-#[llvm_versions(15.0..=latest)]
-pub fn main() {
-    eprintln!("Kaleidoscope example does not work yet with this llvm version");
 }

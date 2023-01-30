@@ -107,6 +107,7 @@ version = "0.1.0"
 dependencies = [
  "enum_dispatch",
  "inkwell",
+ "llvm-sys",
  "pest",
  "pest_derive",
 ]
