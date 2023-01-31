@@ -4,9 +4,11 @@ extern crate pest_derive;
 
 mod ast;
 mod jit;
+mod parser;
 mod translation;
 
-use ast::{AstNode, ImpcoreParser, Rule};
+use ast::AstNode;
+use parser::{ImpcoreParser, Rule};
 use pest::Parser;
 use std::{fs, process};
 
@@ -28,7 +30,7 @@ fn main() {
         .next()
         .unwrap()
         .into_inner()
-        .filter_map(ast::parse_top_level)
+        .filter_map(parser::parse_top_level)
         .collect();
 
     let mut tests = vec![];

@@ -107,7 +107,6 @@ version = "0.1.0"
 dependencies = [
  "enum_dispatch",
  "inkwell",
- "inkwell_internals 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pest",
  "pest_derive",
 ]
