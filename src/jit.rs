@@ -1,90 +1,87 @@
+use std::collections::HashMap;
+
 use inkwell::{
-    builder::Builder,
-    context::Context,
-    execution_engine::{self, ExecutionEngine, JitFunction},
-    module::Module,
-    values::IntValue,
+    builder::Builder, context::Context, execution_engine::ExecutionEngine, module::Module,
+    support::LLVMString, values::IntValue, OptimizationLevel,
 };
 
-use crate::ast::AstNode;
+use crate::ast::{Binary, Literal, Unary, Variable};
+
+pub trait CodeGen {
+    fn codegen<'a, 'c>(&'a self, compiler: &'c Compiler) -> Result<IntValue<'c>, String>;
+}
 
 #[derive(Debug)]
 #[allow(unused)]
-pub struct CodeGen<'ctx> {
-    context: &'ctx Context,
-    module: Module<'ctx>,
-    builder: Builder<'ctx>,
-    execution_engine: ExecutionEngine<'ctx>,
+pub struct Compiler<'a> {
+    pub context: &'a Context,
+    pub module: Module<'a>,
+    pub builder: Builder<'a>,
+    pub formal_table: HashMap<&'a str, IntValue<'a>>,
+    pub execution_engine: ExecutionEngine<'a>,
 }
 
-impl<'ctx> CodeGen<'ctx> {
-    pub fn new(context: &'ctx Context) -> Self {
-        let module = context.create_module("top level");
-        let execution_engine = module
-            .create_jit_execution_engine(inkwell::OptimizationLevel::None)
-            .expect("Failed to build LLVM JIT Engine");
+impl<'a> Compiler<'a> {
+    pub fn new(context: &'a Context) -> Result<Self, LLVMString> {
+        let module = context.create_module("tmp");
         let builder = context.create_builder();
-        Self {
+        let execution_engine = module.create_jit_execution_engine(OptimizationLevel::None)?;
+        Ok(Self {
             context,
             module,
             builder,
             execution_engine,
+            formal_table: HashMap::new(),
+        })
+    }
+}
+
+impl<'a> CodeGen for Literal {
+    fn codegen<'c>(&self, compiler: &'c Compiler) -> Result<IntValue<'c>, String> {
+        Ok(compiler.context.i32_type().const_int(self.0 as u64, false))
+    }
+}
+
+impl<'a> CodeGen for Variable<'a> {
+    fn codegen<'c>(&self, compiler: &'c Compiler) -> Result<IntValue<'c>, String> {
+        match compiler.formal_table.get(self.0) {
+            Some(&val) => Ok(val),
+            None => Err(format!("variable {} not found", self.0)),
         }
     }
+}
 
-    #[allow(unused)]
-    pub fn codegen(&mut self, expr: AstNode) -> IntValue<'ctx> {
-        match expr {
-            AstNode::Add(lhs, rhs) => {
-                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
-                self.builder.build_int_add(lhs, rhs, "add")
-            }
-            AstNode::Sub(lhs, rhs) => {
-                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
-                self.builder.build_int_sub(lhs, rhs, "sub")
-            }
-            AstNode::Mul(lhs, rhs) => {
-                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
-                self.builder.build_int_mul(lhs, rhs, "mul")
-            }
-            AstNode::Div(lhs, rhs) => {
-                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
-                self.builder.build_int_mul(lhs, rhs, "div")
-            }
-            AstNode::Mod(lhs, rhs) => {
-                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
-                self.builder.build_int_signed_rem(lhs, rhs, "mod")
-            }
-            AstNode::Eq(lhs, rhs) => {
-                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
-                self.builder
-                    .build_int_compare(inkwell::IntPredicate::EQ, lhs, rhs, "eq")
-            }
-            AstNode::Le(lhs, rhs) => {
-                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
-                self.builder
-                    .build_int_compare(inkwell::IntPredicate::SLE, lhs, rhs, "eq")
-            }
-            AstNode::Lt(lhs, rhs) => {
-                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
-                self.builder
-                    .build_int_compare(inkwell::IntPredicate::SLT, lhs, rhs, "eq")
-            }
-            AstNode::Ge(lhs, rhs) => {
-                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
-                self.builder
-                    .build_int_compare(inkwell::IntPredicate::SGE, lhs, rhs, "eq")
-            }
-            AstNode::Gt(lhs, rhs) => {
-                let (lhs, rhs) = (self.codegen(*lhs), self.codegen(*rhs));
-                self.builder
-                    .build_int_compare(inkwell::IntPredicate::SGT, lhs, rhs, "eq")
-            }
-            AstNode::Not(expr) => {
-                let expr = self.codegen(*expr);
-                self.builder.build_not(expr, "not")
-            }
-            _ => unreachable!("reached unreachable {:?}", expr),
-        }
+impl<'a> CodeGen for Binary<'a> {
+    fn codegen<'c>(&self, compiler: &'c Compiler) -> Result<IntValue<'c>, String> {
+        let operator = self.0;
+        let lhs = self.1.codegen(compiler)?;
+        let rhs = self.2.codegen(compiler)?;
+        Ok(match operator {
+            "*" => compiler.builder.build_int_mul(lhs, rhs, "mul"),
+            "/" => compiler.builder.build_int_signed_div(lhs, rhs, "div"),
+            "+" => compiler.builder.build_int_add(lhs, rhs, "mul"),
+            "-" => compiler.builder.build_int_sub(lhs, rhs, "sub"),
+            _ => todo!(),
+        })
+    }
+}
+
+impl<'a> CodeGen for Unary<'a> {
+    fn codegen<'c>(&self, compiler: &'c Compiler) -> Result<IntValue<'c>, String> {
+        let operator = self.0;
+        let arg = self.1.codegen(compiler)?;
+        Ok(match operator {
+            "++" => compiler.builder.build_int_add(
+                arg,
+                compiler.context.i32_type().const_int(1, false),
+                "incr",
+            ),
+            "--" => compiler.builder.build_int_sub(
+                arg,
+                compiler.context.i32_type().const_int(1, false),
+                "incr",
+            ),
+            _ => todo!(),
+        })
     }
 }
