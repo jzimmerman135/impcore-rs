@@ -19,26 +19,6 @@ pub enum AstNode<'a> {
     Error(RuntimeError),
 }
 
-impl<'a> CodeGen for AstNode<'a> {
-    fn codegen<'c>(&self, compiler: &'c Compiler) -> Result<IntValue<'c>, String> {
-        match self {
-            AstNode::Literal(inner) => inner.codegen(compiler),
-            AstNode::Variable(inner) => inner.codegen(compiler),
-            AstNode::Binary(inner) => inner.codegen(compiler),
-            AstNode::Unary(inner) => inner.codegen(compiler),
-            _ => todo!(),
-            // AstNode::Call(inner) => inner.codegen(compiler),
-            // AstNode::Function(inner) => inner.codegen(compiler),
-            // AstNode::If(inner) => inner.codegen(compiler),
-            // AstNode::While(inner) => inner.codegen(compiler),
-            // AstNode::Begin(inner) => inner.codegen(compiler),
-            // AstNode::Assign(inner) => inner.codegen(compiler),
-            // AstNode::NewGlobal(inner) => inner.codegen(compiler),
-            // AstNode::Error(inner) => inner.codegen(compiler),
-        }
-    }
-}
-
 impl<'a> Debug for AstNode<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

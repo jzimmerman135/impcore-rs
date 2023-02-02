@@ -1,14 +1,20 @@
 use std::collections::HashMap;
 
 use inkwell::{
-    builder::Builder, context::Context, execution_engine::ExecutionEngine, module::Module,
-    support::LLVMString, values::IntValue, OptimizationLevel,
+    builder::Builder,
+    context::Context,
+    execution_engine::ExecutionEngine,
+    module::Module,
+    support::LLVMString,
+    types::BasicMetadataTypeEnum,
+    values::{BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue},
+    OptimizationLevel,
 };
 
-use crate::ast::{Binary, Literal, Unary, Variable};
+use crate::ast::{self, AstNode, Binary, Call, Function, Literal, Unary, Variable};
 
 pub trait CodeGen {
-    fn codegen<'a, 'c>(&'a self, compiler: &'c Compiler) -> Result<IntValue<'c>, String>;
+    fn codegen<'a, 'c>(&self, compiler: &'c mut Compiler) -> Result<IntValue<'c>, String>;
 }
 
 #[derive(Debug)]
@@ -36,52 +42,118 @@ impl<'a> Compiler<'a> {
     }
 }
 
-impl<'a> CodeGen for Literal {
-    fn codegen<'c>(&self, compiler: &'c Compiler) -> Result<IntValue<'c>, String> {
-        Ok(compiler.context.i32_type().const_int(self.0 as u64, false))
-    }
-}
-
-impl<'a> CodeGen for Variable<'a> {
-    fn codegen<'c>(&self, compiler: &'c Compiler) -> Result<IntValue<'c>, String> {
-        match compiler.formal_table.get(self.0) {
-            Some(&val) => Ok(val),
-            None => Err(format!("variable {} not found", self.0)),
+impl<'ctx> Compiler<'ctx> {
+    pub fn codegen(&mut self, node: &AstNode) -> Result<IntValue<'ctx>, String> {
+        match node {
+            AstNode::Literal(inner) => self.codegen_literal(inner),
+            AstNode::Variable(inner) => self.codegen_variable(inner),
+            AstNode::Binary(inner) => self.codegen_binary(inner),
+            AstNode::Unary(inner) => self.codegen_unary(inner),
+            // AstNode::Call(inner) => inner.codegen(compiler),
+            _ => todo!(),
+            // AstNode::Function(inner) => inner.codegen(compiler),
+            // AstNode::If(inner) => inner.codegen(compiler),
+            // AstNode::While(inner) => inner.codegen(compiler),
+            // AstNode::Begin(inner) => inner.codegen(compiler),
+            // AstNode::Assign(inner) => inner.codegen(compiler),
+            // AstNode::NewGlobal(inner) => inner.codegen(compiler),
+            // AstNode::Error(inner) => inner.codegen(compiler),
         }
     }
 }
 
-impl<'a> CodeGen for Binary<'a> {
-    fn codegen<'c>(&self, compiler: &'c Compiler) -> Result<IntValue<'c>, String> {
-        let operator = self.0;
-        let lhs = self.1.codegen(compiler)?;
-        let rhs = self.2.codegen(compiler)?;
+impl<'ctx> Compiler<'ctx> {
+    fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<IntValue<'ctx>, String> {
+        Ok(self.context.i32_type().const_int(literal.0 as u64, false))
+    }
+
+    fn codegen_variable<'c>(&mut self, variable: &ast::Variable) -> Result<IntValue<'ctx>, String> {
+        match self.formal_table.get(variable.0) {
+            Some(&val) => Ok(val),
+            None => Err(format!("variable {} not found", variable.0)),
+        }
+    }
+    fn codegen_binary(&mut self, binary: &ast::Binary) -> Result<IntValue<'ctx>, String> {
+        let operator = binary.0;
+        let lhs = self.codegen(&*binary.1)?;
+        let rhs = self.codegen(&*binary.2)?;
         Ok(match operator {
-            "*" => compiler.builder.build_int_mul(lhs, rhs, "mul"),
-            "/" => compiler.builder.build_int_signed_div(lhs, rhs, "div"),
-            "+" => compiler.builder.build_int_add(lhs, rhs, "mul"),
-            "-" => compiler.builder.build_int_sub(lhs, rhs, "sub"),
+            "*" => self.builder.build_int_mul(lhs, rhs, "mul"),
+            "/" => self.builder.build_int_signed_div(lhs, rhs, "div"),
+            "+" => self.builder.build_int_add(lhs, rhs, "mul"),
+            "-" => self.builder.build_int_sub(lhs, rhs, "sub"),
             _ => todo!(),
         })
+    }
+
+    fn codegen_unary(&mut self, unary: &ast::Unary) -> Result<IntValue<'ctx>, String> {
+        let operator = unary.0;
+        let arg = self.codegen(&*unary.1)?;
+        let one = self.context.i32_type().const_int(1, false);
+        Ok(match operator {
+            "++" => self.builder.build_int_add(arg, one, "incr"),
+            "--" => self.builder.build_int_sub(arg, one, "decr"),
+            _ => todo!(),
+        })
+    }
+    fn codegen_call(&mut self, call: &ast::Call) -> Result<IntValue<'ctx>, String> {
+        let function_name = call.0;
+        let arg_nodes = call.1.iter();
+        let function = match self.module.get_function(function_name) {
+            Some(f) => f,
+            None => return Err(format!("Could not find function {}", function_name)),
+        };
+        let args = arg_nodes
+            .map(|e| match self.codegen(e) {
+                Ok(val) => Ok(BasicMetadataValueEnum::IntValue(val)),
+                Err(str) => Err(str),
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        match self
+            .builder
+            .build_call(function, &args, "user_func_call")
+            .try_as_basic_value()
+            .left()
+        {
+            Some(BasicValueEnum::IntValue(inner)) => Ok(inner),
+            _ => unreachable!(),
+        }
+    }
+
+    fn funcgen_prototype<'a>(
+        &self,
+        function: &'a ast::Function,
+    ) -> (FunctionValue<'ctx>, &'a str, Vec<&&'a str>) {
+        let function_name = function.0;
+        let params = function.1.iter().collect::<Vec<_>>();
+        let ret_type = self.context.i32_type();
+        let args_types = std::iter::repeat(ret_type)
+            .take(params.len())
+            .map(|f| f.into())
+            .collect::<Vec<BasicMetadataTypeEnum>>();
+        let fn_type = self.context.i32_type().fn_type(&args_types, false);
+        let fn_val = self.module.add_function(function_name, fn_type, None);
+        // set arguments names
+        for (i, arg) in fn_val.get_param_iter().enumerate() {
+            arg.into_float_value().set_name(params[i]);
+        }
+        (fn_val, function_name, params)
     }
 }
 
-impl<'a> CodeGen for Unary<'a> {
-    fn codegen<'c>(&self, compiler: &'c Compiler) -> Result<IntValue<'c>, String> {
-        let operator = self.0;
-        let arg = self.1.codegen(compiler)?;
-        Ok(match operator {
-            "++" => compiler.builder.build_int_add(
-                arg,
-                compiler.context.i32_type().const_int(1, false),
-                "incr",
-            ),
-            "--" => compiler.builder.build_int_sub(
-                arg,
-                compiler.context.i32_type().const_int(1, false),
-                "incr",
-            ),
-            _ => todo!(),
-        })
-    }
-}
+// impl<'a> CodeGen for Function<'a> {
+//     fn codegen<'c>(&self, compiler: &'c mut Compiler) -> Result<IntValue<'c>, String> {
+//         let (function, name, params) = self.protogen(compiler);
+
+//         let body = self.2.codegen(compiler)?;
+
+//         compiler.formal_table.reserve(params.len());
+
+//         for param in params {}
+
+//         let entry = compiler.context.append_basic_block(function, name);
+//         compiler.builder.position_at_end(entry);
+
+//         todo!()
+//     }
+// }

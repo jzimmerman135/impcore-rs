@@ -48,6 +48,6 @@ fn main() {
         // }
     }
 
-    let context = inkwell::context::Context::create();
-    let _compiler = jit::Compiler::new(&context).expect("Failed to build compiler");
+    let mut context = inkwell::context::Context::create();
+    let _compiler = jit::Compiler::new(&mut context).expect("Failed to build compiler");
 }
