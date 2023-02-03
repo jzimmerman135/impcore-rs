@@ -30,7 +30,6 @@ pub struct Compiler<'ctx> {
     pub formal_table: HashMap<&'ctx str, IntValue<'ctx>>,
     pub fpm: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
-    top_level_count: u32,
 }
 
 impl<'ctx> Compiler<'ctx> {
@@ -57,12 +56,29 @@ impl<'ctx> Compiler<'ctx> {
             execution_engine,
             global_table: HashMap::new(),
             formal_table: HashMap::new(),
-            top_level_count: 0,
         })
     }
 }
 
 impl<'ctx> Compiler<'ctx> {
+    pub fn codegen_anonymous(
+        &mut self,
+        node: &'ctx AstNode,
+    ) -> Result<FunctionValue<'ctx>, String> {
+        let fn_type = self.context.i32_type().fn_type(&[], false);
+        let function = self.module.add_function("", fn_type, None);
+        let basic_block = self.context.append_basic_block(function, "top_level_entry");
+        self.builder.position_at_end(basic_block);
+        let v = self.codegen(node)?;
+        self.builder.build_return(Some(&v));
+
+        if !function.verify(false) {
+            return Err(format!("Could not verify top level function"));
+        }
+
+        Ok(function)
+    }
+
     #[allow(unused)]
     pub fn top_level_run(&mut self, node: &'ctx AstNode) -> Result<(), String> {
         if let AstNode::Function(inner) = &node {
@@ -70,19 +86,17 @@ impl<'ctx> Compiler<'ctx> {
             todo!();
         }
 
-        let fn_type = self.context.i32_type().fn_type(&[], false);
-        let function = self.module.add_function(ANON, fn_type, None);
-        let basic_block = self.context.append_basic_block(function, "entry");
-        self.builder.position_at_end(basic_block);
-        let v = self.codegen(node)?;
-        self.builder.build_return(Some(&v));
+        let anon = self.codegen_anonymous(node)?;
         let res = unsafe {
-            self.execution_engine
-                .get_function::<unsafe extern "C" fn() -> i32>(ANON)
-                .unwrap()
-                .call()
+            {
+                // self.module.print_to_stderr();
+                // self.module.get_functions().for_each(|e| println!("{e:?}"));
+            }
+            self.execution_engine.run_function(anon, &[]).as_int(true)
         };
-        println!("{}", res);
+
+        println!("{}", res as i32);
+
         Ok(())
     }
 
