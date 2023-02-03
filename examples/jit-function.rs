@@ -78,5 +78,5 @@
 // }
 
 fn main() {
-    unreachable!("NEEDS CRATE: llvm-sys")
+    unreachable!("NEEDS CRATE: llvm-sys");
 }
