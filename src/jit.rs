@@ -7,7 +7,7 @@ use inkwell::{
     module::Module,
     support::LLVMString,
     types::BasicMetadataTypeEnum,
-    values::{BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue},
+    values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, IntValue},
     OptimizationLevel,
 };
 
@@ -23,6 +23,7 @@ pub struct Compiler<'a> {
     pub context: &'a Context,
     pub module: Module<'a>,
     pub builder: Builder<'a>,
+    pub global_table: HashMap<&'a str, IntValue<'a>>,
     pub formal_table: HashMap<&'a str, IntValue<'a>>,
     pub execution_engine: ExecutionEngine<'a>,
 }
@@ -37,13 +38,21 @@ impl<'a> Compiler<'a> {
             module,
             builder,
             execution_engine,
+            global_table: HashMap::new(),
             formal_table: HashMap::new(),
         })
     }
 }
 
 impl<'ctx> Compiler<'ctx> {
-    pub fn codegen(&mut self, node: &AstNode) -> Result<IntValue<'ctx>, String> {
+    pub fn defgen(&mut self, node: &'ctx AstNode) -> Result<FunctionValue<'ctx>, String> {
+        match node {
+            AstNode::Function(inner) => self.codegen_function(inner),
+            _ => todo!(),
+        }
+    }
+
+    pub fn codegen(&mut self, node: &'ctx AstNode) -> Result<IntValue<'ctx>, String> {
         match node {
             AstNode::Literal(inner) => self.codegen_literal(inner),
             AstNode::Variable(inner) => self.codegen_variable(inner),
@@ -51,7 +60,6 @@ impl<'ctx> Compiler<'ctx> {
             AstNode::Unary(inner) => self.codegen_unary(inner),
             AstNode::Call(inner) => self.codegen_call(inner),
             _ => todo!(),
-            // AstNode::Function(inner) => inner.codegen(compiler),
             // AstNode::If(inner) => inner.codegen(compiler),
             // AstNode::While(inner) => inner.codegen(compiler),
             // AstNode::Begin(inner) => inner.codegen(compiler),
@@ -61,17 +69,23 @@ impl<'ctx> Compiler<'ctx> {
         }
     }
 
-    fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<IntValue<'ctx>, String> {
+    fn codegen_literal(&mut self, literal: &'ctx ast::Literal) -> Result<IntValue<'ctx>, String> {
         Ok(self.context.i32_type().const_int(literal.0 as u64, false))
     }
 
-    fn codegen_variable<'c>(&mut self, variable: &ast::Variable) -> Result<IntValue<'ctx>, String> {
+    fn codegen_variable(
+        &mut self,
+        variable: &'ctx ast::Variable,
+    ) -> Result<IntValue<'ctx>, String> {
         match self.formal_table.get(variable.0) {
             Some(&val) => Ok(val),
-            None => Err(format!("variable {} not found", variable.0)),
+            None => match self.global_table.get(variable.0) {
+                Some(&val) => Ok(val),
+                None => Err(format!("variable {} not found", variable.0)),
+            },
         }
     }
-    fn codegen_binary(&mut self, binary: &ast::Binary) -> Result<IntValue<'ctx>, String> {
+    fn codegen_binary(&mut self, binary: &'ctx ast::Binary) -> Result<IntValue<'ctx>, String> {
         let operator = binary.0;
         let lhs = self.codegen(&*binary.1)?;
         let rhs = self.codegen(&*binary.2)?;
@@ -84,7 +98,7 @@ impl<'ctx> Compiler<'ctx> {
         })
     }
 
-    fn codegen_unary(&mut self, unary: &ast::Unary) -> Result<IntValue<'ctx>, String> {
+    fn codegen_unary(&mut self, unary: &'ctx ast::Unary) -> Result<IntValue<'ctx>, String> {
         let operator = unary.0;
         let arg = self.codegen(&*unary.1)?;
         let one = self.context.i32_type().const_int(1, false);
@@ -95,7 +109,7 @@ impl<'ctx> Compiler<'ctx> {
         })
     }
 
-    fn codegen_call(&mut self, call: &ast::Call) -> Result<IntValue<'ctx>, String> {
+    fn codegen_call(&mut self, call: &'ctx ast::Call) -> Result<IntValue<'ctx>, String> {
         let function_name = call.0;
         let arg_nodes = call.1.iter();
         let function = match self.module.get_function(function_name) {
@@ -134,25 +148,38 @@ impl<'ctx> Compiler<'ctx> {
         fn_val
     }
 
-    fn codegen_function<'a>(
+    fn codegen_function(
         &mut self,
-        function: &'a ast::Function,
-    ) -> Result<IntValue<'ctx>, String> {
+        function: &'ctx ast::Function<'ctx>,
+    ) -> Result<FunctionValue<'ctx>, String> {
         let function_name = function.0;
         let params = function.1.iter().collect::<Vec<_>>();
         let function_value = self.protogen(function_name, &params);
 
-        self.formal_table.reserve(params.len());
-
-        let _body = self.codegen(&*function.2)?;
-
-        for _param in params {}
+        self.formal_table.clear();
+        for (param, param_value) in params.into_iter().zip(function_value.get_param_iter()) {
+            self.formal_table
+                .insert(*param, param_value.into_int_value());
+        }
 
         let entry = self
             .context
             .append_basic_block(function_value, function_name);
+
         self.builder.position_at_end(entry);
 
-        todo!()
+        let body = self.codegen(&*function.2)?;
+        self.builder.build_return(Some(&body));
+
+        if !function_value.verify(true) {
+            unsafe {
+                function_value.delete();
+            }
+            return Err(format!("Could not verify function {}", function_name));
+        }
+
+        // TODO: add function pass manager
+        // self.fpm.run_on(&function_value);
+        Ok(function_value)
     }
 }
