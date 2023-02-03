@@ -5,16 +5,17 @@ use inkwell::{
     context::Context,
     execution_engine::ExecutionEngine,
     module::Module,
+    passes::PassManager,
     support::LLVMString,
     types::BasicMetadataTypeEnum,
-    values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, IntValue},
+    values::{BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue},
     OptimizationLevel,
 };
 
 use crate::ast::{self, AstNode};
 
 pub trait CodeGen {
-    fn codegen<'a, 'c>(&self, compiler: &'c mut Compiler) -> Result<IntValue<'c>, String>;
+    fn codegen<'ctx>(&self, compiler: &'ctx mut Compiler) -> Result<IntValue<'ctx>, String>;
 }
 
 #[derive(Debug)]
@@ -25,6 +26,7 @@ pub struct Compiler<'a> {
     pub builder: Builder<'a>,
     pub global_table: HashMap<&'a str, IntValue<'a>>,
     pub formal_table: HashMap<&'a str, IntValue<'a>>,
+    pub fpm: PassManager<FunctionValue<'a>>,
     pub execution_engine: ExecutionEngine<'a>,
 }
 
@@ -33,9 +35,21 @@ impl<'a> Compiler<'a> {
         let module = context.create_module("tmp");
         let builder = context.create_builder();
         let execution_engine = module.create_jit_execution_engine(OptimizationLevel::None)?;
+        let fpm = PassManager::create(&module);
+        fpm.add_instruction_combining_pass();
+        fpm.add_reassociate_pass();
+        fpm.add_gvn_pass();
+        fpm.add_cfg_simplification_pass();
+        fpm.add_basic_alias_analysis_pass();
+        fpm.add_promote_memory_to_register_pass();
+        fpm.add_instruction_combining_pass();
+        fpm.add_reassociate_pass();
+        fpm.initialize();
+
         Ok(Self {
             context,
             module,
+            fpm,
             builder,
             execution_engine,
             global_table: HashMap::new(),
@@ -45,6 +59,7 @@ impl<'a> Compiler<'a> {
 }
 
 impl<'ctx> Compiler<'ctx> {
+    #[allow(unused)]
     pub fn defgen(&mut self, node: &'ctx AstNode) -> Result<FunctionValue<'ctx>, String> {
         match node {
             AstNode::Function(inner) => self.codegen_function(inner),
@@ -87,8 +102,8 @@ impl<'ctx> Compiler<'ctx> {
     }
     fn codegen_binary(&mut self, binary: &'ctx ast::Binary) -> Result<IntValue<'ctx>, String> {
         let operator = binary.0;
-        let lhs = self.codegen(&*binary.1)?;
-        let rhs = self.codegen(&*binary.2)?;
+        let lhs = self.codegen(&binary.1)?;
+        let rhs = self.codegen(&binary.2)?;
         Ok(match operator {
             "*" => self.builder.build_int_mul(lhs, rhs, "mul"),
             "/" => self.builder.build_int_signed_div(lhs, rhs, "div"),
@@ -100,7 +115,7 @@ impl<'ctx> Compiler<'ctx> {
 
     fn codegen_unary(&mut self, unary: &'ctx ast::Unary) -> Result<IntValue<'ctx>, String> {
         let operator = unary.0;
-        let arg = self.codegen(&*unary.1)?;
+        let arg = self.codegen(&unary.1)?;
         let one = self.context.i32_type().const_int(1, false);
         Ok(match operator {
             "++" => self.builder.build_int_add(arg, one, "incr"),
@@ -167,8 +182,7 @@ impl<'ctx> Compiler<'ctx> {
             .append_basic_block(function_value, function_name);
 
         self.builder.position_at_end(entry);
-
-        let body = self.codegen(&*function.2)?;
+        let body = self.codegen(&function.2)?;
         self.builder.build_return(Some(&body));
 
         if !function_value.verify(true) {

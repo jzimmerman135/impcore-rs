@@ -48,8 +48,8 @@ fn main() {
         // }
     }
 
-    let mut context = inkwell::context::Context::create();
-    let mut compiler = jit::Compiler::new(&mut context).expect("Failed to build compiler");
+    let context = inkwell::context::Context::create();
+    let mut compiler = jit::Compiler::new(&context).expect("Failed to build compiler");
     let res = compiler.codegen(&top_level_expressions[0]);
     println!("{:?}", res.unwrap());
 }
