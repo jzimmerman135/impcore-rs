@@ -1,4 +1,4 @@
-use pest::iterators::Pair;
+use pest::{iterators::Pair, Parser};
 
 use crate::ast::{
     Assign, AstNode, Begin, Binary, Call, Function, If, Literal, NewGlobal, RuntimeError, Unary,
@@ -9,6 +9,21 @@ use crate::ast::{
 #[derive(Parser)]
 #[grammar = "grammar/llvm-style.pest"]
 pub struct ImpcoreParser;
+
+impl ImpcoreParser {
+    pub fn generate_ast(contents: &str) -> Result<Vec<AstNode>, String> {
+        Ok(ImpcoreParser::parse(Rule::impcore, &contents)
+            .map_err(|e| format!("Parsing Failed: {}", e))?
+            .next()
+            .unwrap()
+            .into_inner()
+            .filter_map(|e| match e.as_rule() {
+                Rule::EOI => None,
+                _ => Some(AstNode::parse(e)),
+            })
+            .collect::<Vec<_>>())
+    }
+}
 
 pub trait InnerParse {
     fn parse(expr: Pair<Rule>) -> AstNode;

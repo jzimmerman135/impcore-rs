@@ -12,6 +12,8 @@ use inkwell::{
     OptimizationLevel,
 };
 
+const ANON: &str = "#anon";
+
 use crate::ast::{self, AstNode};
 
 pub trait CodeGen {
@@ -20,18 +22,19 @@ pub trait CodeGen {
 
 #[derive(Debug)]
 #[allow(unused)]
-pub struct Compiler<'a> {
-    pub context: &'a Context,
-    pub module: Module<'a>,
-    pub builder: Builder<'a>,
-    pub global_table: HashMap<&'a str, IntValue<'a>>,
-    pub formal_table: HashMap<&'a str, IntValue<'a>>,
-    pub fpm: PassManager<FunctionValue<'a>>,
-    pub execution_engine: ExecutionEngine<'a>,
+pub struct Compiler<'ctx> {
+    pub context: &'ctx Context,
+    pub module: Module<'ctx>,
+    pub builder: Builder<'ctx>,
+    pub global_table: HashMap<&'ctx str, IntValue<'ctx>>,
+    pub formal_table: HashMap<&'ctx str, IntValue<'ctx>>,
+    pub fpm: PassManager<FunctionValue<'ctx>>,
+    pub execution_engine: ExecutionEngine<'ctx>,
+    top_level_count: u32,
 }
 
-impl<'a> Compiler<'a> {
-    pub fn new(context: &'a Context) -> Result<Self, LLVMString> {
+impl<'ctx> Compiler<'ctx> {
+    pub fn new(context: &'ctx Context) -> Result<Self, LLVMString> {
         let module = context.create_module("tmp");
         let builder = context.create_builder();
         let execution_engine = module.create_jit_execution_engine(OptimizationLevel::None)?;
@@ -54,20 +57,36 @@ impl<'a> Compiler<'a> {
             execution_engine,
             global_table: HashMap::new(),
             formal_table: HashMap::new(),
+            top_level_count: 0,
         })
     }
 }
 
 impl<'ctx> Compiler<'ctx> {
     #[allow(unused)]
-    pub fn top_level_gen(&mut self, node: &'ctx AstNode) -> Result<FunctionValue<'ctx>, String> {
-        match node {
-            AstNode::Function(inner) => self.codegen_function(inner),
-            _ => todo!(),
+    pub fn top_level_run(&mut self, node: &'ctx AstNode) -> Result<(), String> {
+        if let AstNode::Function(inner) = &node {
+            let function = self.codegen_function(inner);
+            todo!();
         }
+
+        let fn_type = self.context.i32_type().fn_type(&[], false);
+        let function = self.module.add_function(ANON, fn_type, None);
+        let basic_block = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(basic_block);
+        let v = self.codegen(node)?;
+        self.builder.build_return(Some(&v));
+        let res = unsafe {
+            self.execution_engine
+                .get_function::<unsafe extern "C" fn() -> i32>(ANON)
+                .unwrap()
+                .call()
+        };
+        println!("{}", res);
+        Ok(())
     }
 
-    pub fn codegen(&mut self, node: &'ctx AstNode) -> Result<IntValue<'ctx>, String> {
+    fn codegen(&mut self, node: &'ctx AstNode) -> Result<IntValue<'ctx>, String> {
         match node {
             AstNode::Literal(inner) => self.codegen_literal(inner),
             AstNode::Variable(inner) => self.codegen_variable(inner),
@@ -148,7 +167,7 @@ impl<'ctx> Compiler<'ctx> {
         }
     }
 
-    fn protogen<'a>(&self, name: &'a str, params: &[&&'a str]) -> FunctionValue<'ctx> {
+    fn make_function_value<'a>(&self, name: &'a str, params: &[&&'a str]) -> FunctionValue<'ctx> {
         let ret_type = self.context.i32_type();
         let args_types = std::iter::repeat(ret_type)
             .take(params.len())
@@ -169,7 +188,7 @@ impl<'ctx> Compiler<'ctx> {
     ) -> Result<FunctionValue<'ctx>, String> {
         let function_name = function.0;
         let params = function.1.iter().collect::<Vec<_>>();
-        let function_value = self.protogen(function_name, &params);
+        let function_value = self.make_function_value(function_name, &params);
 
         self.formal_table.clear();
         for (param, param_value) in params.into_iter().zip(function_value.get_param_iter()) {

@@ -176,6 +176,7 @@ pub fn main() {
                 .create_jit_execution_engine(OptimizationLevel::None)
                 .unwrap();
 
+            println!("{}", name.as_str());
             let maybe_fn =
                 unsafe { ee.get_function::<unsafe extern "C" fn() -> f64>(name.as_str()) };
             let compiled_fn = match maybe_fn {
