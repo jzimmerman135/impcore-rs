@@ -1,8 +1,5 @@
 use std::fmt::Debug;
 
-use crate::jit::{CodeGen, Compiler};
-use inkwell::values::IntValue;
-
 // premature optimization on box dyn trait
 pub enum AstNode<'a> {
     Literal(Literal),

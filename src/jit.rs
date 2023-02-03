@@ -11,7 +11,7 @@ use inkwell::{
     OptimizationLevel,
 };
 
-use crate::ast::{self, AstNode, Binary, Call, Function, Literal, Unary, Variable};
+use crate::ast::{self, AstNode};
 
 pub trait CodeGen {
     fn codegen<'a, 'c>(&self, compiler: &'c mut Compiler) -> Result<IntValue<'c>, String>;
@@ -49,7 +49,7 @@ impl<'ctx> Compiler<'ctx> {
             AstNode::Variable(inner) => self.codegen_variable(inner),
             AstNode::Binary(inner) => self.codegen_binary(inner),
             AstNode::Unary(inner) => self.codegen_unary(inner),
-            // AstNode::Call(inner) => inner.codegen(compiler),
+            AstNode::Call(inner) => self.codegen_call(inner),
             _ => todo!(),
             // AstNode::Function(inner) => inner.codegen(compiler),
             // AstNode::If(inner) => inner.codegen(compiler),
@@ -60,9 +60,7 @@ impl<'ctx> Compiler<'ctx> {
             // AstNode::Error(inner) => inner.codegen(compiler),
         }
     }
-}
 
-impl<'ctx> Compiler<'ctx> {
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<IntValue<'ctx>, String> {
         Ok(self.context.i32_type().const_int(literal.0 as u64, false))
     }
@@ -96,6 +94,7 @@ impl<'ctx> Compiler<'ctx> {
             _ => todo!(),
         })
     }
+
     fn codegen_call(&mut self, call: &ast::Call) -> Result<IntValue<'ctx>, String> {
         let function_name = call.0;
         let arg_nodes = call.1.iter();
@@ -120,40 +119,40 @@ impl<'ctx> Compiler<'ctx> {
         }
     }
 
-    fn funcgen_prototype<'a>(
-        &self,
-        function: &'a ast::Function,
-    ) -> (FunctionValue<'ctx>, &'a str, Vec<&&'a str>) {
-        let function_name = function.0;
-        let params = function.1.iter().collect::<Vec<_>>();
+    fn protogen<'a>(&self, name: &'a str, params: &[&&'a str]) -> FunctionValue<'ctx> {
         let ret_type = self.context.i32_type();
         let args_types = std::iter::repeat(ret_type)
             .take(params.len())
             .map(|f| f.into())
             .collect::<Vec<BasicMetadataTypeEnum>>();
         let fn_type = self.context.i32_type().fn_type(&args_types, false);
-        let fn_val = self.module.add_function(function_name, fn_type, None);
+        let fn_val = self.module.add_function(name, fn_type, None);
         // set arguments names
         for (i, arg) in fn_val.get_param_iter().enumerate() {
             arg.into_float_value().set_name(params[i]);
         }
-        (fn_val, function_name, params)
+        fn_val
+    }
+
+    fn codegen_function<'a>(
+        &mut self,
+        function: &'a ast::Function,
+    ) -> Result<IntValue<'ctx>, String> {
+        let function_name = function.0;
+        let params = function.1.iter().collect::<Vec<_>>();
+        let function_value = self.protogen(function_name, &params);
+
+        self.formal_table.reserve(params.len());
+
+        let _body = self.codegen(&*function.2)?;
+
+        for _param in params {}
+
+        let entry = self
+            .context
+            .append_basic_block(function_value, function_name);
+        self.builder.position_at_end(entry);
+
+        todo!()
     }
 }
-
-// impl<'a> CodeGen for Function<'a> {
-//     fn codegen<'c>(&self, compiler: &'c mut Compiler) -> Result<IntValue<'c>, String> {
-//         let (function, name, params) = self.protogen(compiler);
-
-//         let body = self.2.codegen(compiler)?;
-
-//         compiler.formal_table.reserve(params.len());
-
-//         for param in params {}
-
-//         let entry = compiler.context.append_basic_block(function, name);
-//         compiler.builder.position_at_end(entry);
-
-//         todo!()
-//     }
-// }

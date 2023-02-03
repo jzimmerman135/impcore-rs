@@ -36,7 +36,7 @@ fn main() {
         })
         .collect();
 
-    for tle in top_level_expressions {
+    for tle in top_level_expressions.iter() {
         println!("{:?}", tle);
         // match tle {
         //     AstNode::Test(test_expression) => tests.push(test_expression),
@@ -49,5 +49,7 @@ fn main() {
     }
 
     let mut context = inkwell::context::Context::create();
-    let _compiler = jit::Compiler::new(&mut context).expect("Failed to build compiler");
+    let mut compiler = jit::Compiler::new(&mut context).expect("Failed to build compiler");
+    let res = compiler.codegen(&top_level_expressions[0]);
+    println!("{:?}", res.unwrap());
 }
