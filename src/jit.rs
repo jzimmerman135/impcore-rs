@@ -60,7 +60,7 @@ impl<'a> Compiler<'a> {
 
 impl<'ctx> Compiler<'ctx> {
     #[allow(unused)]
-    pub fn defgen(&mut self, node: &'ctx AstNode) -> Result<FunctionValue<'ctx>, String> {
+    pub fn top_level_gen(&mut self, node: &'ctx AstNode) -> Result<FunctionValue<'ctx>, String> {
         match node {
             AstNode::Function(inner) => self.codegen_function(inner),
             _ => todo!(),
@@ -185,15 +185,22 @@ impl<'ctx> Compiler<'ctx> {
         let body = self.codegen(&function.2)?;
         self.builder.build_return(Some(&body));
 
-        if !function_value.verify(true) {
+        if !function_value.verify(false) {
             unsafe {
                 function_value.delete();
             }
             return Err(format!("Could not verify function {}", function_name));
         }
 
-        // TODO: add function pass manager
-        // self.fpm.run_on(&function_value);
+        self.fpm.run_on(&function_value);
+
         Ok(function_value)
+    }
+
+    fn codegen_val(&mut self, val: &'ctx ast::NewGlobal) -> Result<IntValue, String> {
+        let name = val.0;
+        let value = self.codegen(&val.1)?;
+        self.global_table.insert(name, value);
+        Ok(value)
     }
 }
