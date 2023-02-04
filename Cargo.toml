@@ -6,8 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+cranelift = "0.92.0"
+cranelift-codegen = "0.92.0"
+cranelift-jit = "0.92.0"
+cranelift-module = "0.92.0"
+cranelift-native = "0.92.0"
 enum_dispatch = "0.3.11"
-inkwell = { version= "0.1.0", features = ["llvm13-0"] }
+inkwell = { version = "0.1.0", features = ["llvm13-0"] }
 pest = "2.5.4"
 pest_derive = "2.5.4"
 

@@ -8,7 +8,7 @@ use inkwell::{
     passes::PassManager,
     support::LLVMString,
     types::BasicMetadataTypeEnum,
-    values::{BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue},
+    values::{AsValueRef, BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue},
     OptimizationLevel,
 };
 
@@ -30,6 +30,7 @@ pub struct Compiler<'ctx> {
     pub formal_table: HashMap<&'ctx str, IntValue<'ctx>>,
     pub fpm: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
+    functions: Vec<FunctionValue<'ctx>>,
 }
 
 impl<'ctx> Compiler<'ctx> {
@@ -56,27 +57,28 @@ impl<'ctx> Compiler<'ctx> {
             execution_engine,
             global_table: HashMap::new(),
             formal_table: HashMap::new(),
+            functions: vec![],
         })
     }
 }
 
 impl<'ctx> Compiler<'ctx> {
-    pub fn codegen_anonymous(
+    pub fn funcgen_anonymous(
         &mut self,
         node: &'ctx AstNode,
     ) -> Result<FunctionValue<'ctx>, String> {
         let fn_type = self.context.i32_type().fn_type(&[], false);
-        let function = self.module.add_function("", fn_type, None);
-        let basic_block = self.context.append_basic_block(function, "top_level_entry");
+        let fn_value = self.module.add_function("", fn_type, None);
+        let basic_block = self.context.append_basic_block(fn_value, "top_level_entry");
         self.builder.position_at_end(basic_block);
         let v = self.codegen(node)?;
         self.builder.build_return(Some(&v));
 
-        if !function.verify(false) {
+        if !fn_value.verify(false) {
             return Err(format!("Could not verify top level function"));
         }
 
-        Ok(function)
+        Ok(fn_value)
     }
 
     #[allow(unused)]
@@ -86,16 +88,12 @@ impl<'ctx> Compiler<'ctx> {
             todo!();
         }
 
-        let anon = self.codegen_anonymous(node)?;
-        let res = unsafe {
-            {
-                // self.module.print_to_stderr();
-                // self.module.get_functions().for_each(|e| println!("{e:?}"));
-            }
-            self.execution_engine.run_function(anon, &[]).as_int(true)
-        };
+        let anon = self.funcgen_anonymous(node)?;
+        print!("anon: {:?}\n) -> ", anon);
+        let res = unsafe { self.execution_engine.run_function(anon, &[]) };
 
-        println!("{}", res as i32);
+        print!("({:?}).as_int(true) = ", res);
+        println!("{}\n", res.as_int(true) as i32);
 
         Ok(())
     }
@@ -181,7 +179,7 @@ impl<'ctx> Compiler<'ctx> {
         }
     }
 
-    fn make_function_value<'a>(&self, name: &'a str, params: &[&&'a str]) -> FunctionValue<'ctx> {
+    fn funcgen_prototype<'a>(&self, name: &'a str, params: &[&&'a str]) -> FunctionValue<'ctx> {
         let ret_type = self.context.i32_type();
         let args_types = std::iter::repeat(ret_type)
             .take(params.len())
@@ -202,7 +200,7 @@ impl<'ctx> Compiler<'ctx> {
     ) -> Result<FunctionValue<'ctx>, String> {
         let function_name = function.0;
         let params = function.1.iter().collect::<Vec<_>>();
-        let function_value = self.make_function_value(function_name, &params);
+        let function_value = self.funcgen_prototype(function_name, &params);
 
         self.formal_table.clear();
         for (param, param_value) in params.into_iter().zip(function_value.get_param_iter()) {
