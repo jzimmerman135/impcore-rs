@@ -5,7 +5,6 @@ extern crate pest_derive;
 mod ast;
 mod jit;
 mod parser;
-mod translation;
 
 use ast::AstNode;
 use parser::ImpcoreParser;
