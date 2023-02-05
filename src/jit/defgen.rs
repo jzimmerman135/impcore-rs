@@ -20,7 +20,7 @@ impl<'ctx> Compiler<'ctx> {
             .append_basic_block(function_value, function_name);
 
         self.builder.position_at_end(entry);
-        let body = self.codegen(&function.2)?;
+        let body = self.codegen_expr(&function.2)?;
         self.builder.build_return(Some(&body));
 
         if !function_value.verify(false) {
@@ -53,7 +53,7 @@ impl<'ctx> Compiler<'ctx> {
     #[allow(unused)]
     fn defgen_val(&mut self, val: &'ctx ast::NewGlobal) -> Result<IntValue, String> {
         let name = val.0;
-        let value = self.codegen(&val.1)?;
+        let value = self.codegen_expr(&val.1)?;
         self.global_table.insert(name, value);
         Ok(value)
     }
@@ -63,7 +63,7 @@ impl<'ctx> Compiler<'ctx> {
         let fn_value = self.module.add_function("TLE", fn_type, None);
         let basic_block = self.context.append_basic_block(fn_value, "top_level_entry");
         self.builder.position_at_end(basic_block);
-        let v = self.codegen(node)?;
+        let v = self.codegen_expr(node)?;
         self.builder.build_return(Some(&v));
 
         if !fn_value.verify(false) {

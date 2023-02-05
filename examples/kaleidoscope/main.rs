@@ -20,7 +20,9 @@ use inkwell::passes::PassManager;
 use inkwell::OptimizationLevel;
 
 mod implementation_typed_pointers;
-use crate::implementation_typed_pointers::{Compiler, Lexer, Parser, Token};
+mod parsing;
+use crate::implementation_typed_pointers::Compiler;
+use crate::parsing::{Lexer, Parser, Token};
 
 // ======================================================================================
 // PROGRAM ==============================================================================

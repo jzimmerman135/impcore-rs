@@ -14,7 +14,7 @@ pub use inkwell::{
     OptimizationLevel,
 };
 
-use crate::ast::{self, AstNode};
+use crate::ast::{self, AstNode, Function};
 
 pub trait CodeGen {
     fn codegen<'ctx>(&'ctx self, compiler: &'ctx mut Compiler) -> Result<IntValue<'ctx>, String>;
@@ -33,11 +33,19 @@ pub struct Compiler<'ctx> {
     functions: Vec<FunctionValue<'ctx>>,
 }
 
+pub enum ExecutionMode {
+    Interpreter,
+    JIT,
+}
+
 impl<'ctx> Compiler<'ctx> {
-    pub fn new(context: &'ctx Context) -> Result<Self, LLVMString> {
+    pub fn new(context: &'ctx Context, mode: ExecutionMode) -> Result<Self, LLVMString> {
         let module = context.create_module("tmp");
         let builder = context.create_builder();
-        let execution_engine = module.create_jit_execution_engine(OptimizationLevel::None)?;
+        let execution_engine = match mode {
+            ExecutionMode::JIT => module.create_jit_execution_engine(OptimizationLevel::None)?,
+            ExecutionMode::Interpreter => module.create_interpreter_execution_engine()?,
+        };
         let fpm = PassManager::create(&module);
         fpm.add_instruction_combining_pass();
         fpm.add_reassociate_pass();
@@ -64,24 +72,32 @@ impl<'ctx> Compiler<'ctx> {
 
 impl<'ctx> Compiler<'ctx> {
     #[allow(unused)]
-    pub fn top_level_run(&mut self, node: &'ctx AstNode) -> Result<(), String> {
+    pub fn top_level_compile(
+        &mut self,
+        node: &'ctx AstNode,
+    ) -> Result<Option<FunctionValue<'ctx>>, String> {
         if let AstNode::Function(inner) = &node {
             let function = self.defgen_function(inner)?;
             self.functions.push(function);
-            return Ok(println!("{}", inner.0));
+            println!("{}", inner.0);
+            return Ok(None);
         }
 
-        self.module = self.context.create_module("tmp");
-
         let anon = self.defgen_anonymous(node)?;
+        Ok(Some(anon))
+    }
 
-        self.execution_engine = self
-            .module
-            .create_jit_execution_engine(OptimizationLevel::None)
-            .map_err(|_| "Failed to make execution engine")?;
+    // Use if you expect to add functions to the module later
+    pub fn top_level_run_one(&mut self, function: &FunctionValue<'ctx>) {
+        let res = unsafe { self.execution_engine.run_function(*function, &[]) };
+        println!("{}", res.as_int(true));
+    }
 
-        let res = unsafe { self.execution_engine.run_function(anon, &[]) };
-
-        Ok(println!("{:?}", res))
+    // Use only if the module is finalized
+    pub fn top_level_run_all(&mut self, top_level_functions: &[FunctionValue<'ctx>]) {
+        for &tl in top_level_functions {
+            let res = unsafe { self.execution_engine.run_function(tl, &[]) };
+            println!("{}", res.as_int(true));
+        }
     }
 }

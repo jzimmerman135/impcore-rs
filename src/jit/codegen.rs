@@ -3,8 +3,8 @@ use crate::ast;
 use super::*;
 
 impl<'ctx> Compiler<'ctx> {
-    pub fn codegen(&mut self, node: &'ctx AstNode) -> Result<IntValue<'ctx>, String> {
-        match node {
+    pub fn codegen_expr(&mut self, expr: &'ctx AstNode) -> Result<IntValue<'ctx>, String> {
+        match expr {
             AstNode::Literal(inner) => self.codegen_literal(inner),
             AstNode::Variable(inner) => self.codegen_variable(inner),
             AstNode::Binary(inner) => self.codegen_binary(inner),
@@ -36,10 +36,11 @@ impl<'ctx> Compiler<'ctx> {
             },
         }
     }
+
     fn codegen_binary(&mut self, binary: &'ctx ast::Binary) -> Result<IntValue<'ctx>, String> {
         let operator = binary.0;
-        let lhs = self.codegen(&binary.1)?;
-        let rhs = self.codegen(&binary.2)?;
+        let lhs = self.codegen_expr(&binary.1)?;
+        let rhs = self.codegen_expr(&binary.2)?;
         Ok(match operator {
             "*" => self.builder.build_int_mul(lhs, rhs, "mul"),
             "/" => self.builder.build_int_signed_div(lhs, rhs, "div"),
@@ -51,7 +52,7 @@ impl<'ctx> Compiler<'ctx> {
 
     fn codegen_unary(&mut self, unary: &'ctx ast::Unary) -> Result<IntValue<'ctx>, String> {
         let operator = unary.0;
-        let arg = self.codegen(&unary.1)?;
+        let arg = self.codegen_expr(&unary.1)?;
         let one = self.context.i32_type().const_int(1, false);
         Ok(match operator {
             "++" => self.builder.build_int_add(arg, one, "incr"),
@@ -68,7 +69,7 @@ impl<'ctx> Compiler<'ctx> {
             None => return Err(format!("Could not find function {}", function_name)),
         };
         let args = arg_nodes
-            .map(|e| match self.codegen(e) {
+            .map(|e| match self.codegen_expr(e) {
                 Ok(val) => Ok(BasicMetadataValueEnum::IntValue(val)),
                 Err(str) => Err(str),
             })

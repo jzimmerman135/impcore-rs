@@ -24,11 +24,21 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     println!("--------------------------------------------------\n\n");
 
     let context = inkwell::context::Context::create();
-    let mut compiler = jit::Compiler::new(&context).expect("Failed to build compiler");
+    let mut compiler =
+        jit::Compiler::new(&context, jit::ExecutionMode::JIT).expect("Failed to build compiler");
 
-    for tle in top_level_expressions.iter() {
-        compiler.top_level_run(&tle)?;
-    }
+    let tlfs = top_level_expressions
+        .iter()
+        .filter_map(|e| match compiler.top_level_compile(e) {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("{}", e);
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    compiler.top_level_run_all(&tlfs);
 
     Ok(())
 }

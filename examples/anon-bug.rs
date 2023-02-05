@@ -3,6 +3,7 @@ use inkwell::{
     builder::Builder,
     context::Context,
     module::Module,
+    targets::{InitializationConfig, Target},
     values::{FunctionValue, IntValue},
     OptimizationLevel,
 };
@@ -30,9 +31,13 @@ where
 }
 
 fn main() {
+    Target::initialize_native(&InitializationConfig::default())
+        .expect("Failed to initialize native target");
+
     let context = Context::create();
     let module = context.create_module("bug-example");
     let builder = context.create_builder();
+    let execution_engine = module.create_interpreter_execution_engine().unwrap();
 
     let f1 = add_function(
         |context, _, _| context.i32_type().const_int(20, false),
@@ -42,10 +47,8 @@ fn main() {
         "",
     );
 
-    let execution_engine = module
-        .create_jit_execution_engine(OptimizationLevel::None)
-        .unwrap();
     let res1 = unsafe { execution_engine.run_function(f1, &[]) };
+    println!("f1 res: {}, from {:?}", res1.as_int(true), f1);
 
     let f2 = add_function(
         |context, _, _| {
@@ -59,11 +62,18 @@ fn main() {
         "",
     );
 
-    // let execution_engine = module
-    //     .create_jit_execution_engine(OptimizationLevel::None)
-    //     .unwrap();
+    let f3 = add_function(
+        |context, _, _| context.i32_type().const_int(22, false),
+        &context,
+        &module,
+        &builder,
+        "",
+    );
 
     let res2 = unsafe { execution_engine.run_function(f2, &[]) };
-    println!("f1 res: {}, from {:?}", res1.as_int(true), f1);
     println!("f2 res: {}, from {:?}", res2.as_int(true), f2);
+
+    let res = unsafe { execution_engine.run_function(f3, &[]) };
+    println!("f3 res: {}, from {:?}", res.as_int(true), f3);
+    module.print_to_stderr();
 }
