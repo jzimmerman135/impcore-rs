@@ -11,7 +11,7 @@ use crate::ast::{
 pub struct ImpcoreParser;
 
 impl ImpcoreParser {
-    pub fn generate_ast(contents: &str) -> Result<Vec<AstNode>, String> {
+    pub fn generate_top_level_exprs(contents: &str) -> Result<Vec<AstNode>, String> {
         Ok(ImpcoreParser::parse(Rule::impcore, &contents)
             .map_err(|e| format!("Parsing Failed: {}", e))?
             .next()

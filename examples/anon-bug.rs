@@ -5,7 +5,6 @@ use inkwell::{
     module::Module,
     targets::{InitializationConfig, Target},
     values::{FunctionValue, IntValue},
-    OptimizationLevel,
 };
 
 fn add_function<'ctx, F>(

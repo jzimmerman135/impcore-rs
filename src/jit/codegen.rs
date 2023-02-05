@@ -64,22 +64,21 @@ impl<'ctx> Compiler<'ctx> {
     fn codegen_call(&mut self, call: &'ctx ast::Call) -> Result<IntValue<'ctx>, String> {
         let function_name = call.0;
         let arg_nodes = call.1.iter();
+
         let function = match self.module.get_function(function_name) {
             Some(f) => f,
-            None => return Err(format!("Could not find function {}", function_name)),
+            None => return Err(format!("Unbound function {}", function_name)),
         };
+
         let args = arg_nodes
             .map(|e| match self.codegen_expr(e) {
                 Ok(val) => Ok(BasicMetadataValueEnum::IntValue(val)),
                 Err(str) => Err(str),
             })
             .collect::<Result<Vec<_>, String>>()?;
-        match self
-            .builder
-            .build_call(function, &args, "user_func_call")
-            .try_as_basic_value()
-            .left()
-        {
+
+        let basic = self.builder.build_call(function, &args, "user_func_call");
+        match basic.try_as_basic_value().left() {
             Some(BasicValueEnum::IntValue(inner)) => Ok(inner),
             _ => unreachable!(),
         }

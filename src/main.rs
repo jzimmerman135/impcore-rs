@@ -15,13 +15,13 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     let contents =
         fs::read_to_string(filename).map_err(|_| format!("Failed to open file {}", filename))?;
 
-    let top_level_expressions: Vec<AstNode> = ImpcoreParser::generate_ast(&contents)?;
+    let top_level_expressions: Vec<AstNode> = ImpcoreParser::generate_top_level_exprs(&contents)?;
 
     println!("PRINTING AST\n------------");
     for tle in top_level_expressions.iter() {
         println!("{:?}", tle);
     }
-    println!("--------------------------------------------------\n\n");
+    println!("--------------------------------------------------\n");
 
     let context = inkwell::context::Context::create();
     let mut compiler =
@@ -37,6 +37,8 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             }
         })
         .collect::<Vec<_>>();
+
+    println!("EXECUTION OUTPUT\n--------------------------------------------------");
 
     compiler.top_level_run_all(&tlfs);
 
