@@ -20,17 +20,20 @@ impl<'ctx> Compiler<'ctx> {
             .append_basic_block(function_value, function_name);
 
         self.builder.position_at_end(entry);
+        self.curr_function = Some(function_value);
         let body = self.codegen_expr(&function.2)?;
+        self.curr_function = None;
         self.builder.build_return(Some(&body));
 
         if !function_value.verify(false) {
+            self.module.print_to_stderr();
             unsafe {
                 function_value.delete();
             }
             return Err(format!("Could not verify function {}", function_name));
         }
 
-        self.fpm.run_on(&function_value);
+        // self.fpm.run_on(&function_value);
 
         Ok(function_value)
     }
@@ -43,9 +46,8 @@ impl<'ctx> Compiler<'ctx> {
             .collect::<Vec<BasicMetadataTypeEnum>>();
         let fn_type = self.context.i32_type().fn_type(&args_types, false);
         let fn_val = self.module.add_function(name, fn_type, None);
-        // set arguments names
         for (i, arg) in fn_val.get_param_iter().enumerate() {
-            arg.into_float_value().set_name(params[i]);
+            arg.into_int_value().set_name(params[i]);
         }
         fn_val
     }
@@ -60,14 +62,16 @@ impl<'ctx> Compiler<'ctx> {
 
     pub fn defgen_anonymous(&mut self, node: &'ctx AstNode) -> Result<FunctionValue<'ctx>, String> {
         let fn_type = self.context.i32_type().fn_type(&[], false);
-        let fn_value = self.module.add_function("TLE", fn_type, None);
-        let basic_block = self.context.append_basic_block(fn_value, "top_level_entry");
+        let fn_value = self.module.add_function("#anon", fn_type, None);
+        let basic_block = self.context.append_basic_block(fn_value, "entry");
         self.builder.position_at_end(basic_block);
+        self.curr_function = Some(fn_value);
         let v = self.codegen_expr(node)?;
         self.builder.build_return(Some(&v));
+        self.curr_function = None;
 
         if !fn_value.verify(false) {
-            return Err(format!("Could not verify top level function"));
+            return Err("Could not verify top level function".to_string());
         }
 
         Ok(fn_value)

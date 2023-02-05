@@ -2,6 +2,7 @@ use std::collections::HashMap;
 mod codegen;
 mod defgen;
 
+use inkwell::targets::{InitializationConfig, Target};
 pub use inkwell::{
     builder::Builder,
     context::Context,
@@ -30,26 +31,35 @@ pub struct Compiler<'ctx> {
     pub fpm: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
     exec_mode: ExecutionMode,
-    functions: Vec<FunctionValue<'ctx>>,
+    curr_function: Option<FunctionValue<'ctx>>,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[allow(unused)]
 pub enum ExecutionMode {
     Interpreter,
-    JIT,
+    Jit,
     Dead,
+}
+#[derive(Copy, Clone)]
+pub enum TopLevelExpr<'ctx> {
+    ExprDef(FunctionValue<'ctx>),
+    FuncDef(&'ctx str),
 }
 
 impl<'ctx> Compiler<'ctx> {
     pub fn new(context: &'ctx Context, exec_mode: ExecutionMode) -> Result<Self, LLVMString> {
+        Target::initialize_native(&InitializationConfig::default())
+            .expect("Failed to initialize native execution target");
+
         let module = context.create_module("tmp");
         let builder = context.create_builder();
         let execution_engine = match exec_mode {
-            ExecutionMode::JIT => module.create_jit_execution_engine(OptimizationLevel::None)?,
+            ExecutionMode::Jit => module.create_jit_execution_engine(OptimizationLevel::None)?,
             ExecutionMode::Interpreter => module.create_interpreter_execution_engine()?,
             _ => panic!("Cannot create a compiler with dead execution engine"),
         };
+
         let fpm = PassManager::create(&module);
         fpm.add_instruction_combining_pass();
         fpm.add_reassociate_pass();
@@ -70,26 +80,23 @@ impl<'ctx> Compiler<'ctx> {
             exec_mode,
             global_table: HashMap::new(),
             formal_table: HashMap::new(),
-            functions: vec![],
+            curr_function: None,
         })
     }
 }
 
 impl<'ctx> Compiler<'ctx> {
     #[allow(unused)]
-    pub fn top_level_compile(
-        &mut self,
-        node: &'ctx AstNode,
-    ) -> Result<Option<FunctionValue<'ctx>>, String> {
+    pub fn top_level_compile(&mut self, node: &'ctx AstNode) -> Result<TopLevelExpr<'ctx>, String> {
         if let AstNode::Function(inner) = &node {
             let function = self.defgen_function(inner)?;
-            self.functions.push(function);
-            println!("{}", inner.0);
-            return Ok(None);
+            return Ok(TopLevelExpr::FuncDef(inner.0));
         }
 
+        let zero_const = self.context.i32_type().const_zero();
+
         let anon = self.defgen_anonymous(node)?;
-        Ok(Some(anon))
+        Ok(TopLevelExpr::ExprDef(anon))
     }
 
     /// Panics if engine is invalid
@@ -112,12 +119,17 @@ impl<'ctx> Compiler<'ctx> {
         println!("{}", res.as_int(true));
     }
 
-    pub fn top_level_run_all(&mut self, top_level_functions: &[FunctionValue<'ctx>]) {
+    pub fn top_level_run_all(&mut self, top_level_exprs: &[TopLevelExpr<'ctx>]) {
         self.verify_engine();
 
-        for &tl in top_level_functions {
-            let res = unsafe { self.execution_engine.run_function(tl, &[]) };
-            println!("{}", res.as_int(true));
+        for &tl in top_level_exprs {
+            match tl {
+                TopLevelExpr::FuncDef(name) => println!("{}", name),
+                TopLevelExpr::ExprDef(f) => {
+                    let res = unsafe { self.execution_engine.run_function(f, &[]) };
+                    println!("{}", res.as_int(true))
+                }
+            }
         }
     }
 }

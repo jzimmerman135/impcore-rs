@@ -21,7 +21,7 @@ ACCESSOR = _{ literal | array_value | variable }
 
 arithmetic_operator = { "+" | "-" | "/" | "*" | "%" }
 bitwise_operator = { ">>" | "<<" | "^" | "&" | "|" }
-comparison_operator = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
+comparison_operator = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" | "!=" }
 print_operator = { "println" | "printu" | "print" }
 unary_operator = { "++" | "--" | "not" | "!" }
 binary_operator = @{ comparison_operator | arithmetic_operator | bitwise_operator }
