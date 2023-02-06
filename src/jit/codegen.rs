@@ -13,9 +13,9 @@ impl<'ctx> Compiler<'ctx> {
             AstNode::Unary(inner) => self.codegen_unary(inner),
             AstNode::Call(inner) => self.codegen_call(inner),
             AstNode::If(inner) => self.codegen_if(inner),
+            AstNode::Begin(inner) => self.codegen_begin(inner),
             _ => unimplemented!("Haven't implemented codegen for {:?}", expr),
             // AstNode::While(inner) => inner.codegen(compiler),
-            // AstNode::Begin(inner) => inner.codegen(compiler),
             // AstNode::Assign(inner) => inner.codegen(compiler),
             // AstNode::NewGlobal(inner) => inner.codegen(compiler),
             // AstNode::Error(inner) => inner.codegen(compiler),
@@ -43,7 +43,7 @@ impl<'ctx> Compiler<'ctx> {
         let operator = binary.0;
         let lhs = self.codegen_expr(&binary.1)?;
         let rhs = self.codegen_expr(&binary.2)?;
-        Ok(match operator {
+        let value = match operator {
             "*" => self.builder.build_int_mul(lhs, rhs, "mul"),
             "/" => self.builder.build_int_signed_div(lhs, rhs, "div"),
             "+" => self.builder.build_int_add(lhs, rhs, "mul"),
@@ -65,9 +65,12 @@ impl<'ctx> Compiler<'ctx> {
                 .build_int_compare(IntPredicate::EQ, lhs, rhs, "le"),
             "!=" => self
                 .builder
-                .build_int_compare(IntPredicate::EQ, lhs, rhs, "le"),
+                .build_int_compare(IntPredicate::NE, lhs, rhs, "le"),
             _ => unimplemented!("Haven't built the {} operator yet", operator),
-        })
+        };
+        let itype = self.context.i32_type();
+        let value = self.builder.build_int_cast(value, itype, "cast");
+        Ok(value)
     }
 
     fn codegen_unary(&mut self, unary: &'ctx ast::Unary) -> Result<IntValue<'ctx>, String> {
@@ -98,7 +101,7 @@ impl<'ctx> Compiler<'ctx> {
             .collect::<Result<Vec<_>, String>>()?;
 
         self.builder
-            .build_call(function, &args, "userdef_func_call")
+            .build_call(function, &args, "userfn")
             .try_as_basic_value()
             .left()
             .map(|e| Ok(e.into_int_value()))
@@ -111,15 +114,15 @@ impl<'ctx> Compiler<'ctx> {
             .curr_function
             .ok_or_else(|| "No curr function in the if block".to_string())?;
 
-        let then_block = self.context.append_basic_block(parent_fn, "then");
-        let else_block = self.context.append_basic_block(parent_fn, "else");
-        let merge_block = self.context.append_basic_block(parent_fn, "ifcont");
-
-        let zero = i32_type.const_zero();
+        let zero = self.context.i32_type().const_zero();
         let cond_expr = self.codegen_expr(&ifx.0)?;
         let comparison =
             self.builder
                 .build_int_compare(IntPredicate::NE, cond_expr, zero, "ifcond");
+
+        let then_block = self.context.append_basic_block(parent_fn, "then");
+        let else_block = self.context.append_basic_block(parent_fn, "else");
+        let merge_block = self.context.append_basic_block(parent_fn, "ifcont");
 
         self.builder
             .build_conditional_branch(comparison, then_block, else_block);
@@ -136,8 +139,17 @@ impl<'ctx> Compiler<'ctx> {
 
         self.builder.position_at_end(merge_block);
 
-        let phi = self.builder.build_phi(i32_type, "CHECKME");
+        let phi = self.builder.build_phi(i32_type, "iftmp");
         phi.add_incoming(&[(&then_val, then_block), (&else_val, else_block)]);
         Ok(phi.as_basic_value().into_int_value())
+    }
+
+    fn codegen_begin(&mut self, beginx: &'ctx ast::Begin) -> Result<IntValue<'ctx>, String> {
+        let exprs = &beginx.0;
+        let mut v = self.context.i32_type().const_int(0, true);
+        for expr in exprs {
+            v = self.codegen_expr(expr)?;
+        }
+        Ok(v)
     }
 }

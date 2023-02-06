@@ -25,7 +25,7 @@ impl<'ctx> Compiler<'ctx> {
         self.curr_function = None;
         self.builder.build_return(Some(&body));
 
-        if !function_value.verify(false) {
+        if !function_value.verify(true) {
             self.module.print_to_stderr();
             unsafe {
                 function_value.delete();
@@ -70,8 +70,12 @@ impl<'ctx> Compiler<'ctx> {
         self.builder.build_return(Some(&v));
         self.curr_function = None;
 
-        if !fn_value.verify(false) {
-            return Err("Could not verify top level function".to_string());
+        if !fn_value.verify(true) {
+            self.module.print_to_stderr();
+            return Err(format!(
+                "Could not verify top level expression \n{:?}\n{:?}",
+                node, fn_value
+            ));
         }
 
         Ok(fn_value)
