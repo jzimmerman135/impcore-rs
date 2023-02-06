@@ -37,13 +37,11 @@ fn main() {
 
     print_ast(&top_level_nodes);
 
-    let (defs, _tests) = ImpcoreParser::separate_top_level_tests(top_level_nodes);
-
     let context = inkwell::context::Context::create();
     let mut compiler =
         jit::Compiler::new(&context, jit::ExecutionMode::Jit).expect("Failed to build compiler");
 
-    let tlfs = defs
+    let tlfs = top_level_nodes
         .iter()
         .map(|e| compiler.top_level_compile(e))
         .collect::<Result<Vec<_>, String>>()

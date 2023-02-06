@@ -32,6 +32,8 @@
         (check-assert (= (double-digit 12345) 1122334455))
         (check-assert (= (double-digit 19999) 1199999999))
         (check-assert (= (double-digit 0000000) 0))
+        (check-assert (= (double-digit 1) 0))
+        (check-expect (double-digit 1) 0)
         (check-error (double-digit 20000))
         (check-error (double-digit 20001))
 

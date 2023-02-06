@@ -23,18 +23,6 @@ impl ImpcoreParser {
             })
             .collect::<Vec<_>>())
     }
-
-    pub fn separate_top_level_tests(top_level_exprs: Vec<AstNode>) -> (Vec<AstNode>, Vec<AstNode>) {
-        let mut defs = vec![];
-        let mut tests = vec![];
-        for tle in top_level_exprs {
-            match tle {
-                AstNode::CheckAssert(..) | AstNode::CheckExpect(..) => tests.push(tle),
-                _ => defs.push(tle),
-            }
-        }
-        (defs, tests)
-    }
 }
 
 pub trait InnerParse {

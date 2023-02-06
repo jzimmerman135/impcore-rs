@@ -50,6 +50,15 @@ pub enum TopLevelExpr<'ctx> {
     TestExpectDef(FunctionValue<'ctx>, FunctionValue<'ctx>, &'ctx str),
 }
 
+impl<'ctx> TopLevelExpr<'ctx> {
+    fn is_test(&self) -> bool {
+        match self {
+            Self::TestAssertDef(..) | Self::TestExpectDef(..) => true,
+            _ => false,
+        }
+    }
+}
+
 impl<'ctx> Compiler<'ctx> {
     pub fn new(context: &'ctx Context, exec_mode: ExecutionMode) -> Result<Self, LLVMString> {
         Target::initialize_native(&InitializationConfig::default())
@@ -139,9 +148,17 @@ impl<'ctx> Compiler<'ctx> {
     pub fn top_level_run_all(&mut self, top_level_exprs: &[TopLevelExpr<'ctx>]) {
         self.verify_engine();
 
+        let mut tests = vec![];
+
         for &tle in top_level_exprs {
-            self.run_tle_unverified(&tle)
+            if tle.is_test() {
+                tests.push(tle);
+            } else {
+                self.run_tle_unverified(&tle)
+            }
         }
+
+        self.run_tests(&tests)
     }
 
     fn run_test_unverified(&mut self, test: &TopLevelExpr<'ctx>) -> bool {
@@ -150,7 +167,7 @@ impl<'ctx> Compiler<'ctx> {
                 let res =
                     unsafe { self.execution_engine.run_function(*assert_fn, &[]) }.as_int(true);
                 if res == 0 {
-                    eprintln!("{} failed, got {}", contents, res);
+                    eprintln!("Failed test ({}): assertion false", contents);
                     return false;
                 }
                 true
@@ -159,7 +176,10 @@ impl<'ctx> Compiler<'ctx> {
                 let lhs = unsafe { self.execution_engine.run_function(*lhs, &[]) }.as_int(true);
                 let rhs = unsafe { self.execution_engine.run_function(*rhs, &[]) }.as_int(true);
                 if lhs != rhs {
-                    eprint!("{} failed, got {} and {}", contents, lhs, rhs);
+                    eprintln!(
+                        "Failed test ({}): got \'{}\' and expected \'{}\'",
+                        contents, lhs, rhs
+                    );
                     return false;
                 }
                 true
@@ -168,25 +188,23 @@ impl<'ctx> Compiler<'ctx> {
         }
     }
 
-    #[allow(unused)]
-    pub fn test_run_one(&mut self, test: &TopLevelExpr<'ctx>) {
-        self.verify_engine();
-        self.run_test_unverified(test);
-    }
-
-    #[allow(unused)]
-    pub fn test_run_all(&mut self, top_level_tests: &[TopLevelExpr<'ctx>]) {
-        self.verify_engine();
+    fn run_tests(&mut self, tests: &[TopLevelExpr<'ctx>]) {
         let mut successful = 0;
-        for test in top_level_tests {
+        for test in tests {
             if self.run_test_unverified(test) {
                 successful += 1
             }
         }
-        if successful == top_level_tests.len() {
-            eprint!("All {} tests successful", successful)
+        if successful == tests.len() {
+            eprintln!("All {} tests successful", successful)
         } else {
-            eprintln!("Passed {} of {} tests", successful, top_level_tests.len())
+            eprintln!("Passed {} of {} tests", successful, tests.len())
         }
+    }
+
+    #[allow(unused)]
+    pub fn test_run_one(&mut self, test: &TopLevelExpr<'ctx>) {
+        self.verify_engine();
+        self.run_test_unverified(test);
     }
 }
