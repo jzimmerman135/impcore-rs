@@ -58,6 +58,10 @@ impl<'a> InnerParse for AstNode<'a> {
             Rule::error => AstNode::Error(RuntimeError),
             Rule::check_assert => CheckAssert::parse(expr),
             Rule::check_expect => CheckExpect::parse(expr),
+            Rule::check_error => AstNode::CheckAssert(CheckAssert(
+                Box::new(AstNode::Literal(Literal(1))),
+                expr.as_str(),
+            )),
             _ => unreachable!(
                 "Failed to recognize rule {:?} in {:?}",
                 expr.as_rule(),

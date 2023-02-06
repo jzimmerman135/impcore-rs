@@ -19,7 +19,7 @@ variable = @{ NAMED }
 array_value = { variable ~ LBRACK ~ exp ~ RBRACK }
 ACCESSOR = _{ literal | array_value | variable }
 
-arithmetic_operator = { "+" | "-" | "/" | "*" | "%" }
+arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
 bitwise_operator = { ">>" | "<<" | "^" | "&" | "|" }
 comparison_operator = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
 print_operator = { "println" | "printu" | "print" }
@@ -52,5 +52,5 @@ check_assert = { "check-assert" ~ WSP+ ~ exp }
 check_error = { "check-error" ~ WSP+ ~ exp }
 TEST = _{ check_expect | check_assert | check_error }
 
-// def = _{ LPAREN ~ ( GLOBAL | TEST ) ~ RPAREN } ignoring tests for now
-def = _{ LPAREN ~ GLOBAL ~ RPAREN }
+def = _{ LPAREN ~ ( GLOBAL | TEST ) ~ RPAREN } // ignoring tests for now
+// def = _{ LPAREN ~ GLOBAL ~ RPAREN }

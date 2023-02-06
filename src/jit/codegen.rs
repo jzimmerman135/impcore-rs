@@ -14,11 +14,11 @@ impl<'ctx> Compiler<'ctx> {
             AstNode::Call(inner) => self.codegen_call(inner),
             AstNode::If(inner) => self.codegen_if(inner),
             AstNode::Begin(inner) => self.codegen_begin(inner),
+            AstNode::Error(..) => Ok(self.context.i32_type().const_int(0, true)),
             _ => unimplemented!("Haven't implemented codegen for {:?}", expr),
             // AstNode::While(inner) => inner.codegen(compiler),
             // AstNode::Assign(inner) => inner.codegen(compiler),
             // AstNode::NewGlobal(inner) => inner.codegen(compiler),
-            // AstNode::Error(inner) => inner.codegen(compiler),
         }
     }
 
@@ -48,6 +48,7 @@ impl<'ctx> Compiler<'ctx> {
             "/" => self.builder.build_int_signed_div(lhs, rhs, "div"),
             "+" => self.builder.build_int_add(lhs, rhs, "mul"),
             "-" => self.builder.build_int_sub(lhs, rhs, "sub"),
+            "%" | "mod" => self.builder.build_int_signed_rem(lhs, rhs, "mod"),
             ">" => self
                 .builder
                 .build_int_compare(IntPredicate::SGT, lhs, rhs, "gt"),
@@ -66,7 +67,7 @@ impl<'ctx> Compiler<'ctx> {
             "!=" => self
                 .builder
                 .build_int_compare(IntPredicate::NE, lhs, rhs, "le"),
-            _ => unimplemented!("Haven't built the {} operator yet", operator),
+            _ => unimplemented!("Haven't built the {} binary operator yet", operator),
         };
         let itype = self.context.i32_type();
         let value = self.builder.build_int_cast(value, itype, "cast");
@@ -80,7 +81,7 @@ impl<'ctx> Compiler<'ctx> {
         Ok(match operator {
             "++" => self.builder.build_int_add(arg, one, "incr"),
             "--" => self.builder.build_int_sub(arg, one, "decr"),
-            _ => todo!(),
+            _ => unimplemented!("Haven't built the {} unary operator yet", operator),
         })
     }
 
