@@ -14,6 +14,8 @@ pub enum AstNode<'a> {
     Assign(Assign<'a>),
     NewGlobal(NewGlobal<'a>),
     Error(RuntimeError),
+    CheckAssert(CheckAssert<'a>),
+    CheckExpect(CheckExpect<'a>),
 }
 
 impl<'a> Debug for AstNode<'a> {
@@ -31,6 +33,8 @@ impl<'a> Debug for AstNode<'a> {
             AstNode::Assign(inner) => inner.fmt(f),
             AstNode::NewGlobal(inner) => inner.fmt(f),
             AstNode::Error(inner) => inner.fmt(f),
+            AstNode::CheckAssert(inner) => inner.fmt(f),
+            AstNode::CheckExpect(inner) => inner.fmt(f),
         }
     }
 }
@@ -63,3 +67,7 @@ pub struct Assign<'a>(pub &'a str, pub Box<AstNode<'a>>);
 pub struct NewGlobal<'a>(pub &'a str, pub Box<AstNode<'a>>);
 #[derive(Debug)]
 pub struct RuntimeError;
+#[derive(Debug)]
+pub struct CheckAssert<'a>(pub Box<AstNode<'a>>);
+#[derive(Debug)]
+pub struct CheckExpect<'a>(pub Box<AstNode<'a>>, pub Box<AstNode<'a>>);

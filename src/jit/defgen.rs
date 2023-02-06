@@ -73,11 +73,28 @@ impl<'ctx> Compiler<'ctx> {
         if !fn_value.verify(true) {
             self.module.print_to_stderr();
             return Err(format!(
-                "Could not verify top level expression \n{:?}\n{:?}",
+                "Could not verify anonymous expression \n{:?}\n{:?}",
                 node, fn_value
             ));
         }
 
         Ok(fn_value)
+    }
+
+    pub fn defgen_check_assert(
+        &mut self,
+        node: &'ctx ast::CheckAssert,
+    ) -> Result<FunctionValue<'ctx>, String> {
+        self.defgen_anonymous(&*node.0)
+    }
+
+    pub fn defgen_check_expect(
+        &mut self,
+        node: &'ctx ast::CheckExpect,
+    ) -> Result<(FunctionValue<'ctx>, FunctionValue<'ctx>), String> {
+        Ok((
+            self.defgen_anonymous(&*node.0)?,
+            self.defgen_anonymous(&*node.1)?,
+        ))
     }
 }

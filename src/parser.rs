@@ -1,8 +1,8 @@
 use pest::{iterators::Pair, Parser};
 
 use crate::ast::{
-    Assign, AstNode, Begin, Binary, Call, Function, If, Literal, NewGlobal, RuntimeError, Unary,
-    Variable, While,
+    Assign, AstNode, Begin, Binary, Call, CheckAssert, CheckExpect, Function, If, Literal,
+    NewGlobal, RuntimeError, Unary, Variable, While,
 };
 
 // the all powerful build step parser
@@ -44,6 +44,8 @@ impl<'a> InnerParse for AstNode<'a> {
             Rule::set => Assign::parse(expr),
             Rule::val => NewGlobal::parse(expr),
             Rule::error => AstNode::Error(RuntimeError),
+            Rule::check_assert => CheckAssert::parse(expr),
+            Rule::check_expect => CheckExpect::parse(expr),
             _ => unreachable!(
                 "Failed to recognize rule {:?} in {:?}",
                 expr.as_rule(),
@@ -159,5 +161,24 @@ impl<'a> InnerParse for NewGlobal<'a> {
         let arg = Box::new(AstNode::parse(expr.next().unwrap()));
         let val_expr = NewGlobal(variable_name, arg);
         AstNode::NewGlobal(val_expr)
+    }
+}
+
+impl<'a> InnerParse for CheckAssert<'a> {
+    fn parse(expr: Pair<Rule>) -> AstNode {
+        let mut expr = expr.into_inner();
+        let test = Box::new(AstNode::parse(expr.next().unwrap()));
+        let test_expr = CheckAssert(test);
+        AstNode::CheckAssert(test_expr)
+    }
+}
+
+impl<'a> InnerParse for CheckExpect<'a> {
+    fn parse(expr: Pair<Rule>) -> AstNode {
+        let mut expr = expr.into_inner();
+        let lhs = Box::new(AstNode::parse(expr.next().unwrap()));
+        let rhs = Box::new(AstNode::parse(expr.next().unwrap()));
+        let test_expr = CheckExpect(lhs, rhs);
+        AstNode::CheckExpect(test_expr)
     }
 }

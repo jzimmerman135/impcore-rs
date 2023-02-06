@@ -41,10 +41,13 @@ pub enum ExecutionMode {
     Jit,
     Dead,
 }
-#[derive(Copy, Clone)]
+
+#[derive(Copy, Clone, Debug)]
 pub enum TopLevelExpr<'ctx> {
     ExprDef(FunctionValue<'ctx>),
     FuncDef(&'ctx str),
+    TestAssertDef(FunctionValue<'ctx>),
+    TestExpectDef(FunctionValue<'ctx>, FunctionValue<'ctx>),
 }
 
 impl<'ctx> Compiler<'ctx> {
@@ -88,15 +91,20 @@ impl<'ctx> Compiler<'ctx> {
 impl<'ctx> Compiler<'ctx> {
     #[allow(unused)]
     pub fn top_level_compile(&mut self, node: &'ctx AstNode) -> Result<TopLevelExpr<'ctx>, String> {
-        if let AstNode::Function(inner) = &node {
-            let function = self.defgen_function(inner)?;
-            return Ok(TopLevelExpr::FuncDef(inner.0));
-        }
-
-        let zero_const = self.context.i32_type().const_zero();
-
-        let anon = self.defgen_anonymous(node)?;
-        Ok(TopLevelExpr::ExprDef(anon))
+        Ok(match node {
+            AstNode::Function(inner) => {
+                let function = self.defgen_function(inner)?;
+                TopLevelExpr::FuncDef(inner.0)
+            }
+            AstNode::CheckAssert(inner) => {
+                TopLevelExpr::TestAssertDef(self.defgen_check_assert(inner)?)
+            }
+            AstNode::CheckExpect(inner) => {
+                let (lhs, rhs) = self.defgen_check_expect(inner)?;
+                TopLevelExpr::TestExpectDef(lhs, rhs)
+            }
+            _ => TopLevelExpr::ExprDef(self.defgen_anonymous(node)?),
+        })
     }
 
     /// Panics if engine is invalid
@@ -111,25 +119,74 @@ impl<'ctx> Compiler<'ctx> {
         };
     }
 
-    #[allow(unused)]
-    pub fn top_level_run_one(&mut self, function: &FunctionValue<'ctx>) {
-        self.verify_engine();
+    fn run_tle_unverified(&mut self, tle: &TopLevelExpr<'ctx>) {
+        match tle {
+            TopLevelExpr::FuncDef(name) => println!("{}", name),
+            TopLevelExpr::ExprDef(f) => {
+                let res = unsafe { self.execution_engine.run_function(*f, &[]) };
+                println!("{}", res.as_int(true))
+            }
+            _ => unreachable!("not a top level expression {:?}", tle),
+        }
+    }
 
-        let res = unsafe { self.execution_engine.run_function(*function, &[]) };
-        println!("{}", res.as_int(true));
+    #[allow(unused)]
+    pub fn top_level_run_one(&mut self, tle: &TopLevelExpr<'ctx>) {
+        self.verify_engine();
+        self.run_tle_unverified(tle)
     }
 
     pub fn top_level_run_all(&mut self, top_level_exprs: &[TopLevelExpr<'ctx>]) {
         self.verify_engine();
 
-        for &tl in top_level_exprs {
-            match tl {
-                TopLevelExpr::FuncDef(name) => println!("{}", name),
-                TopLevelExpr::ExprDef(f) => {
-                    let res = unsafe { self.execution_engine.run_function(f, &[]) };
-                    println!("{}", res.as_int(true))
+        for &tle in top_level_exprs {
+            self.run_tle_unverified(&tle)
+        }
+    }
+
+    fn run_test_unverified(&mut self, test: &TopLevelExpr<'ctx>) -> bool {
+        match test {
+            TopLevelExpr::TestAssertDef(assert_fn) => {
+                let res =
+                    unsafe { self.execution_engine.run_function(*assert_fn, &[]) }.as_int(true);
+                if res == 0 {
+                    eprintln!("check-assert failed got: {}", res);
+                    return false;
                 }
+                true
             }
+            TopLevelExpr::TestExpectDef(lhs, rhs) => {
+                let lhs = unsafe { self.execution_engine.run_function(*lhs, &[]) }.as_int(true);
+                let rhs = unsafe { self.execution_engine.run_function(*rhs, &[]) }.as_int(true);
+                if lhs != rhs {
+                    eprint!("check-expect failed got {} and {}", lhs, rhs);
+                    return false;
+                }
+                true
+            }
+            _ => unreachable!("not a test expression {:?}", test),
+        }
+    }
+
+    #[allow(unused)]
+    pub fn test_run_one(&mut self, test: &TopLevelExpr<'ctx>) {
+        self.verify_engine();
+        self.run_test_unverified(test);
+    }
+
+    #[allow(unused)]
+    pub fn test_run_all(&mut self, top_level_tests: &[TopLevelExpr<'ctx>]) {
+        self.verify_engine();
+        let mut successful = 0;
+        for test in top_level_tests {
+            if self.run_test_unverified(test) {
+                successful += 1
+            }
+        }
+        if successful == top_level_tests.len() {
+            eprint!("All {} tests successful", successful)
+        } else {
+            eprintln!("Passed {} of {} tests", successful, top_level_tests.len())
         }
     }
 }
