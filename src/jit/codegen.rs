@@ -77,12 +77,20 @@ impl<'ctx> Compiler<'ctx> {
     fn codegen_unary(&mut self, unary: &'ctx ast::Unary) -> Result<IntValue<'ctx>, String> {
         let operator = unary.0;
         let arg = self.codegen_expr(&unary.1)?;
-        let one = self.context.i32_type().const_int(1, false);
-        Ok(match operator {
+        let itype = self.context.i32_type();
+        let one = itype.const_int(1, true);
+        let zero = itype.const_int(0, true);
+        let value = match operator {
             "++" => self.builder.build_int_add(arg, one, "incr"),
             "--" => self.builder.build_int_sub(arg, one, "decr"),
+            "!" | "not" => self
+                .builder
+                .build_int_compare(IntPredicate::EQ, arg, zero, "not"),
             _ => unimplemented!("Haven't built the {} unary operator yet", operator),
-        })
+        };
+        let itype = self.context.i32_type();
+        let value = self.builder.build_int_cast(value, itype, "cast");
+        Ok(value)
     }
 
     fn codegen_call(&mut self, call: &'ctx ast::Call) -> Result<IntValue<'ctx>, String> {
