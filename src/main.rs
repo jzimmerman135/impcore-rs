@@ -11,23 +11,25 @@ use parser::ImpcoreParser;
 use std::{error, fs, process};
 
 fn main() -> Result<(), Box<dyn error::Error>> {
-    let filename = "./imp/ez.imp";
+    let filename = "./imp/hw1.imp";
     let contents =
         fs::read_to_string(filename).map_err(|_| format!("Failed to open file {}", filename))?;
 
-    let top_level_expressions: Vec<AstNode> = ImpcoreParser::generate_top_level_exprs(&contents)?;
+    let top_level_nodes: Vec<AstNode> = ImpcoreParser::generate_top_level_exprs(&contents)?;
 
     println!("\nPRINTING AST\n------------");
-    for tle in top_level_expressions.iter() {
+    for tle in top_level_nodes.iter() {
         println!("{:?}", tle);
     }
+
+    let (exprs, _tests) = ImpcoreParser::separate_top_level_tests(top_level_nodes);
 
     let context = inkwell::context::Context::create();
     let mut compiler =
         jit::Compiler::new(&context, jit::ExecutionMode::Jit).expect("Failed to build compiler");
 
     println!("\nLLVM IR\n--------------------------------------------------");
-    let tlfs = top_level_expressions
+    let tlfs = exprs
         .iter()
         .map(|e| compiler.top_level_compile(e))
         .collect::<Result<Vec<_>, String>>()

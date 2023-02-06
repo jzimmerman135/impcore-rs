@@ -23,6 +23,18 @@ impl ImpcoreParser {
             })
             .collect::<Vec<_>>())
     }
+
+    pub fn separate_top_level_tests(top_level_exprs: Vec<AstNode>) -> (Vec<AstNode>, Vec<AstNode>) {
+        let mut defs = vec![];
+        let mut tests = vec![];
+        for tle in top_level_exprs {
+            match tle {
+                AstNode::CheckAssert(..) | AstNode::CheckExpect(..) => tests.push(tle),
+                _ => defs.push(tle),
+            }
+        }
+        (defs, tests)
+    }
 }
 
 pub trait InnerParse {
@@ -166,19 +178,21 @@ impl<'a> InnerParse for NewGlobal<'a> {
 
 impl<'a> InnerParse for CheckAssert<'a> {
     fn parse(expr: Pair<Rule>) -> AstNode {
-        let mut expr = expr.into_inner();
-        let test = Box::new(AstNode::parse(expr.next().unwrap()));
-        let test_expr = CheckAssert(test);
+        let contents = expr.as_str();
+        let mut exprs = expr.into_inner();
+        let test = Box::new(AstNode::parse(exprs.next().unwrap()));
+        let test_expr = CheckAssert(test, contents);
         AstNode::CheckAssert(test_expr)
     }
 }
 
 impl<'a> InnerParse for CheckExpect<'a> {
     fn parse(expr: Pair<Rule>) -> AstNode {
-        let mut expr = expr.into_inner();
-        let lhs = Box::new(AstNode::parse(expr.next().unwrap()));
-        let rhs = Box::new(AstNode::parse(expr.next().unwrap()));
-        let test_expr = CheckExpect(lhs, rhs);
+        let contents = expr.as_str();
+        let mut exprs = expr.into_inner();
+        let lhs = Box::new(AstNode::parse(exprs.next().unwrap()));
+        let rhs = Box::new(AstNode::parse(exprs.next().unwrap()));
+        let test_expr = CheckExpect(lhs, rhs, contents);
         AstNode::CheckExpect(test_expr)
     }
 }

@@ -46,8 +46,8 @@ pub enum ExecutionMode {
 pub enum TopLevelExpr<'ctx> {
     ExprDef(FunctionValue<'ctx>),
     FuncDef(&'ctx str),
-    TestAssertDef(FunctionValue<'ctx>),
-    TestExpectDef(FunctionValue<'ctx>, FunctionValue<'ctx>),
+    TestAssertDef(FunctionValue<'ctx>, &'ctx str),
+    TestExpectDef(FunctionValue<'ctx>, FunctionValue<'ctx>, &'ctx str),
 }
 
 impl<'ctx> Compiler<'ctx> {
@@ -97,11 +97,11 @@ impl<'ctx> Compiler<'ctx> {
                 TopLevelExpr::FuncDef(inner.0)
             }
             AstNode::CheckAssert(inner) => {
-                TopLevelExpr::TestAssertDef(self.defgen_check_assert(inner)?)
+                TopLevelExpr::TestAssertDef(self.defgen_check_assert(inner)?, inner.1)
             }
             AstNode::CheckExpect(inner) => {
                 let (lhs, rhs) = self.defgen_check_expect(inner)?;
-                TopLevelExpr::TestExpectDef(lhs, rhs)
+                TopLevelExpr::TestExpectDef(lhs, rhs, inner.2)
             }
             _ => TopLevelExpr::ExprDef(self.defgen_anonymous(node)?),
         })
@@ -146,20 +146,20 @@ impl<'ctx> Compiler<'ctx> {
 
     fn run_test_unverified(&mut self, test: &TopLevelExpr<'ctx>) -> bool {
         match test {
-            TopLevelExpr::TestAssertDef(assert_fn) => {
+            TopLevelExpr::TestAssertDef(assert_fn, contents) => {
                 let res =
                     unsafe { self.execution_engine.run_function(*assert_fn, &[]) }.as_int(true);
                 if res == 0 {
-                    eprintln!("check-assert failed got: {}", res);
+                    eprintln!("{} failed, got {}", contents, res);
                     return false;
                 }
                 true
             }
-            TopLevelExpr::TestExpectDef(lhs, rhs) => {
+            TopLevelExpr::TestExpectDef(lhs, rhs, contents) => {
                 let lhs = unsafe { self.execution_engine.run_function(*lhs, &[]) }.as_int(true);
                 let rhs = unsafe { self.execution_engine.run_function(*rhs, &[]) }.as_int(true);
                 if lhs != rhs {
-                    eprint!("check-expect failed got {} and {}", lhs, rhs);
+                    eprint!("{} failed, got {} and {}", contents, lhs, rhs);
                     return false;
                 }
                 true

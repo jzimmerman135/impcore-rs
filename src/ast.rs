@@ -68,6 +68,6 @@ pub struct NewGlobal<'a>(pub &'a str, pub Box<AstNode<'a>>);
 #[derive(Debug)]
 pub struct RuntimeError;
 #[derive(Debug)]
-pub struct CheckAssert<'a>(pub Box<AstNode<'a>>);
+pub struct CheckAssert<'a>(pub Box<AstNode<'a>>, pub &'a str);
 #[derive(Debug)]
-pub struct CheckExpect<'a>(pub Box<AstNode<'a>>, pub Box<AstNode<'a>>);
+pub struct CheckExpect<'a>(pub Box<AstNode<'a>>, pub Box<AstNode<'a>>, pub &'a str);
