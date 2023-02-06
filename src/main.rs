@@ -41,7 +41,7 @@ fn main() {
     let mut compiler =
         jit::Compiler::new(&context, jit::ExecutionMode::Jit).expect("Failed to build compiler");
 
-    let tlfs = top_level_nodes
+    let tles = top_level_nodes
         .iter()
         .map(|e| compiler.top_level_compile(e))
         .collect::<Result<Vec<_>, String>>()
@@ -53,5 +53,5 @@ fn main() {
     print_ir(&compiler);
 
     println!("\nEXECUTION OUTPUT\n--------------------------------------------------");
-    compiler.top_level_run_all(&tlfs);
+    compiler.top_level_run_all(&tles);
 }

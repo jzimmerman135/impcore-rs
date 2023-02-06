@@ -12,16 +12,24 @@ pub struct ImpcoreParser;
 
 impl ImpcoreParser {
     pub fn generate_top_level_exprs(contents: &str) -> Result<Vec<AstNode>, String> {
-        Ok(ImpcoreParser::parse(Rule::impcore, contents)
+        let mut tests = vec![];
+        let mut nodes = ImpcoreParser::parse(Rule::impcore, contents)
             .map_err(|e| format!("Parsing Failed: {}", e))?
             .next()
             .unwrap()
             .into_inner()
             .filter_map(|e| match e.as_rule() {
                 Rule::EOI => None,
+                Rule::check_assert | Rule::check_error | Rule::check_expect => {
+                    tests.push(AstNode::parse(e));
+                    None
+                }
                 _ => Some(AstNode::parse(e)),
             })
-            .collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+
+        nodes.append(&mut tests);
+        Ok(nodes)
     }
 }
 

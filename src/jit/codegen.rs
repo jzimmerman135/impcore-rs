@@ -1,8 +1,5 @@
-use inkwell::IntPredicate;
-
-use crate::ast;
-
 use super::*;
+use inkwell::IntPredicate;
 
 impl<'ctx> Compiler<'ctx> {
     pub fn codegen_expr(&mut self, expr: &'ctx AstNode) -> Result<IntValue<'ctx>, String> {

@@ -81,6 +81,7 @@ impl<'ctx> Compiler<'ctx> {
         fpm.add_promote_memory_to_register_pass();
         fpm.add_instruction_combining_pass();
         fpm.add_reassociate_pass();
+        fpm.add_tail_call_elimination_pass();
         fpm.initialize();
 
         Ok(Self {
