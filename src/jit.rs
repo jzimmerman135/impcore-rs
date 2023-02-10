@@ -67,22 +67,13 @@ impl<'ctx> Compiler<'ctx> {
         let module = context.create_module("tmp");
         let builder = context.create_builder();
         let execution_engine = match exec_mode {
-            ExecutionMode::Jit => module.create_jit_execution_engine(OptimizationLevel::None)?,
+            ExecutionMode::Jit => {
+                module.create_jit_execution_engine(OptimizationLevel::Aggressive)?
+            }
             ExecutionMode::Interpreter => module.create_interpreter_execution_engine()?,
             _ => panic!("Cannot create a compiler with dead execution engine"),
         };
-
-        let fpm = PassManager::create(&module);
-        fpm.add_instruction_combining_pass();
-        fpm.add_reassociate_pass();
-        fpm.add_gvn_pass();
-        fpm.add_cfg_simplification_pass();
-        fpm.add_basic_alias_analysis_pass();
-        fpm.add_promote_memory_to_register_pass();
-        fpm.add_instruction_combining_pass();
-        fpm.add_reassociate_pass();
-        fpm.add_tail_call_elimination_pass();
-        fpm.initialize();
+        let fpm = Self::get_optimization_pass_manager(&module);
 
         Ok(Self {
             context,
@@ -95,6 +86,21 @@ impl<'ctx> Compiler<'ctx> {
             formal_table: HashMap::new(),
             curr_function: None,
         })
+    }
+
+    fn get_optimization_pass_manager(module: &Module<'ctx>) -> PassManager<FunctionValue<'ctx>> {
+        let fpm = PassManager::create(module);
+        fpm.add_instruction_combining_pass();
+        fpm.add_reassociate_pass();
+        fpm.add_gvn_pass();
+        fpm.add_cfg_simplification_pass();
+        fpm.add_basic_alias_analysis_pass();
+        fpm.add_promote_memory_to_register_pass();
+        fpm.add_instruction_combining_pass();
+        fpm.add_reassociate_pass();
+        fpm.add_tail_call_elimination_pass();
+        fpm.initialize();
+        fpm
     }
 }
 
@@ -190,6 +196,9 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     fn run_tests(&mut self, tests: &[TopLevelExpr<'ctx>]) {
+        if tests.len() == 0 {
+            return;
+        }
         let mut successful = 0;
         for test in tests {
             if self.run_test_unverified(test) {

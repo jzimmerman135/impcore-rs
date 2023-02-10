@@ -1,6 +1,85 @@
 use super::*;
 use inkwell::IntPredicate;
 
+impl<'ctx> ast::AstNode<'ctx> {
+    fn codegen(&self, compiler: &mut Compiler<'ctx>) -> Result<IntValue<'ctx>, String> {
+        todo!();
+    }
+}
+
+impl<'a> ast::Binary<'a> {
+    fn codegen(&'a self, compiler: &'a mut Compiler<'a>) -> Result<IntValue<'a>, String> {
+        let operator = self.0;
+        let lhs = self.1.codegen(compiler)?;
+        let rhs = self.2.codegen(compiler)?;
+        let value = match operator {
+            "*" => compiler.builder.build_int_mul(lhs, rhs, "mul"),
+            "/" => compiler.builder.build_int_signed_div(lhs, rhs, "div"),
+            "+" => compiler.builder.build_int_add(lhs, rhs, "mul"),
+            "-" => compiler.builder.build_int_sub(lhs, rhs, "sub"),
+            "%" | "mod" => compiler.builder.build_int_signed_rem(lhs, rhs, "mod"),
+            ">" => compiler
+                .builder
+                .build_int_compare(IntPredicate::SGT, lhs, rhs, "gt"),
+            ">=" => compiler
+                .builder
+                .build_int_compare(IntPredicate::SGE, lhs, rhs, "ge"),
+            "<" => compiler
+                .builder
+                .build_int_compare(IntPredicate::SLT, lhs, rhs, "lt"),
+            "<=" => compiler
+                .builder
+                .build_int_compare(IntPredicate::SLE, lhs, rhs, "le"),
+            "=" => compiler
+                .builder
+                .build_int_compare(IntPredicate::EQ, lhs, rhs, "le"),
+            "!=" => compiler
+                .builder
+                .build_int_compare(IntPredicate::NE, lhs, rhs, "le"),
+            _ => unimplemented!("Haven't built the {} binary operator yet", operator),
+        };
+        Ok(value)
+    }
+}
+
+fn codegen_binary_no_OO<'ctx>(
+    compiler: &'ctx mut Compiler<'ctx>,
+    binary: &'ctx ast::Binary,
+) -> Result<IntValue<'ctx>, String> {
+    let operator = binary.0;
+    let lhs = compiler.codegen_expr(&binary.1)?;
+    let rhs = compiler.codegen_expr(&binary.2)?;
+    let value = match operator {
+        "*" => compiler.builder.build_int_mul(lhs, rhs, "mul"),
+        "/" => compiler.builder.build_int_signed_div(lhs, rhs, "div"),
+        "+" => compiler.builder.build_int_add(lhs, rhs, "mul"),
+        "-" => compiler.builder.build_int_sub(lhs, rhs, "sub"),
+        "%" | "mod" => compiler.builder.build_int_signed_rem(lhs, rhs, "mod"),
+        ">" => compiler
+            .builder
+            .build_int_compare(IntPredicate::SGT, lhs, rhs, "gt"),
+        ">=" => compiler
+            .builder
+            .build_int_compare(IntPredicate::SGE, lhs, rhs, "ge"),
+        "<" => compiler
+            .builder
+            .build_int_compare(IntPredicate::SLT, lhs, rhs, "lt"),
+        "<=" => compiler
+            .builder
+            .build_int_compare(IntPredicate::SLE, lhs, rhs, "le"),
+        "=" => compiler
+            .builder
+            .build_int_compare(IntPredicate::EQ, lhs, rhs, "le"),
+        "!=" => compiler
+            .builder
+            .build_int_compare(IntPredicate::NE, lhs, rhs, "le"),
+        _ => unimplemented!("Haven't built the {} binary operator yet", operator),
+    };
+    let itype = compiler.context.i32_type();
+    let value = compiler.builder.build_int_cast(value, itype, "cast");
+    Ok(value)
+}
+
 impl<'ctx> Compiler<'ctx> {
     pub fn codegen_expr(&mut self, expr: &'ctx AstNode) -> Result<IntValue<'ctx>, String> {
         match expr {
@@ -11,9 +90,9 @@ impl<'ctx> Compiler<'ctx> {
             AstNode::Call(inner) => self.codegen_call(inner),
             AstNode::If(inner) => self.codegen_if(inner),
             AstNode::Begin(inner) => self.codegen_begin(inner),
+            AstNode::While(inner) => self.codegen_while(inner),
             AstNode::Error(..) => Ok(self.context.i32_type().const_int(0, true)),
             _ => unimplemented!("Haven't implemented codegen for {:?}", expr),
-            // AstNode::While(inner) => inner.codegen(compiler),
             // AstNode::Assign(inner) => inner.codegen(compiler),
             // AstNode::NewGlobal(inner) => inner.codegen(compiler),
         }
@@ -157,5 +236,33 @@ impl<'ctx> Compiler<'ctx> {
             v = self.codegen_expr(expr)?;
         }
         Ok(v)
+    }
+
+    fn codegen_while(&mut self, whilex: &'ctx ast::While) -> Result<IntValue<'ctx>, String> {
+        let parent_fn = self
+            .curr_function
+            .ok_or_else(|| "No curr function in the if block".to_string())?;
+
+        let end_cond_expr = &*whilex.0;
+        let body_expr = &*whilex.1;
+
+        let loop_block = self.context.append_basic_block(parent_fn, "loop");
+        self.builder.build_unconditional_branch(loop_block);
+        self.builder.position_at_end(loop_block);
+
+        let _body_value = self.codegen_expr(body_expr)?;
+        let end_cond = self.codegen_expr(end_cond_expr)?;
+        let zero = self.context.i32_type().const_int(0, false);
+
+        let end_cond =
+            self.builder
+                .build_int_compare(IntPredicate::NE, end_cond, zero, "whilecond");
+
+        let after_block = self.context.append_basic_block(parent_fn, "afterwhile");
+        self.builder
+            .build_conditional_branch(end_cond, loop_block, after_block);
+
+        self.builder.position_at_end(after_block);
+        Ok(self.context.i32_type().const_int(0, false))
     }
 }

@@ -33,7 +33,7 @@ impl<'ctx> Compiler<'ctx> {
             return Err(format!("Could not verify function {}", function_name));
         }
 
-        // self.fpm.run_on(&function_value);
+        self.fpm.run_on(&function_value);
 
         Ok(function_value)
     }
@@ -56,6 +56,7 @@ impl<'ctx> Compiler<'ctx> {
     fn defgen_val(&mut self, val: &'ctx ast::NewGlobal) -> Result<IntValue, String> {
         let name = val.0;
         let value = self.codegen_expr(&val.1)?;
+        let size = self.codegen_expr(&val.2);
         self.global_table.insert(name, value);
         Ok(value)
     }

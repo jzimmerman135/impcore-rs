@@ -152,7 +152,7 @@
         (check-assert (prime? 3))
         (check-assert (prime? 7))
         (check-assert (prime? 523))
-        (check-assert (prime? 10007))
+        (check-assert (prime? 1000125207))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;

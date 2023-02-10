@@ -10,6 +10,7 @@ use ast::AstNode;
 use parser::ImpcoreParser;
 use std::{fs, process};
 
+#[allow(unused)]
 fn print_ast(ast: &[AstNode]) {
     println!("\nPRINTING AST\n------------");
     for node in ast.iter() {
@@ -17,23 +18,24 @@ fn print_ast(ast: &[AstNode]) {
     }
 }
 
+#[allow(unused)]
 fn print_ir(compiler: &jit::Compiler) {
     println!("\nLLVM IR\n--------------------------------------------------");
     compiler.module.print_to_stderr();
 }
 
-fn die(e: String) -> ! {
+fn rip(e: String) -> ! {
     eprintln!("error: {}", e);
     process::exit(1)
 }
 
 fn main() {
-    let filename = "./imp/hw1.imp";
+    let filename = "./imp/ez.imp";
     let contents = fs::read_to_string(filename)
-        .unwrap_or_else(|_| die(format!("dailed to open file {}", filename)));
+        .unwrap_or_else(|_| rip(format!("dailed to open file {}", filename)));
 
     let top_level_nodes: Vec<AstNode> =
-        ImpcoreParser::generate_top_level_exprs(&contents).unwrap_or_else(|s| die(s));
+        ImpcoreParser::generate_top_level_exprs(&contents).unwrap_or_else(|s| rip(s));
 
     print_ast(&top_level_nodes);
 

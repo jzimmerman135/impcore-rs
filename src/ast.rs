@@ -64,7 +64,7 @@ pub struct Begin<'a>(pub Vec<AstNode<'a>>);
 #[derive(Debug)]
 pub struct Assign<'a>(pub &'a str, pub Box<AstNode<'a>>);
 #[derive(Debug)]
-pub struct NewGlobal<'a>(pub &'a str, pub Box<AstNode<'a>>);
+pub struct NewGlobal<'a>(pub &'a str, pub Box<AstNode<'a>>, pub Box<AstNode<'a>>);
 #[derive(Debug)]
 pub struct RuntimeError;
 #[derive(Debug)]

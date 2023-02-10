@@ -171,7 +171,14 @@ impl<'a> InnerParse for NewGlobal<'a> {
         let mut expr = expr.into_inner();
         let variable_name = expr.next().unwrap().as_str();
         let arg = Box::new(AstNode::parse(expr.next().unwrap()));
-        let val_expr = NewGlobal(variable_name, arg);
+
+        let mut size = Box::new(AstNode::Literal(Literal(1)));
+        if let Some(size_expr) = expr.next() {
+            // array case
+            size = Box::new(AstNode::parse(size_expr));
+        }
+
+        let val_expr = NewGlobal(variable_name, arg, size);
         AstNode::NewGlobal(val_expr)
     }
 }
