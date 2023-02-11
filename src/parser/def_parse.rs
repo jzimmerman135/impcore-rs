@@ -32,8 +32,9 @@ pub fn parse_check_assert(def: Pair<Rule>) -> AstDef {
 }
 
 pub fn parse_check_error(def: Pair<Rule>) -> AstDef {
+    // TODO: Get it really working
     let contents = def.as_str();
     let mut inner_expr = def.into_inner();
     let body = AstExpr::parse(inner_expr.next().unwrap());
-    AstDef::CheckError(body, contents)
+    AstDef::CheckAssert(body, contents)
 }

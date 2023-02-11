@@ -59,6 +59,8 @@ pub fn codegen_binary<'a>(
             .build_int_compare(IntPredicate::NE, lhs, rhs, "le"),
         _ => unimplemented!("Haven't built the {} binary operator yet", operator),
     };
+    let itype = compiler.context.i32_type();
+    let value = compiler.builder.build_int_cast(value, itype, "cast");
     Ok(value)
 }
 

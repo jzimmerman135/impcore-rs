@@ -81,7 +81,7 @@ impl<'a> AstExpr<'a> {
             Self::Variable(name, ..) => codegen::codegen_variable(name, compiler),
             Self::Error => codegen::codegen_literal(1, compiler),
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
-            _ => unreachable!(),
+            _ => unreachable!("Unreachable codegen {:?}", self),
         }
     }
 }
@@ -107,7 +107,7 @@ impl<'a> AstDef<'a> {
             Self::Global(name, value) => {
                 NativeTopLevel::TopLevelExpr(defgen::defgen_global(name, value, compiler)?)
             }
-            _ => unreachable!(),
+            _ => unreachable!("Unreachable defgen {:?}", self),
         })
     }
 }
