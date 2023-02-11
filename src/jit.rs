@@ -55,7 +55,9 @@ impl<'ctx> Compiler<'ctx> {
         let module = context.create_module("tmp");
         let builder = context.create_builder();
         let execution_engine = match exec_mode {
-            ExecutionMode::Jit => module.create_jit_execution_engine(OptimizationLevel::None)?,
+            ExecutionMode::Jit => {
+                module.create_jit_execution_engine(OptimizationLevel::Aggressive)?
+            }
             ExecutionMode::Interpreter => module.create_interpreter_execution_engine()?,
             _ => panic!("Cannot create a compiler with dead execution engine"),
         };

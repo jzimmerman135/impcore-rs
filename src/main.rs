@@ -22,7 +22,7 @@ fn rip(e: String) -> ! {
 }
 
 fn main() {
-    let filename = "./imp/hw1.imp";
+    let filename = "./imp/basic.imp";
     let contents = fs::read_to_string(filename)
         .unwrap_or_else(|_| rip(format!("dailed to open file {}", filename)));
 
