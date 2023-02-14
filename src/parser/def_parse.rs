@@ -1,10 +1,12 @@
+use crate::ast::AstScope;
+
 use super::*;
 
 pub fn parse_val(def: Pair<Rule>) -> AstDef {
     let mut def = def.into_inner();
     let name = def.next().unwrap().as_str();
     let value = AstExpr::parse(def.next().unwrap());
-    AstDef::Global(name, value)
+    AstDef::Global(name, value, AstScope::Unknown)
 }
 
 pub fn parse_define(def: Pair<Rule>) -> AstDef {

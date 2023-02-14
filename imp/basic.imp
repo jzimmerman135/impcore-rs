@@ -1,3 +1,11 @@
 20
 (define add-ten (x) (+ 10 x))
 (add-ten (* 15 5))
+(val x 10)
+(val g 12)
+(begin (set g 15) (+ g x))
+(define global-confusion (n) (begin (set n g)(+ n d)))
+(val d 13)
+(set d 18)
+(set z 12)
+h
