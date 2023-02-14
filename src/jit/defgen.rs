@@ -1,3 +1,5 @@
+use inkwell::AddressSpace;
+
 use crate::ast::AstExpr;
 
 use super::*;
@@ -93,17 +95,38 @@ pub fn defgen_global<'a>(
     compiler.curr_function = Some(fn_value);
 
     // calculate value
+    let n_elem = itype.const_int(1, false);
+    let _len = compiler
+        .builder
+        .build_int_mul(itype.size_of(), n_elem, "n_bytes");
+
     let v = value.codegen(compiler)?;
-    let addr = compiler.builder.build_malloc(v.get_type(), name)?;
-    let _val_instr = compiler.builder.build_store(addr, v);
-    compiler.global_table.insert(name, addr);
+
+    let addr = compiler.builder.build_malloc(v.get_type(), "malloc")?;
+    let array = compiler
+        .builder
+        .build_load(addr, "array")
+        .into_pointer_value();
+
+    let global_ptr =
+        compiler
+            .module
+            .add_global(array.get_type(), Some(AddressSpace::default()), name);
+
+    global_ptr.set_initializer(&addr);
+
+    let _store_instr = compiler.builder.build_store(array, v);
+    compiler.builder.insert_instruction(&_store_instr, None);
 
     compiler.builder.build_return(Some(&v));
     compiler.curr_function = None;
 
     if !fn_value.verify(true) {
         compiler.module.print_to_stderr();
-        return Err(format!("Could not declare variable {} ", name));
+        return Err(format!(
+            "Could not declare global pointer variable {} ",
+            name
+        ));
     }
 
     Ok(fn_value)
@@ -112,12 +135,15 @@ pub fn defgen_global<'a>(
 pub fn defgen_free_globals<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a>, String> {
     let itype = compiler.context.i32_type();
     let fn_type = itype.fn_type(&[], false);
-    let fn_value = compiler.module.add_function("val", fn_type, None);
+    let fn_value = compiler.module.add_function("cleanup", fn_type, None);
     let basic_block = compiler.context.append_basic_block(fn_value, "entry");
     compiler.builder.position_at_end(basic_block);
 
-    for (_, addr) in compiler.global_table.iter() {
-        compiler.builder.build_free(*addr);
+    if let Some(first_global) = compiler.module.get_first_global() {
+        compiler.builder.build_free(first_global.as_pointer_value());
+        while let Some(next_global) = first_global.get_next_global() {
+            compiler.builder.build_free(next_global.as_pointer_value());
+        }
     }
 
     let v = itype.const_zero();

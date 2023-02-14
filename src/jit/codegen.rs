@@ -65,10 +65,10 @@ pub fn codegen_binary<'a>(
             .build_int_compare(IntPredicate::SLE, lhs, rhs, "le"),
         "=" => compiler
             .builder
-            .build_int_compare(IntPredicate::EQ, lhs, rhs, "le"),
+            .build_int_compare(IntPredicate::EQ, lhs, rhs, "eq"),
         "!=" => compiler
             .builder
-            .build_int_compare(IntPredicate::NE, lhs, rhs, "le"),
+            .build_int_compare(IntPredicate::NE, lhs, rhs, "ne"),
         _ => unimplemented!("Haven't built the {} binary operator yet", operator),
     };
     let itype = compiler.context.i32_type();
@@ -84,13 +84,10 @@ pub fn codegen_unary<'a>(
     let body = body_expr.codegen(compiler)?;
     let itype = compiler.context.i32_type();
     let one = itype.const_int(1, true);
-    let zero = itype.const_int(0, true);
     let value = match operator {
         "++" => compiler.builder.build_int_add(body, one, "incr"),
         "--" => compiler.builder.build_int_sub(body, one, "decr"),
-        "!" | "not" => compiler
-            .builder
-            .build_int_compare(IntPredicate::EQ, body, zero, "not"),
+        "!" | "not" => compiler.builder.build_not(body, "not"),
         _ => unimplemented!("Haven't built the {} unary operator yet", operator),
     };
     let value = compiler.builder.build_int_cast(value, itype, "cast");

@@ -5,10 +5,11 @@ use crate::ast::*;
 pub fn rebuild(mut ast: Ast) -> Result<Ast, String> {
     squash_globals(&mut ast);
     build_scopes(&mut ast)?;
+    // ast.0.push(AstDef::FreeAll);
     Ok(ast)
 }
 
-pub fn get_globals<'a>(ast: &Ast<'a>) -> HashSet<&'a str> {
+fn get_globals<'a>(ast: &Ast<'a>) -> HashSet<&'a str> {
     ast.0
         .iter()
         .filter_map(|e| match e {
@@ -23,7 +24,7 @@ pub fn get_globals<'a>(ast: &Ast<'a>) -> HashSet<&'a str> {
 /// `AstScope::Local` means stack allocated for a function call,
 /// `AstScope::Param` params means SSA,
 /// `AstScope::Global` means constant pointer to heap variable,
-pub fn build_scopes(ast: &mut Ast) -> Result<(), String> {
+fn build_scopes(ast: &mut Ast) -> Result<(), String> {
     let globals = get_globals(ast);
     for def in ast.iter_mut() {
         match def {
@@ -86,7 +87,7 @@ pub fn build_scopes(ast: &mut Ast) -> Result<(), String> {
 
 /// Moves global variable definitions to the start of execution, replaces
 /// them with an assignment
-pub fn squash_globals(ast: &mut Ast) {
+fn squash_globals(ast: &mut Ast) {
     use std::mem;
     use AstExpr::Assign;
     use AstScope::Global as GlobalScope;
@@ -110,6 +111,5 @@ pub fn squash_globals(ast: &mut Ast) {
             .collect(),
     );
 
-    defs.push(AstDef::FreeAll);
     *ast = Ast(defs)
 }

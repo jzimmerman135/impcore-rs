@@ -6,6 +6,9 @@
 (locals 8 12)
 (locals -10 12)
 
+(val myGlobal 6)
+;; myGlobal
+
 ;; (val n 18)
 ;; n
 ;; (val g 10)
