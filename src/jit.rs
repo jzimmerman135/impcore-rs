@@ -112,7 +112,7 @@ impl<'ctx> Compiler<'ctx> {
             NativeTopLevel::FunctionDef(_, name) => println!("{}", name),
             NativeTopLevel::TopLevelExpr(fn_value) => {
                 let res = unsafe { self.execution_engine.run_function(fn_value, &[]) };
-                println!("{}", res.as_int(true))
+                println!("{}", res.as_int(true) as i64)
             }
             NativeTopLevel::FreeAll(fn_value) => {
                 let res = unsafe { self.execution_engine.run_function(fn_value, &[]) };

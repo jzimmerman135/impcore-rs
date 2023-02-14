@@ -1,9 +1,11 @@
 20
 (define add-ten (x) (+ 10 x))
 (add-ten (* 15 5))
-(define locals (n x) (begin (if (> x 0) (set n 1) (set n 2)) (+ n x)))
+
+(define locals (n x) (begin (if (> n 0) (set n 1) (set n 3)) (+ n x)))
 (locals 8 12)
-(locals -2 12)
+(locals -10 12)
+
 ;; (val n 18)
 ;; n
 ;; (val g 10)

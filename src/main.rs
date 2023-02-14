@@ -1,6 +1,7 @@
-use impcore_rs::ast::{static_analysis, Ast};
+use impcore_rs::ast::Ast;
 use impcore_rs::jit;
 use impcore_rs::parser::ImpcoreParser;
+use impcore_rs::static_analysis;
 use std::{fs, process};
 
 #[allow(unused)]

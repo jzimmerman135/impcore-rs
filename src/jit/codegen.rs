@@ -32,10 +32,7 @@ pub fn codegen_assign<'a>(
 fn get_address<'a>(name: &str, compiler: &Compiler<'a>) -> Result<PointerValue<'a>, String> {
     match compiler.param_table.get(name) {
         Some(&e) => Some(e),
-        None => match compiler.global_table.get(name) {
-            Some(&e) => Some(e),
-            None => None,
-        },
+        None => compiler.global_table.get(name).copied(),
     }
     .ok_or(format!("Unbound variable {}", name))
 }
