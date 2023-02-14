@@ -3,7 +3,10 @@ use crate::{
     parser::{def_parse, expr_parse, *},
 };
 use inkwell::values::IntValue;
-use std::slice::{Iter, IterMut};
+use std::{
+    collections::HashSet,
+    slice::{Iter, IterMut},
+};
 pub struct Ast<'a>(pub Vec<AstDef<'a>>);
 
 #[derive(Debug, PartialEq, Clone)]
@@ -31,7 +34,7 @@ pub enum AstExpr<'a> {
 #[derive(Debug, PartialEq)]
 pub enum AstDef<'a> {
     TopLevelExpr(AstExpr<'a>),
-    Function(&'a str, Vec<&'a str>, Vec<&'a str>, AstExpr<'a>),
+    Function(&'a str, Vec<&'a str>, HashSet<&'a str>, AstExpr<'a>),
     Global(&'a str, AstExpr<'a>),
     CheckExpect(AstExpr<'a>, AstExpr<'a>, &'a str),
     CheckAssert(AstExpr<'a>, &'a str),
@@ -77,30 +80,22 @@ impl<'a> AstDef<'a> {
 
     pub fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>> {
         match self {
-            Self::Function(_, _, _, body) => body.children_mut(),
-            Self::TopLevelExpr(body) => body.children_mut(),
-            Self::Global(_, body) => body.children_mut(),
-            Self::CheckAssert(body, _) => body.children_mut(),
-            Self::CheckExpect(lhs, rhs, _) => {
-                let mut lchildren = lhs.children_mut();
-                lchildren.append(&mut rhs.children_mut());
-                lchildren
-            }
+            Self::Function(_, _, _, body) => vec![body],
+            Self::TopLevelExpr(body) => vec![body],
+            Self::Global(_, body) => vec![body],
+            Self::CheckAssert(body, _) => vec![body],
+            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
             _ => unreachable!(),
         }
     }
 
     pub fn children(&self) -> Vec<&AstExpr<'a>> {
         match self {
-            Self::Function(_, _, _, body) => body.children(),
-            Self::TopLevelExpr(body) => body.children(),
-            Self::Global(_, body) => body.children(),
-            Self::CheckAssert(body, _) => body.children(),
-            Self::CheckExpect(lhs, rhs, _) => {
-                let mut lchildren = lhs.children();
-                lchildren.append(&mut rhs.children());
-                lchildren
-            }
+            Self::Function(_, _, _, body) => vec![body],
+            Self::TopLevelExpr(body) => vec![body],
+            Self::Global(_, body) => vec![body],
+            Self::CheckAssert(body, _) => vec![body],
+            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
             _ => unreachable!(),
         }
     }
@@ -245,9 +240,7 @@ pub mod static_analysis {
                             AstExpr::Assign(name, value, AstScope::Unknown)
                                 if params.contains(name) =>
                             {
-                                if !locals.contains(name) {
-                                    locals.push(&**name);
-                                }
+                                locals.insert(name);
                                 *e = AstExpr::Assign(name, value.to_owned(), AstScope::Local);
                             }
                             AstExpr::Assign(name, value, AstScope::Unknown)
@@ -293,7 +286,6 @@ pub mod static_analysis {
                 })?,
             }
         }
-
         Ok(())
     }
 }
