@@ -15,7 +15,7 @@ pub enum Token {
     Comment,
     Def,
     Else,
-    EOF,
+    Eof,
     Extern,
     For,
     Ident(String),
@@ -91,7 +91,7 @@ impl<'a> Lexer<'a> {
                 if ch.is_none() {
                     self.pos = pos;
 
-                    return Ok(Token::EOF);
+                    return Ok(Token::Eof);
                 }
 
                 if !ch.unwrap().is_whitespace() {
@@ -107,7 +107,7 @@ impl<'a> Lexer<'a> {
         let next = chars.next();
 
         if next.is_none() {
-            return Ok(Token::EOF);
+            return Ok(Token::Eof);
         }
 
         pos += 1;
@@ -137,7 +137,7 @@ impl<'a> Lexer<'a> {
                 loop {
                     let ch = match chars.peek() {
                         Some(ch) => *ch,
-                        None => return Ok(Token::EOF),
+                        None => return Ok(Token::Eof),
                     };
 
                     // Parse float.
@@ -157,7 +157,7 @@ impl<'a> Lexer<'a> {
                 loop {
                     let ch = match chars.peek() {
                         Some(ch) => *ch,
-                        None => return Ok(Token::EOF),
+                        None => return Ok(Token::Eof),
                     };
 
                     // A word-like identifier only contains underscores and alphanumeric characters.
@@ -205,7 +205,7 @@ impl<'a> Iterator for Lexer<'a> {
     /// On EOF or failure, `None` will be returned.
     fn next(&mut self) -> Option<Self::Item> {
         match self.lex() {
-            Ok(EOF) | Err(_) => None,
+            Ok(Eof) | Err(_) => None,
             Ok(token) => Some(token),
         }
     }

@@ -41,6 +41,7 @@ pub enum AstDef<'a> {
     CheckExpect(AstExpr<'a>, AstExpr<'a>, &'a str),
     CheckAssert(AstExpr<'a>, &'a str),
     CheckError(AstExpr<'a>, &'a str),
+    FreeAll,
 }
 
 pub trait AstChildren<'a> {
@@ -54,9 +55,9 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             Self::Function(_, _, _, body) => vec![body],
             Self::TopLevelExpr(body) => vec![body],
             Self::Global(_, body) => vec![body],
-            Self::CheckAssert(body, _) => vec![body],
+            Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            _ => unreachable!(),
+            Self::FreeAll => vec![],
         }
     }
 
@@ -65,9 +66,9 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             Self::Function(_, _, _, body) => vec![body],
             Self::TopLevelExpr(body) => vec![body],
             Self::Global(_, body) => vec![body],
-            Self::CheckAssert(body, _) => vec![body],
+            Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            _ => unreachable!(),
+            Self::FreeAll => vec![],
         }
     }
 }
@@ -112,7 +113,6 @@ impl<'a> AstDef<'a> {
             _ => unreachable!("got unreachable def {:?}", def.as_rule()),
         }
     }
-
     pub fn defgen(&self, compiler: &mut Compiler<'a>) -> Result<NativeTopLevel<'a>, String> {
         Ok(match self {
             Self::Function(name, params, _, body) => NativeTopLevel::FunctionDef(
@@ -133,28 +133,9 @@ impl<'a> AstDef<'a> {
             Self::Global(name, value) => {
                 NativeTopLevel::TopLevelExpr(defgen::defgen_global(name, value, compiler)?)
             }
+            Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_free_globals(compiler)?),
             _ => unreachable!("Unreachable defgen {:?}", self),
         })
-    }
-
-    pub fn apply_to_children<F>(&mut self, apply: &mut F) -> Result<(), String>
-    where
-        F: FnMut(&mut AstExpr<'a>) -> Result<(), String>,
-    {
-        for child in self.children_mut() {
-            child.apply_mut(apply)?;
-        }
-        Ok(())
-    }
-
-    pub fn for_each_child<F>(&self, apply: &mut F) -> Result<(), String>
-    where
-        F: FnMut(&AstExpr<'a>) -> Result<(), String>,
-    {
-        for child in self.children() {
-            child.for_each(apply)?;
-        }
-        Ok(())
     }
 }
 
@@ -183,8 +164,8 @@ impl<'a> AstExpr<'a> {
             Self::While(cond, body) => codegen::codegen_while(cond, body, compiler),
             Self::Call(name, args) => codegen::codegen_call(name, args, compiler),
             Self::Literal(value) => codegen::codegen_literal(*value, compiler),
-            Self::Variable(name, AstScope::Param) => codegen::codegen_formal(name, compiler),
             Self::Variable(name, ..) => codegen::codegen_variable(name, compiler),
+            Self::Assign(name, body, ..) => codegen::codegen_assign(name, body, compiler),
             Self::Error => codegen::codegen_literal(1, compiler),
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
             _ => unimplemented!("Unimplemented codegen {:?}", self),
@@ -209,6 +190,28 @@ impl<'a> AstExpr<'a> {
             child.for_each(predicate)?;
         }
         predicate(self)
+    }
+}
+
+impl<'a> AstDef<'a> {
+    pub fn apply_to_children<F>(&mut self, apply: &mut F) -> Result<(), String>
+    where
+        F: FnMut(&mut AstExpr<'a>) -> Result<(), String>,
+    {
+        for child in self.children_mut() {
+            child.apply_mut(apply)?;
+        }
+        Ok(())
+    }
+
+    pub fn for_each_child<F>(&self, apply: &mut F) -> Result<(), String>
+    where
+        F: FnMut(&AstExpr<'a>) -> Result<(), String>,
+    {
+        for child in self.children() {
+            child.for_each(apply)?;
+        }
+        Ok(())
     }
 }
 
@@ -338,6 +341,8 @@ pub mod static_analysis {
                 })
                 .collect(),
         );
+
+        defs.push(AstDef::FreeAll);
         *ast = Ast(defs)
     }
 }

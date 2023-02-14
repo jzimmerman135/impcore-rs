@@ -33,17 +33,21 @@ pub fn defgen_function<'a>(
     compiler: &mut Compiler<'a>,
 ) -> Result<FunctionValue<'a>, String> {
     let fn_value = defgen_prototype(name, params, compiler);
-
-    compiler.formal_table.clear();
-    for (&param, param_value) in params.iter().zip(fn_value.get_param_iter()) {
-        compiler
-            .formal_table
-            .insert(param, param_value.into_int_value());
-    }
+    let itype = compiler.context.i32_type();
 
     let entry = compiler.context.append_basic_block(fn_value, name);
     compiler.builder.position_at_end(entry);
     compiler.curr_function = Some(fn_value);
+
+    compiler.param_table.clear();
+    for (&param, param_value) in params.iter().zip(fn_value.get_param_iter()) {
+        let alloca = compiler.builder.build_alloca(itype, "alloca");
+        compiler
+            .builder
+            .build_store(alloca, param_value.into_int_value());
+        compiler.param_table.insert(param, alloca);
+    }
+
     let body = body.codegen(compiler)?;
     compiler.curr_function = None;
     compiler.builder.build_return(Some(&body));
@@ -76,9 +80,54 @@ fn defgen_prototype<'a>(name: &str, params: &[&str], compiler: &Compiler<'a>) ->
 }
 
 pub fn defgen_global<'a>(
-    _name: &str,
-    _value: &AstExpr<'a>,
-    _compiler: &Compiler<'a>,
+    name: &'a str,
+    value: &AstExpr<'a>,
+    compiler: &mut Compiler<'a>,
 ) -> Result<FunctionValue<'a>, String> {
-    todo!();
+    // setup block
+    let itype = compiler.context.i32_type();
+    let fn_type = itype.fn_type(&[], false);
+    let fn_value = compiler.module.add_function("val", fn_type, None);
+    let basic_block = compiler.context.append_basic_block(fn_value, "entry");
+    compiler.builder.position_at_end(basic_block);
+    compiler.curr_function = Some(fn_value);
+
+    // calculate value
+    let v = value.codegen(compiler)?;
+    let addr = compiler.builder.build_malloc(v.get_type(), name)?;
+    let _val_instr = compiler.builder.build_store(addr, v);
+    compiler.global_table.insert(name, addr);
+
+    compiler.builder.build_return(Some(&v));
+    compiler.curr_function = None;
+
+    if !fn_value.verify(true) {
+        compiler.module.print_to_stderr();
+        return Err(format!("Could not declare variable {} ", name));
+    }
+
+    Ok(fn_value)
+}
+
+pub fn defgen_free_globals<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a>, String> {
+    let itype = compiler.context.i32_type();
+    let fn_type = itype.fn_type(&[], false);
+    let fn_value = compiler.module.add_function("val", fn_type, None);
+    let basic_block = compiler.context.append_basic_block(fn_value, "entry");
+    compiler.builder.position_at_end(basic_block);
+
+    for (_, addr) in compiler.global_table.iter() {
+        compiler.builder.build_free(*addr);
+    }
+
+    let v = itype.const_zero();
+    compiler.builder.build_return(Some(&v));
+    compiler.curr_function = None;
+
+    if !fn_value.verify(true) {
+        compiler.module.print_to_stderr();
+        return Err("broken free".into());
+    }
+
+    Ok(fn_value)
 }

@@ -14,15 +14,30 @@ pub fn codegen_variable<'a>(
     name: &str,
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
-    codegen_formal(name, compiler)
+    let addr = get_address(name, compiler)?;
+    Ok(compiler.builder.build_load(addr, "load").into_int_value())
 }
 
-pub fn codegen_formal<'a>(name: &str, compiler: &mut Compiler<'a>) -> Result<IntValue<'a>, String> {
-    compiler
-        .formal_table
-        .get(name)
-        .ok_or(format!("Couldn't find formal '{}'", name))
-        .copied()
+pub fn codegen_assign<'a>(
+    name: &str,
+    body: &AstExpr<'a>,
+    compiler: &mut Compiler<'a>,
+) -> Result<IntValue<'a>, String> {
+    let addr = get_address(name, compiler)?;
+    let value = body.codegen(compiler)?;
+    compiler.builder.build_store(addr, value);
+    Ok(value)
+}
+
+fn get_address<'a>(name: &str, compiler: &Compiler<'a>) -> Result<PointerValue<'a>, String> {
+    match compiler.param_table.get(name) {
+        Some(&e) => Some(e),
+        None => match compiler.global_table.get(name) {
+            Some(&e) => Some(e),
+            None => None,
+        },
+    }
+    .ok_or(format!("Unbound variable {}", name))
 }
 
 pub fn codegen_binary<'a>(

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 pub mod codegen;
 pub mod defgen;
 
-use inkwell::targets::{InitializationConfig, Target};
 pub use inkwell::{
     builder::Builder,
     context::Context,
@@ -14,6 +13,10 @@ pub use inkwell::{
     values::{AsValueRef, BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue},
     OptimizationLevel,
 };
+use inkwell::{
+    targets::{InitializationConfig, Target},
+    values::PointerValue,
+};
 
 #[derive(Debug)]
 pub struct Compiler<'ctx> {
@@ -22,7 +25,8 @@ pub struct Compiler<'ctx> {
     pub builder: Builder<'ctx>,
     pub fpm: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
-    pub formal_table: HashMap<&'ctx str, IntValue<'ctx>>,
+    pub param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
+    pub global_table: HashMap<&'ctx str, PointerValue<'ctx>>,
     exec_mode: ExecutionMode,
     curr_function: Option<FunctionValue<'ctx>>,
 }
@@ -39,6 +43,7 @@ pub enum NativeTopLevel<'ctx> {
     CheckExpect(FunctionValue<'ctx>, FunctionValue<'ctx>, &'ctx str),
     TopLevelExpr(FunctionValue<'ctx>),
     FunctionDef(FunctionValue<'ctx>, &'ctx str),
+    FreeAll(FunctionValue<'ctx>),
 }
 
 impl<'a> NativeTopLevel<'a> {
@@ -55,9 +60,7 @@ impl<'ctx> Compiler<'ctx> {
         let module = context.create_module("tmp");
         let builder = context.create_builder();
         let execution_engine = match exec_mode {
-            ExecutionMode::Jit => {
-                module.create_jit_execution_engine(OptimizationLevel::Aggressive)?
-            }
+            ExecutionMode::Jit => module.create_jit_execution_engine(OptimizationLevel::None)?,
             ExecutionMode::Interpreter => module.create_interpreter_execution_engine()?,
             _ => panic!("Cannot create a compiler with dead execution engine"),
         };
@@ -70,7 +73,8 @@ impl<'ctx> Compiler<'ctx> {
             builder,
             execution_engine,
             exec_mode,
-            formal_table: HashMap::new(),
+            param_table: HashMap::new(),
+            global_table: HashMap::new(),
             curr_function: None,
         })
     }
@@ -110,6 +114,10 @@ impl<'ctx> Compiler<'ctx> {
                 let res = unsafe { self.execution_engine.run_function(fn_value, &[]) };
                 println!("{}", res.as_int(true))
             }
+            NativeTopLevel::FreeAll(fn_value) => {
+                let res = unsafe { self.execution_engine.run_function(fn_value, &[]) };
+                println!("exiting with code {}", res.as_int(true))
+            }
             _ => unreachable!(
                 "not a top level expression or definition {:?}",
                 top_level_def
@@ -123,7 +131,7 @@ impl<'ctx> Compiler<'ctx> {
                 let res =
                     unsafe { self.execution_engine.run_function(assert_fn, &[]) }.as_int(true);
                 if res == 0 {
-                    eprintln!("Failed test ({}): assertion false", contents);
+                    eprintln!("Failed test ({}) -> assertion false", contents);
                     return false;
                 }
                 true
@@ -133,7 +141,7 @@ impl<'ctx> Compiler<'ctx> {
                 let rhs = unsafe { self.execution_engine.run_function(rhs, &[]) }.as_int(true);
                 if lhs != rhs {
                     eprintln!(
-                        "Failed test ({}): got \'{}\' and expected \'{}\'",
+                        "Failed test ({}) -> got \'{}\' and expected \'{}\'",
                         contents, lhs, rhs
                     );
                     return false;
