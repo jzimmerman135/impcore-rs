@@ -1,9 +1,7 @@
+use super::*;
 use crate::ast::AstScope;
 
-use super::*;
-
 pub fn parse_literal(expr: Pair<Rule>) -> AstExpr {
-    eprintln!("{:?}", expr.as_str());
     let num = expr.as_str().parse().unwrap();
     AstExpr::Literal(num)
 }

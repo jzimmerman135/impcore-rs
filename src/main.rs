@@ -1,9 +1,10 @@
+use impcore_rs::ast::{static_analysis, Ast};
+use impcore_rs::jit;
 use impcore_rs::parser::ImpcoreParser;
-use impcore_rs::{ast::AstDef, jit};
 use std::{fs, process};
 
 #[allow(unused)]
-fn print_ast(ast: &[AstDef]) {
+fn print_ast(ast: &Ast) {
     println!("\nPRINTING AST\n------------");
     for node in ast.iter() {
         println!("{:?}", node);
@@ -24,10 +25,13 @@ fn rip(e: String) -> ! {
 fn main() {
     let filename = "./imp/basic.imp";
     let contents = fs::read_to_string(filename)
-        .unwrap_or_else(|_| rip(format!("dailed to open file {}", filename)));
+        .unwrap_or_else(|_| rip(format!("Failed to open file {}", filename)));
 
-    let top_level_nodes =
-        ImpcoreParser::generate_top_level_exprs(&contents).unwrap_or_else(|s| rip(s));
+    let mut top_level_nodes = ImpcoreParser::generate_ast(&contents).unwrap_or_else(|s| rip(s));
+
+    print_ast(&top_level_nodes);
+
+    static_analysis::build_scopes(&mut top_level_nodes).unwrap_or_else(|s| rip(s));
 
     print_ast(&top_level_nodes);
 
@@ -44,7 +48,7 @@ fn main() {
             process::exit(1)
         });
 
-    print_ir(&compiler);
+    // print_ir(&compiler);
 
     println!("\nEXECUTION OUTPUT\n--------------------------------------------------");
     compiler.top_level_run_all(&tles);
