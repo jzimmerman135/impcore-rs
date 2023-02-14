@@ -27,11 +27,11 @@ fn main() {
     let contents = fs::read_to_string(filename)
         .unwrap_or_else(|_| rip(format!("Failed to open file {}", filename)));
 
-    let mut top_level_nodes = ImpcoreParser::generate_ast(&contents).unwrap_or_else(|s| rip(s));
+    let top_level_nodes = ImpcoreParser::generate_ast(&contents).unwrap_or_else(|s| rip(s));
 
     print_ast(&top_level_nodes);
 
-    static_analysis::build_scopes(&mut top_level_nodes).unwrap_or_else(|s| rip(s));
+    let top_level_nodes = static_analysis::rebuild(top_level_nodes).unwrap_or_else(|s| rip(s));
 
     print_ast(&top_level_nodes);
 

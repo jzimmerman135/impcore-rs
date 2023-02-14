@@ -41,6 +41,63 @@ pub enum AstDef<'a> {
     CheckError(AstExpr<'a>, &'a str),
 }
 
+pub trait AstChildren<'a> {
+    fn children(&self) -> Vec<&AstExpr<'a>>;
+    fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>>;
+}
+
+impl<'a> AstChildren<'a> for AstDef<'a> {
+    fn children(&self) -> Vec<&AstExpr<'a>> {
+        match self {
+            Self::Function(_, _, _, body) => vec![body],
+            Self::TopLevelExpr(body) => vec![body],
+            Self::Global(_, body) => vec![body],
+            Self::CheckAssert(body, _) => vec![body],
+            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
+            _ => unreachable!(),
+        }
+    }
+
+    fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>> {
+        match self {
+            Self::Function(_, _, _, body) => vec![body],
+            Self::TopLevelExpr(body) => vec![body],
+            Self::Global(_, body) => vec![body],
+            Self::CheckAssert(body, _) => vec![body],
+            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl<'a> AstChildren<'a> for AstExpr<'a> {
+    fn children_mut(&mut self) -> Vec<&mut Self> {
+        match self {
+            Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
+            Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
+            Self::Unary(_, body) | Self::Assign(_, body, _) => vec![body],
+            Self::While(cond, body) => vec![cond, body],
+            Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter_mut().collect::<Vec<_>>(),
+            Self::If(c, t, f) => {
+                vec![c, t, f]
+            }
+        }
+    }
+
+    fn children(&self) -> Vec<&Self> {
+        match self {
+            Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
+            Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
+            Self::Unary(_, body) | Self::Assign(_, body, _) => vec![body],
+            Self::While(cond, body) => vec![cond, body],
+            Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter().collect::<Vec<_>>(),
+            Self::If(c, t, f) => {
+                vec![c, t, f]
+            }
+        }
+    }
+}
+
 impl<'a> AstDef<'a> {
     pub fn parse(def: Pair<Rule>) -> AstDef {
         match def.as_rule() {
@@ -78,44 +135,22 @@ impl<'a> AstDef<'a> {
         })
     }
 
-    pub fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>> {
-        match self {
-            Self::Function(_, _, _, body) => vec![body],
-            Self::TopLevelExpr(body) => vec![body],
-            Self::Global(_, body) => vec![body],
-            Self::CheckAssert(body, _) => vec![body],
-            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn children(&self) -> Vec<&AstExpr<'a>> {
-        match self {
-            Self::Function(_, _, _, body) => vec![body],
-            Self::TopLevelExpr(body) => vec![body],
-            Self::Global(_, body) => vec![body],
-            Self::CheckAssert(body, _) => vec![body],
-            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn apply_to_children<F>(&mut self, predicate: &mut F) -> Result<(), String>
+    pub fn apply_to_children<F>(&mut self, apply: &mut F) -> Result<(), String>
     where
         F: FnMut(&mut AstExpr<'a>) -> Result<(), String>,
     {
         for child in self.children_mut() {
-            child.apply_mut(predicate)?;
+            child.apply_mut(apply)?;
         }
         Ok(())
     }
 
-    pub fn for_each_child<F>(&self, predicate: &mut F) -> Result<(), String>
+    pub fn for_each_child<F>(&self, apply: &mut F) -> Result<(), String>
     where
         F: FnMut(&AstExpr<'a>) -> Result<(), String>,
     {
         for child in self.children() {
-            child.for_each(predicate)?;
+            child.for_each(apply)?;
         }
         Ok(())
     }
@@ -154,37 +189,10 @@ impl<'a> AstExpr<'a> {
         }
     }
 
-    pub fn children_mut(&mut self) -> Vec<&mut Self> {
-        match self {
-            Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
-            Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
-            Self::Unary(_, body) | Self::Assign(_, body, _) => vec![body],
-            Self::While(cond, body) => vec![cond, body],
-            Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter_mut().collect::<Vec<_>>(),
-            Self::If(c, t, f) => {
-                vec![c, t, f]
-            }
-        }
-    }
-
-    pub fn children(&self) -> Vec<&Self> {
-        match self {
-            Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
-            Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
-            Self::Unary(_, body) | Self::Assign(_, body, _) => vec![body],
-            Self::While(cond, body) => vec![cond, body],
-            Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter().collect::<Vec<_>>(),
-            Self::If(c, t, f) => {
-                vec![c, t, f]
-            }
-        }
-    }
-
     pub fn apply_mut<F>(&mut self, apply: &mut F) -> Result<(), String>
     where
         F: FnMut(&mut AstExpr<'a>) -> Result<(), String>,
     {
-        // leafs have no children
         for child in self.children_mut() {
             child.apply_mut(apply)?;
         }
@@ -195,7 +203,6 @@ impl<'a> AstExpr<'a> {
     where
         F: FnMut(&AstExpr<'a>) -> Result<(), String>,
     {
-        // since error, variable, literal never have children
         for child in self.children() {
             child.for_each(predicate)?;
         }
@@ -218,6 +225,12 @@ pub mod static_analysis {
 
     use super::*;
 
+    pub fn rebuild(ast: Ast) -> Result<Ast, String> {
+        let mut ast = squash_globals(ast);
+        build_scopes(&mut ast)?;
+        Ok(ast)
+    }
+
     pub fn get_globals<'a>(ast: &Ast<'a>) -> HashSet<&'a str> {
         ast.0
             .iter()
@@ -228,58 +241,64 @@ pub mod static_analysis {
             .collect()
     }
 
+    /// leaves unbounded variables scoped as `AstScope::Unknown`
+    ///
+    /// `AstScope::Local` means stack allocated for a function call,
+    /// `AstScope::Param` params means SSA,
+    /// `AstScope::Global` means constant pointer to heap variable,
     pub fn build_scopes(ast: &mut Ast) -> Result<(), String> {
         let globals = get_globals(ast);
-        for root in ast.iter_mut() {
-            match root {
+        for def in ast.iter_mut() {
+            match def {
                 AstDef::Function(_, params, locals, body) => {
-                    // find all assignments within function and discover local variables
                     locals.clear();
-                    body.apply_mut(&mut |e| {
-                        Ok(match e {
+
+                    // so we know where to store it
+                    body.apply_mut(&mut |expr| {
+                        Ok(match expr {
                             AstExpr::Assign(name, value, AstScope::Unknown)
                                 if params.contains(name) =>
                             {
                                 locals.insert(name);
-                                *e = AstExpr::Assign(name, value.to_owned(), AstScope::Local);
+                                *expr = AstExpr::Assign(name, value.to_owned(), AstScope::Local);
                             }
                             AstExpr::Assign(name, value, AstScope::Unknown)
                                 if globals.contains(name) =>
                             {
-                                *e = AstExpr::Assign(name, value.to_owned(), AstScope::Global);
+                                *expr = AstExpr::Assign(name, value.to_owned(), AstScope::Global);
                             }
                             _ => (),
                         })
                     })?;
 
-                    // add scopes to locals, param and global variables
-                    body.apply_mut(&mut |e| {
-                        Ok(match e {
+                    // so we know where to look it up
+                    body.apply_mut(&mut |expr| {
+                        Ok(match expr {
                             AstExpr::Variable(name, AstScope::Unknown) if locals.contains(name) => {
-                                *e = AstExpr::Variable(name, AstScope::Local);
+                                *expr = AstExpr::Variable(name, AstScope::Local);
                             }
                             AstExpr::Variable(name, AstScope::Unknown) if params.contains(name) => {
-                                *e = AstExpr::Variable(name, AstScope::Param);
+                                *expr = AstExpr::Variable(name, AstScope::Param);
                             }
                             AstExpr::Variable(name, AstScope::Unknown)
                                 if globals.contains(name) =>
                             {
-                                *e = AstExpr::Variable(name, AstScope::Global);
+                                *expr = AstExpr::Variable(name, AstScope::Global);
                             }
                             _ => (),
                         })
                     })?;
                 }
-                // non functions have only global variables, but first find mutables
-                _ => root.apply_to_children(&mut |e| {
-                    Ok(match e {
+                _ => def.apply_to_children(&mut |expr| {
+                    // we now know where to store these
+                    Ok(match expr {
                         AstExpr::Assign(name, value, AstScope::Unknown)
                             if globals.contains(name) =>
                         {
-                            *e = AstExpr::Assign(name, value.to_owned(), AstScope::Global);
+                            *expr = AstExpr::Assign(name, value.to_owned(), AstScope::Global);
                         }
                         AstExpr::Variable(name, AstScope::Unknown) if globals.contains(name) => {
-                            *e = AstExpr::Variable(name, AstScope::Global);
+                            *expr = AstExpr::Variable(name, AstScope::Global);
                         }
                         _ => (),
                     })
@@ -287,5 +306,19 @@ pub mod static_analysis {
             }
         }
         Ok(())
+    }
+
+    /// Moves global variable definitions to the start of execution, replaces
+    /// them with an assignment
+    pub fn squash_globals(ast: Ast) -> Ast {
+        let Ast(defs) = ast;
+        let mut global_names = HashSet::new();
+        let (globals, mut others): (Vec<_>, Vec<_>) = defs.into_iter().partition(|e| match e {
+            AstDef::Global(name, ..) => global_names.insert(&**name),
+            _ => false,
+        });
+        let mut defs = globals;
+        defs.append(&mut others);
+        Ast(defs)
     }
 }
