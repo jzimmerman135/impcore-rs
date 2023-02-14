@@ -12,7 +12,6 @@ pub enum AstScope {
     Local,
     Global,
     Param,
-    Constant,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -33,7 +32,7 @@ pub enum AstExpr<'a> {
 pub enum AstDef<'a> {
     TopLevelExpr(AstExpr<'a>),
     Function(&'a str, Vec<&'a str>, Vec<&'a str>, AstExpr<'a>),
-    Global(&'a str, AstExpr<'a>, AstScope),
+    Global(&'a str, AstExpr<'a>),
     CheckExpect(AstExpr<'a>, AstExpr<'a>, &'a str),
     CheckAssert(AstExpr<'a>, &'a str),
     CheckError(AstExpr<'a>, &'a str),
@@ -69,7 +68,7 @@ impl<'a> AstDef<'a> {
                 defgen::defgen_anonymous(rhs, compiler)?,
                 contents,
             ),
-            Self::Global(name, value, _) => {
+            Self::Global(name, value) => {
                 NativeTopLevel::TopLevelExpr(defgen::defgen_global(name, value, compiler)?)
             }
             _ => unreachable!("Unreachable defgen {:?}", self),
@@ -80,7 +79,7 @@ impl<'a> AstDef<'a> {
         match self {
             Self::Function(_, _, _, body) => body.children_mut(),
             Self::TopLevelExpr(body) => body.children_mut(),
-            Self::Global(_, body, _) => body.children_mut(),
+            Self::Global(_, body) => body.children_mut(),
             Self::CheckAssert(body, _) => body.children_mut(),
             Self::CheckExpect(lhs, rhs, _) => {
                 let mut lchildren = lhs.children_mut();
@@ -95,7 +94,7 @@ impl<'a> AstDef<'a> {
         match self {
             Self::Function(_, _, _, body) => body.children(),
             Self::TopLevelExpr(body) => body.children(),
-            Self::Global(_, body, _) => body.children(),
+            Self::Global(_, body) => body.children(),
             Self::CheckAssert(body, _) => body.children(),
             Self::CheckExpect(lhs, rhs, _) => {
                 let mut lchildren = lhs.children();
@@ -236,8 +235,6 @@ pub mod static_analysis {
 
     pub fn build_scopes(ast: &mut Ast) -> Result<(), String> {
         let globals = get_globals(ast);
-        let mut mutables = HashSet::new();
-
         for root in ast.iter_mut() {
             match root {
                 AstDef::Function(_, params, locals, body) => {
@@ -256,7 +253,6 @@ pub mod static_analysis {
                             AstExpr::Assign(name, value, AstScope::Unknown)
                                 if globals.contains(name) =>
                             {
-                                mutables.insert(&**name);
                                 *e = AstExpr::Assign(name, value.to_owned(), AstScope::Global);
                             }
                             _ => (),
@@ -287,7 +283,6 @@ pub mod static_analysis {
                         AstExpr::Assign(name, value, AstScope::Unknown)
                             if globals.contains(name) =>
                         {
-                            mutables.insert(&**name);
                             *e = AstExpr::Assign(name, value.to_owned(), AstScope::Global);
                         }
                         AstExpr::Variable(name, AstScope::Unknown) if globals.contains(name) => {
@@ -299,30 +294,6 @@ pub mod static_analysis {
             }
         }
 
-        for root in ast.iter_mut() {
-            match root {
-                AstDef::Global(name, value, _) if !mutables.contains(name) => {
-                    *root = AstDef::Global(name, value.to_owned(), AstScope::Constant);
-                }
-                AstDef::Global(name, value, _) => {
-                    *root = AstDef::Global(name, value.to_owned(), AstScope::Global);
-                }
-                _ => continue,
-            }
-        }
-
-        for root in ast.iter_mut() {
-            root.apply_to_children(&mut |e| {
-                Ok(match e {
-                    AstExpr::Variable(name, AstScope::Global)
-                        if globals.contains(name) && !mutables.contains(name) =>
-                    {
-                        *e = AstExpr::Variable(name, AstScope::Constant);
-                    }
-                    _ => (),
-                })
-            })?;
-        }
         Ok(())
     }
 }
