@@ -7,6 +7,8 @@ use std::{
     collections::HashSet,
     slice::{Iter, IterMut},
 };
+
+#[derive(Clone)]
 pub struct Ast<'a>(pub Vec<AstDef<'a>>);
 
 #[derive(Debug, PartialEq, Clone)]
@@ -31,7 +33,7 @@ pub enum AstExpr<'a> {
     Error,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AstDef<'a> {
     TopLevelExpr(AstExpr<'a>),
     Function(&'a str, Vec<&'a str>, HashSet<&'a str>, AstExpr<'a>),
@@ -225,8 +227,8 @@ pub mod static_analysis {
 
     use super::*;
 
-    pub fn rebuild(ast: Ast) -> Result<Ast, String> {
-        let mut ast = squash_globals(ast);
+    pub fn rebuild(mut ast: Ast) -> Result<Ast, String> {
+        squash_globals(&mut ast);
         build_scopes(&mut ast)?;
         Ok(ast)
     }
@@ -255,7 +257,7 @@ pub mod static_analysis {
 
                     // so we know where to store it
                     body.apply_mut(&mut |expr| {
-                        Ok(match expr {
+                        match expr {
                             AstExpr::Assign(name, value, AstScope::Unknown)
                                 if params.contains(name) =>
                             {
@@ -268,12 +270,13 @@ pub mod static_analysis {
                                 *expr = AstExpr::Assign(name, value.to_owned(), AstScope::Global);
                             }
                             _ => (),
-                        })
+                        };
+                        Ok(())
                     })?;
 
                     // so we know where to look it up
                     body.apply_mut(&mut |expr| {
-                        Ok(match expr {
+                        match expr {
                             AstExpr::Variable(name, AstScope::Unknown) if locals.contains(name) => {
                                 *expr = AstExpr::Variable(name, AstScope::Local);
                             }
@@ -286,12 +289,13 @@ pub mod static_analysis {
                                 *expr = AstExpr::Variable(name, AstScope::Global);
                             }
                             _ => (),
-                        })
+                        };
+                        Ok(())
                     })?;
                 }
                 _ => def.apply_to_children(&mut |expr| {
                     // we now know where to store these
-                    Ok(match expr {
+                    match expr {
                         AstExpr::Assign(name, value, AstScope::Unknown)
                             if globals.contains(name) =>
                         {
@@ -301,7 +305,8 @@ pub mod static_analysis {
                             *expr = AstExpr::Variable(name, AstScope::Global);
                         }
                         _ => (),
-                    })
+                    };
+                    Ok(())
                 })?,
             }
         }
@@ -310,15 +315,29 @@ pub mod static_analysis {
 
     /// Moves global variable definitions to the start of execution, replaces
     /// them with an assignment
-    pub fn squash_globals(ast: Ast) -> Ast {
-        let Ast(defs) = ast;
+    pub fn squash_globals(ast: &mut Ast) {
+        use std::mem;
+        use AstExpr::Assign;
+        use AstScope::Global as GlobalScope;
+
+        let defs = mem::take(&mut ast.0);
         let mut global_names = HashSet::new();
-        let (globals, mut others): (Vec<_>, Vec<_>) = defs.into_iter().partition(|e| match e {
+        let (globals, others): (Vec<_>, Vec<_>) = defs.into_iter().partition(|e| match e {
             AstDef::Global(name, ..) => global_names.insert(&**name),
             _ => false,
         });
         let mut defs = globals;
-        defs.append(&mut others);
-        Ast(defs)
+        defs.append(
+            &mut others
+                .into_iter()
+                .map(|e| match &e {
+                    AstDef::Global(n, v) => {
+                        AstDef::TopLevelExpr(Assign(n, Box::new(v.to_owned()), GlobalScope))
+                    }
+                    _ => e,
+                })
+                .collect(),
+        );
+        *ast = Ast(defs)
     }
 }
