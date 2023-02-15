@@ -1,6 +1,10 @@
 use crate::{
-    jit::{codegen, defgen, Compiler, NativeTopLevel},
+    jit::{
+        codegen::{self},
+        defgen, Compiler, NativeTopLevel,
+    },
     parser::{def_parse, expr_parse, *},
+    static_analysis,
 };
 use inkwell::values::IntValue;
 use std::{
@@ -31,6 +35,7 @@ pub enum AstExpr<'a> {
     Begin(Vec<AstExpr<'a>>),
     Assign(&'a str, Box<AstExpr<'a>>, AstScope),
     Error,
+    Null,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -76,7 +81,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
 impl<'a> AstChildren<'a> for AstExpr<'a> {
     fn children_mut(&mut self) -> Vec<&mut Self> {
         match self {
-            Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
+            Self::Error | Self::Null | Self::Variable(..) | Self::Literal(..) => vec![],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
             Self::Unary(_, body) | Self::Assign(_, body, _) => vec![body],
             Self::While(cond, body) => vec![cond, body],
@@ -89,7 +94,7 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
 
     fn children(&self) -> Vec<&Self> {
         match self {
-            Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
+            Self::Error | Self::Null | Self::Variable(..) | Self::Literal(..) => vec![],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
             Self::Unary(_, body) | Self::Assign(_, body, _) => vec![body],
             Self::While(cond, body) => vec![cond, body],
@@ -170,6 +175,7 @@ impl<'a> AstExpr<'a> {
             Self::Assign(name, body, ..) => codegen::codegen_assign(name, body, compiler),
             Self::Error => codegen::codegen_literal(1, compiler),
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
+            Self::Null => codegen::codegen_literal(0, compiler),
         }
     }
 }
@@ -225,5 +231,11 @@ impl<'a> Ast<'a> {
 
     pub fn iter_mut(&mut self) -> IterMut<'_, AstDef<'a>> {
         self.0.iter_mut()
+    }
+
+    pub fn prepare(mut self) -> Self {
+        static_analysis::predefine_globals(&mut self);
+        static_analysis::append_garbage_collector(&mut self);
+        self
     }
 }

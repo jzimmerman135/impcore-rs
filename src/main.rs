@@ -1,38 +1,16 @@
-use impcore_rs::ast::Ast;
 use impcore_rs::jit;
 use impcore_rs::parser::ImpcoreParser;
-use impcore_rs::static_analysis;
+use impcore_rs::{print_ast, print_ir, rip};
 use std::{fs, process};
-
-#[allow(unused)]
-fn print_ast(ast: &Ast) {
-    println!("\nPRINTING AST\n------------");
-    for node in ast.iter() {
-        println!("{:?}", node);
-    }
-}
-
-#[allow(unused)]
-fn print_ir(compiler: &jit::Compiler) {
-    println!("\nLLVM IR\n--------------------------------------------------");
-    compiler.module.print_to_stderr();
-}
-
-fn rip(e: String) -> ! {
-    eprintln!("error: {}", e);
-    process::exit(1)
-}
 
 fn main() {
     let filename = "./imp/basic.imp";
     let contents = fs::read_to_string(filename)
         .unwrap_or_else(|_| rip(format!("Failed to open file {}", filename)));
 
-    let top_level_nodes = ImpcoreParser::generate_ast(&contents).unwrap_or_else(|s| rip(s));
-
-    // print_ast(&top_level_nodes);
-
-    let top_level_nodes = static_analysis::rebuild(top_level_nodes).unwrap_or_else(|s| rip(s));
+    let top_level_nodes = ImpcoreParser::generate_ast(&contents)
+        .unwrap_or_else(|s| rip(s))
+        .prepare();
 
     print_ast(&top_level_nodes);
 

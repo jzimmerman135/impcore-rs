@@ -25,7 +25,6 @@ pub fn codegen_assign<'a>(
     let addr = get_address(name, compiler)?;
     let value = body.codegen(compiler)?;
     compiler.builder.build_store(addr, value);
-    eprintln!("assigned {:?} to '{}'", body, name);
     Ok(value)
 }
 
@@ -104,10 +103,10 @@ pub fn codegen_call<'a>(
     args: &[AstExpr<'a>],
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
-    let function = match compiler.module.get_function(name) {
-        Some(f) => f,
-        None => return Err(format!("Unbound function {}", name)),
-    };
+    let function = compiler
+        .module
+        .get_function(name)
+        .ok_or(format!("Unbound function {}", name))?;
 
     let args = args
         .iter()

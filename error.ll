@@ -52,10 +52,12 @@ entry:
   ret i32 %userfn
 }
 
-define i32 @"#anon.4"() {
+define i32 @val.4() {
 entry:
-  %load = load i32*, i32** @n, align 8
-  store i32 888888, i32* %load, align 4
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
+  %array = bitcast i8* %malloccall to i32*
+  store i32* %array, i32** @n, align 8
+  store i32 888888, i32* %array, align 4
   ret i32 888888
 }
 
@@ -86,17 +88,21 @@ entry:
   ret i32 %load1
 }
 
-define i32 @"#anon.8"() {
+define i32 @val.8() {
 entry:
-  %load = load i32*, i32** @myGlobal, align 8
-  store i32 6, i32* %load, align 4
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
+  %array = bitcast i8* %malloccall to i32*
+  store i32* %array, i32** @myGlobal, align 8
+  store i32 6, i32* %array, align 4
   ret i32 6
 }
 
-define i32 @"#anon.9"() {
+define i32 @val.9() {
 entry:
-  %load = load i32*, i32** @otherGlobal, align 8
-  store i32 18, i32* %load, align 4
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
+  %array = bitcast i8* %malloccall to i32*
+  store i32* %array, i32** @otherGlobal, align 8
+  store i32 18, i32* %array, align 4
   ret i32 18
 }
 
@@ -128,10 +134,12 @@ entry:
   ret i32 %load1
 }
 
-define i32 @"#anon.14"() {
+define i32 @val.14() {
 entry:
-  %load = load i32*, i32** @otherGlobal, align 8
-  store i32 12, i32* %load, align 4
+  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
+  %array = bitcast i8* %malloccall to i32*
+  store i32* %array, i32** @otherGlobal, align 8
+  store i32 12, i32* %array, align 4
   ret i32 12
 }
 
