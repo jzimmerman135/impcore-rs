@@ -1,4 +1,4 @@
-use inkwell::AddressSpace;
+use inkwell::{values::BasicValue, AddressSpace};
 
 use crate::ast::AstExpr;
 
@@ -83,43 +83,27 @@ fn defgen_prototype<'a>(name: &str, params: &[&str], compiler: &Compiler<'a>) ->
 
 pub fn defgen_global<'a>(
     name: &'a str,
-    value: &AstExpr<'a>,
+    body: &AstExpr<'a>,
     compiler: &mut Compiler<'a>,
 ) -> Result<FunctionValue<'a>, String> {
     // setup block
-    let itype = compiler.context.i32_type();
-    let fn_type = itype.fn_type(&[], false);
+    let int_type = compiler.context.i32_type();
+    let fn_type = int_type.fn_type(&[], false);
     let fn_value = compiler.module.add_function("val", fn_type, None);
     let basic_block = compiler.context.append_basic_block(fn_value, "entry");
     compiler.builder.position_at_end(basic_block);
     compiler.curr_function = Some(fn_value);
 
     // calculate value
-    let n_elem = itype.const_int(1, false);
-    let _len = compiler
-        .builder
-        .build_int_mul(itype.size_of(), n_elem, "n_bytes");
+    let int_value = body.codegen(compiler)?;
 
-    let v = value.codegen(compiler)?;
+    let ptr_value = compiler.builder.build_malloc(int_type, name)?;
 
-    let addr = compiler.builder.build_malloc(v.get_type(), "malloc")?;
-    let array = compiler
-        .builder
-        .build_load(addr, "array")
-        .into_pointer_value();
-
-    let global_ptr =
-        compiler
-            .module
-            .add_global(array.get_type(), Some(AddressSpace::default()), name);
-
-    global_ptr.set_initializer(&addr);
-
-    let _store_instr = compiler.builder.build_store(array, v);
-    compiler.builder.insert_instruction(&_store_instr, None);
-
-    compiler.builder.build_return(Some(&v));
-    compiler.curr_function = None;
+    compiler.global_table.insert(name, ptr_value);
+    let store = compiler.builder.build_store(ptr_value, int_value);
+    store.set_alignment(4)?;
+    compiler.builder.insert_instruction(&store, None);
+    compiler.builder.build_return(Some(&int_value));
 
     if !fn_value.verify(true) {
         compiler.module.print_to_stderr();

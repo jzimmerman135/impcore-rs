@@ -8,6 +8,7 @@
 
 (val myGlobal 6)
 ;; myGlobal
+;; myGlobal
 
 ;; (val n 18)
 ;; n
