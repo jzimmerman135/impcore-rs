@@ -113,6 +113,7 @@ impl<'a> AstDef<'a> {
             _ => unreachable!("got unreachable def {:?}", def.as_rule()),
         }
     }
+
     pub fn defgen(&self, compiler: &mut Compiler<'a>) -> Result<NativeTopLevel<'a>, String> {
         compiler.clear_function();
         Ok(match self {
@@ -171,26 +172,6 @@ impl<'a> AstExpr<'a> {
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
         }
     }
-
-    pub fn apply_mut<F>(&mut self, apply: &mut F) -> Result<(), String>
-    where
-        F: FnMut(&mut AstExpr<'a>) -> Result<(), String>,
-    {
-        for child in self.children_mut() {
-            child.apply_mut(apply)?;
-        }
-        apply(self)
-    }
-
-    pub fn for_each<F>(&self, predicate: &mut F) -> Result<(), String>
-    where
-        F: FnMut(&AstExpr<'a>) -> Result<(), String>,
-    {
-        for child in self.children() {
-            child.for_each(predicate)?;
-        }
-        predicate(self)
-    }
 }
 
 impl<'a> AstDef<'a> {
@@ -212,6 +193,28 @@ impl<'a> AstDef<'a> {
             child.for_each(apply)?;
         }
         Ok(())
+    }
+}
+
+impl<'a> AstExpr<'a> {
+    pub fn apply_mut<F>(&mut self, apply: &mut F) -> Result<(), String>
+    where
+        F: FnMut(&mut AstExpr<'a>) -> Result<(), String>,
+    {
+        for child in self.children_mut() {
+            child.apply_mut(apply)?;
+        }
+        apply(self)
+    }
+
+    pub fn for_each<F>(&self, apply: &mut F) -> Result<(), String>
+    where
+        F: FnMut(&AstExpr<'a>) -> Result<(), String>,
+    {
+        for child in self.children() {
+            child.for_each(apply)?;
+        }
+        apply(self)
     }
 }
 

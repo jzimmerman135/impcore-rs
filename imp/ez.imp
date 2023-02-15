@@ -18,6 +18,9 @@
 
 (define wtest (y x) (begin (while (> x 10) (+ x 4)) y))
 
-;; (val y 10)
+(define badfn (x) (if (= x 5) error x))
+(badfn 8)
+(badfn 5)
+(val y 10)
 (while x (set y 12))
 (define myBadFunc (n x y z) (begin (set n 10) (* x z) (++ y)))

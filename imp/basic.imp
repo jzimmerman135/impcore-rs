@@ -9,7 +9,7 @@
 (locals -10 12)
 
 n
- 
+
 (val myGlobal 6)
 (val otherGlobal 18)
 myGlobal

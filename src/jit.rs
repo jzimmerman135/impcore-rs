@@ -18,6 +18,8 @@ use inkwell::{
     values::{GlobalValue, PointerValue},
 };
 
+use crate::ast::AstDef;
+
 #[derive(Debug)]
 pub struct Compiler<'ctx> {
     pub context: &'ctx Context,
@@ -51,6 +53,14 @@ impl<'a> NativeTopLevel<'a> {
     fn is_test(&self) -> bool {
         matches!(self, Self::CheckAssert(..) | Self::CheckExpect(..))
     }
+}
+
+#[allow(unused)]
+struct Environment<'ctx> {
+    pub formals: HashMap<&'ctx str, PointerValue<'ctx>>,
+    pub globals: HashMap<&'ctx str, GlobalValue<'ctx>>,
+    pub functions: HashMap<&'ctx str, FunctionValue<'ctx>>,
+    lazy_functions: HashMap<&'ctx str, &'ctx AstDef<'ctx>>,
 }
 
 impl<'ctx> Compiler<'ctx> {

@@ -95,9 +95,15 @@ pub fn defgen_global<'a>(
     let int_value = body.codegen(compiler)?;
     let ptr_type = int_type.ptr_type(addr_space);
 
-    let global_ptr = compiler.module.add_global(ptr_type, Some(addr_space), name);
-    global_ptr.set_initializer(&ptr_type.const_null());
-    compiler.global_table.insert(name, global_ptr);
+    let global_ptr = match compiler.global_table.get(name) {
+        Some(&global_ptr) => global_ptr,
+        None => {
+            let global_ptr = compiler.module.add_global(ptr_type, Some(addr_space), name);
+            global_ptr.set_initializer(&ptr_type.const_null());
+            compiler.global_table.insert(name, global_ptr);
+            global_ptr
+        }
+    };
 
     let alloc_ptr = compiler.builder.build_malloc(int_type, "array")?;
     compiler
