@@ -15,7 +15,7 @@ pub use inkwell::{
 };
 use inkwell::{
     targets::{InitializationConfig, Target},
-    values::PointerValue,
+    values::{GlobalValue, PointerValue},
 };
 
 #[derive(Debug)]
@@ -26,6 +26,7 @@ pub struct Compiler<'ctx> {
     pub fpm: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
     pub param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
+    pub global_table: HashMap<&'ctx str, GlobalValue<'ctx>>,
     exec_mode: ExecutionMode,
     curr_function: Option<FunctionValue<'ctx>>,
 }
@@ -76,6 +77,7 @@ impl<'ctx> Compiler<'ctx> {
             execution_engine,
             exec_mode,
             param_table: HashMap::new(),
+            global_table: HashMap::new(),
             curr_function: None,
         })
     }

@@ -96,7 +96,8 @@ pub fn defgen_global<'a>(
     let ptr_type = int_type.ptr_type(addr_space);
 
     let global_ptr = compiler.module.add_global(ptr_type, Some(addr_space), name);
-    global_ptr.set_initializer(&int_type.const_zero());
+    global_ptr.set_initializer(&ptr_type.const_null());
+    compiler.global_table.insert(name, global_ptr);
 
     let alloc_ptr = compiler.builder.build_malloc(int_type, "array")?;
     compiler
@@ -124,18 +125,11 @@ pub fn defgen_free_globals<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionVa
     let basic_block = compiler.context.append_basic_block(fn_value, "entry");
     compiler.builder.position_at_end(basic_block);
 
-    if let Some(mut global) = compiler.module.get_first_global() {
+    for (_, global_ptr) in compiler.global_table.iter() {
         let array = compiler
             .builder
-            .build_load(global.as_pointer_value(), "load");
+            .build_load(global_ptr.as_pointer_value(), "load");
         compiler.builder.build_free(array.into_pointer_value());
-        while let Some(next_global) = global.get_next_global() {
-            let array = compiler
-                .builder
-                .build_load(next_global.as_pointer_value(), "load");
-            compiler.builder.build_free(array.into_pointer_value());
-            global = next_global
-        }
     }
 
     let v = itype.const_zero();

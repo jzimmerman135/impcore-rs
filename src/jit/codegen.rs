@@ -32,7 +32,7 @@ pub fn codegen_assign<'a>(
 fn get_address<'a>(name: &str, compiler: &Compiler<'a>) -> Result<PointerValue<'a>, String> {
     match compiler.param_table.get(name) {
         Some(&e) => Some(e),
-        None => compiler.module.get_global(name).map(|e| {
+        None => compiler.global_table.get(name).map(|e| {
             compiler
                 .builder
                 .build_load(e.as_pointer_value(), "load")

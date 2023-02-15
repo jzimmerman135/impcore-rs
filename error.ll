@@ -2,9 +2,9 @@
 source_filename = "tmp"
 target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 
-@n = global i32* 0
-@myGlobal = global i32* 0
-@otherGlobal = global i32* 0
+@n = global i32* null
+@myGlobal = global i32* null
+@otherGlobal = global i32* null
 
 define i32 @val() {
 entry:
