@@ -95,14 +95,24 @@ pub fn defgen_global<'a>(
     compiler.curr_function = Some(fn_value);
 
     // calculate value
+    let address_space = AddressSpace::default();
     let int_value = body.codegen(compiler)?;
+    let ptr_type = int_type.ptr_type(address_space);
 
-    let ptr_value = compiler.builder.build_malloc(int_type, name)?;
+    let ptr_value = compiler.builder.build_malloc(int_type, "array")?;
 
-    compiler.global_table.insert(name, ptr_value);
-    let store = compiler.builder.build_store(ptr_value, int_value);
-    store.set_alignment(4)?;
-    compiler.builder.insert_instruction(&store, None);
+    let global_ptr = compiler
+        .module
+        .add_global(ptr_type, Some(address_space), name);
+
+    global_ptr.set_initializer(&int_type.const_zero());
+
+    compiler
+        .builder
+        .build_store(global_ptr.as_pointer_value(), ptr_value);
+
+    compiler.builder.build_store(ptr_value, int_value);
+
     compiler.builder.build_return(Some(&int_value));
 
     if !fn_value.verify(true) {

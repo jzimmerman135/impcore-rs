@@ -1,7 +1,7 @@
 use crate::ast::AstExpr;
 
 use super::*;
-use inkwell::IntPredicate;
+use inkwell::{values::BasicValue, IntPredicate};
 
 pub fn codegen_literal<'a>(
     value: i32,
@@ -32,7 +32,12 @@ pub fn codegen_assign<'a>(
 fn get_address<'a>(name: &str, compiler: &Compiler<'a>) -> Result<PointerValue<'a>, String> {
     match compiler.param_table.get(name) {
         Some(&e) => Some(e),
-        None => compiler.global_table.get(name).copied(),
+        None => compiler.module.get_global(name).map(|e| {
+            compiler
+                .builder
+                .build_load(e.as_pointer_value(), "load")
+                .into_pointer_value()
+        }),
     }
     .ok_or(format!("Unbound variable {}", name))
 }
