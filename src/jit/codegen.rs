@@ -1,7 +1,6 @@
-use crate::ast::AstExpr;
-
 use super::*;
-use inkwell::{values::BasicValue, IntPredicate};
+use crate::ast::AstExpr;
+use inkwell::IntPredicate;
 
 pub fn codegen_literal<'a>(
     value: i32,
@@ -26,6 +25,7 @@ pub fn codegen_assign<'a>(
     let addr = get_address(name, compiler)?;
     let value = body.codegen(compiler)?;
     compiler.builder.build_store(addr, value);
+    eprintln!("assigned {:?} to '{}'", body, name);
     Ok(value)
 }
 

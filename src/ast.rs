@@ -114,6 +114,7 @@ impl<'a> AstDef<'a> {
         }
     }
     pub fn defgen(&self, compiler: &mut Compiler<'a>) -> Result<NativeTopLevel<'a>, String> {
+        compiler.clear_function();
         Ok(match self {
             Self::Function(name, params, _, body) => NativeTopLevel::FunctionDef(
                 defgen::defgen_function(name, params, body, compiler)?,
@@ -131,7 +132,7 @@ impl<'a> AstDef<'a> {
                 contents,
             ),
             Self::Global(name, value) => {
-                NativeTopLevel::TopLevelExpr(defgen::defgen_global(name, value, compiler)?)
+                NativeTopLevel::Quiet(defgen::defgen_global(name, value, compiler)?)
             }
             Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_free_globals(compiler)?),
             _ => unreachable!("Unreachable defgen {:?}", self),

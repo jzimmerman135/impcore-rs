@@ -1,8 +1,6 @@
-use inkwell::{values::BasicValue, AddressSpace};
-
-use crate::ast::AstExpr;
-
 use super::*;
+use crate::ast::AstExpr;
+use inkwell::AddressSpace;
 
 pub fn defgen_anonymous<'a>(
     body: &AstExpr<'a>,
@@ -15,8 +13,8 @@ pub fn defgen_anonymous<'a>(
     compiler.curr_function = Some(fn_value);
     let v = body.codegen(compiler)?;
     compiler.builder.build_return(Some(&v));
-    compiler.curr_function = None;
 
+    compiler.module.print_to_file("error.ll").unwrap();
     if !fn_value.verify(true) {
         compiler.module.print_to_stderr();
         return Err(format!(
@@ -41,7 +39,6 @@ pub fn defgen_function<'a>(
     compiler.builder.position_at_end(entry);
     compiler.curr_function = Some(fn_value);
 
-    compiler.param_table.clear();
     for (&param, param_value) in params.iter().zip(fn_value.get_param_iter()) {
         let alloca = compiler.builder.build_alloca(itype, "alloca");
         compiler
@@ -51,7 +48,6 @@ pub fn defgen_function<'a>(
     }
 
     let body = body.codegen(compiler)?;
-    compiler.curr_function = None;
     compiler.builder.build_return(Some(&body));
 
     if !fn_value.verify(true) {
@@ -95,24 +91,19 @@ pub fn defgen_global<'a>(
     compiler.curr_function = Some(fn_value);
 
     // calculate value
-    let address_space = AddressSpace::default();
+    let addr_space = AddressSpace::default();
     let int_value = body.codegen(compiler)?;
-    let ptr_type = int_type.ptr_type(address_space);
+    let ptr_type = int_type.ptr_type(addr_space);
 
-    let ptr_value = compiler.builder.build_malloc(int_type, "array")?;
-
-    let global_ptr = compiler
-        .module
-        .add_global(ptr_type, Some(address_space), name);
-
+    let global_ptr = compiler.module.add_global(ptr_type, Some(addr_space), name);
     global_ptr.set_initializer(&int_type.const_zero());
 
+    let alloc_ptr = compiler.builder.build_malloc(int_type, "array")?;
     compiler
         .builder
-        .build_store(global_ptr.as_pointer_value(), ptr_value);
+        .build_store(global_ptr.as_pointer_value(), alloc_ptr);
 
-    compiler.builder.build_store(ptr_value, int_value);
-
+    compiler.builder.build_store(alloc_ptr, int_value);
     compiler.builder.build_return(Some(&int_value));
 
     if !fn_value.verify(true) {
@@ -133,16 +124,22 @@ pub fn defgen_free_globals<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionVa
     let basic_block = compiler.context.append_basic_block(fn_value, "entry");
     compiler.builder.position_at_end(basic_block);
 
-    if let Some(first_global) = compiler.module.get_first_global() {
-        compiler.builder.build_free(first_global.as_pointer_value());
-        while let Some(next_global) = first_global.get_next_global() {
-            compiler.builder.build_free(next_global.as_pointer_value());
+    if let Some(mut global) = compiler.module.get_first_global() {
+        let array = compiler
+            .builder
+            .build_load(global.as_pointer_value(), "load");
+        compiler.builder.build_free(array.into_pointer_value());
+        while let Some(next_global) = global.get_next_global() {
+            let array = compiler
+                .builder
+                .build_load(next_global.as_pointer_value(), "load");
+            compiler.builder.build_free(array.into_pointer_value());
+            global = next_global
         }
     }
 
     let v = itype.const_zero();
     compiler.builder.build_return(Some(&v));
-    compiler.curr_function = None;
 
     if !fn_value.verify(true) {
         compiler.module.print_to_stderr();

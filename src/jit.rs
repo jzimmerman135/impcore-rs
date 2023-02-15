@@ -26,7 +26,6 @@ pub struct Compiler<'ctx> {
     pub fpm: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
     pub param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
-    pub global_table: HashMap<&'ctx str, PointerValue<'ctx>>,
     exec_mode: ExecutionMode,
     curr_function: Option<FunctionValue<'ctx>>,
 }
@@ -44,6 +43,7 @@ pub enum NativeTopLevel<'ctx> {
     TopLevelExpr(FunctionValue<'ctx>),
     FunctionDef(FunctionValue<'ctx>, &'ctx str),
     FreeAll(FunctionValue<'ctx>),
+    Quiet(FunctionValue<'ctx>),
 }
 
 impl<'a> NativeTopLevel<'a> {
@@ -60,7 +60,9 @@ impl<'ctx> Compiler<'ctx> {
         let module = context.create_module("tmp");
         let builder = context.create_builder();
         let execution_engine = match exec_mode {
-            ExecutionMode::Jit => module.create_jit_execution_engine(OptimizationLevel::None)?,
+            ExecutionMode::Jit => {
+                module.create_jit_execution_engine(OptimizationLevel::Aggressive)?
+            }
             ExecutionMode::Interpreter => module.create_interpreter_execution_engine()?,
             _ => panic!("Cannot create a compiler with dead execution engine"),
         };
@@ -74,7 +76,6 @@ impl<'ctx> Compiler<'ctx> {
             execution_engine,
             exec_mode,
             param_table: HashMap::new(),
-            global_table: HashMap::new(),
             curr_function: None,
         })
     }
@@ -92,6 +93,11 @@ impl<'ctx> Compiler<'ctx> {
         fpm.add_tail_call_elimination_pass();
         fpm.initialize();
         fpm
+    }
+
+    pub fn clear_function(&mut self) {
+        self.param_table.clear();
+        self.curr_function = None;
     }
 
     /// Panics if engine is invalid
@@ -118,6 +124,9 @@ impl<'ctx> Compiler<'ctx> {
                 let res = unsafe { self.execution_engine.run_function(fn_value, &[]) };
                 println!("exiting with code {}", res.as_int(true))
             }
+            NativeTopLevel::Quiet(fn_value) => unsafe {
+                self.execution_engine.run_function(fn_value, &[]);
+            },
             _ => unreachable!(
                 "not a top level expression or definition {:?}",
                 top_level_def

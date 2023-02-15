@@ -1,19 +1,28 @@
-;; 20
+20
 (define add-ten (x) (+ 10 x))
 (add-ten (* 15 5))
 
-;; define locals (n x) (begin (if (> n 0) (set n 1) (set n 3)) (+ n x)))
-;; locals 8 12)
-;; locals -10 12)
+(val n 888888)
 
+(define locals (n x) (begin (if (> n 0) (set n 1) (set n 3)) (+ n x)))
+(locals 8 12)
+(locals -10 12)
+
+n
+ 
 (val myGlobal 6)
+(val otherGlobal 18)
+myGlobal
 (set myGlobal 9)
 myGlobal
+otherGlobal
+(val otherGlobal 12)
+otherGlobal
+(define side-effect (n) (set myGlobal n))
+(side-effect 2579)
+myGlobal
 
-;; myGlobal
-
-;; (val n 18)
-;; n
 ;; (val g 10)
 ;; (val n 20)
+;; n
 ;; (val n 21)

@@ -34,7 +34,7 @@ fn main() {
 
     let top_level_nodes = static_analysis::rebuild(top_level_nodes).unwrap_or_else(|s| rip(s));
 
-    // print_ast(&top_level_nodes);
+    print_ast(&top_level_nodes);
 
     let context = inkwell::context::Context::create();
     let mut compiler =

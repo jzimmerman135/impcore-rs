@@ -1,11 +1,10 @@
-use std::collections::HashSet;
-
 use crate::ast::*;
+use std::collections::HashSet;
 
 pub fn rebuild(mut ast: Ast) -> Result<Ast, String> {
     squash_globals(&mut ast);
     build_scopes(&mut ast)?;
-    // ast.0.push(AstDef::FreeAll);
+    ast.0.push(AstDef::FreeAll);
     Ok(ast)
 }
 
@@ -85,31 +84,26 @@ fn build_scopes(ast: &mut Ast) -> Result<(), String> {
     Ok(())
 }
 
-/// Moves global variable definitions to the start of execution, replaces
-/// them with an assignment
 fn squash_globals(ast: &mut Ast) {
     use std::mem;
     use AstExpr::Assign;
     use AstScope::Global as GlobalScope;
 
-    let defs = mem::take(&mut ast.0);
     let mut global_names = HashSet::new();
-    let (globals, others): (Vec<_>, Vec<_>) = defs.into_iter().partition(|e| match e {
-        AstDef::Global(name, ..) => global_names.insert(&**name),
-        _ => false,
-    });
-    let mut defs = globals;
-    defs.append(
-        &mut others
-            .into_iter()
-            .map(|e| match &e {
-                AstDef::Global(n, v) => {
-                    AstDef::TopLevelExpr(Assign(n, Box::new(v.to_owned()), GlobalScope))
+    let mut declarations = vec![];
+    let mut defs = mem::take(&mut ast.0)
+        .into_iter()
+        .map(|e| match &e {
+            AstDef::Global(n, v) => {
+                if global_names.insert(&**n) {
+                    declarations.push(AstDef::Global(n, AstExpr::Literal(0)));
                 }
-                _ => e,
-            })
-            .collect(),
-    );
+                AstDef::TopLevelExpr(Assign(n, Box::new(v.to_owned()), GlobalScope))
+            }
+            _ => e,
+        })
+        .collect();
 
-    *ast = Ast(defs)
+    declarations.append(&mut defs);
+    *ast = Ast(declarations)
 }
