@@ -98,7 +98,7 @@ impl<'ctx> Compiler<'ctx> {
         fpm
     }
 
-    pub fn clear_function(&mut self) {
+    pub fn clear_curr_function(&mut self) {
         self.param_table.clear();
         self.curr_function = None;
     }

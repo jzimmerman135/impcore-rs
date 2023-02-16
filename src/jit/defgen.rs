@@ -133,6 +133,7 @@ pub fn defgen_free_globals<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionVa
     let fn_value = compiler.module.add_function("cleanup", fn_type, None);
     let basic_block = compiler.context.append_basic_block(fn_value, "entry");
     compiler.builder.position_at_end(basic_block);
+    compiler.curr_function = Some(fn_value);
 
     for (_, global_ptr) in compiler.global_table.iter() {
         let array = compiler

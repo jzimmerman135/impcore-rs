@@ -4,7 +4,7 @@ use impcore_rs::{print_ast, print_ir, rip};
 use std::{fs, process};
 
 fn main() {
-    let filename = "./imp/basic.imp";
+    let filename = "./imp/slow.imp";
     let contents = fs::read_to_string(filename)
         .unwrap_or_else(|_| rip(format!("Failed to open file {}", filename)));
 

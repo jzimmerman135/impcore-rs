@@ -2,157 +2,100 @@
 source_filename = "tmp"
 target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 
-@n = global i32* null
-@myGlobal = global i32* null
-@otherGlobal = global i32* null
+define i32 @"has-divisor?"(i32 %n, i32 %d) {
+"has-divisor?":
+  br label %tailrecurse
+
+tailrecurse:                                      ; preds = %else8, %"has-divisor?"
+  %d.tr = phi i32 [ %d, %"has-divisor?" ], [ %mul, %else8 ]
+  %div = sdiv i32 %n, 2
+  %gt = icmp slt i32 %div, %d.tr
+  br i1 %gt, label %ifcont, label %else
+
+else:                                             ; preds = %tailrecurse
+  %mod = srem i32 %n, %d.tr
+  %eq = icmp eq i32 %mod, 0
+  br i1 %eq, label %ifcont, label %else8
+
+ifcont:                                           ; preds = %else, %tailrecurse
+  %iftmp12 = phi i32 [ 0, %tailrecurse ], [ 1, %else ]
+  ret i32 %iftmp12
+
+else8:                                            ; preds = %else
+  %mul = add i32 %d.tr, 1
+  br label %tailrecurse
+}
+
+define i32 @"prime?"(i32 %n) {
+"prime?":
+  %lt = icmp slt i32 %n, 2
+  br i1 %lt, label %ifcont, label %else
+
+else:                                             ; preds = %"prime?"
+  %userfn = tail call i32 @"has-divisor?"(i32 %n, i32 2)
+  %not = xor i32 %userfn, -1
+  br label %ifcont
+
+ifcont:                                           ; preds = %"prime?", %else
+  %iftmp = phi i32 [ %not, %else ], [ 0, %"prime?" ]
+  ret i32 %iftmp
+}
+
+define i32 @next-prime(i32 %p, i32 %n) {
+next-prime:
+  br label %tailrecurse
+
+tailrecurse:                                      ; preds = %else5, %else, %next-prime
+  %p.tr = phi i32 [ %p, %next-prime ], [ %mul12, %else ], [ %mul, %else5 ]
+  %n.tr = phi i32 [ %n, %next-prime ], [ %n.tr, %else ], [ %sub, %else5 ]
+  %userfn = tail call i32 @"prime?"(i32 %p.tr)
+  %ifcond.not = icmp eq i32 %userfn, 0
+  br i1 %ifcond.not, label %else, label %then
+
+then:                                             ; preds = %tailrecurse
+  %eq = icmp eq i32 %n.tr, 1
+  br i1 %eq, label %ifcont, label %else5
+
+else:                                             ; preds = %tailrecurse
+  %mul12 = add i32 %p.tr, 1
+  br label %tailrecurse
+
+ifcont:                                           ; preds = %then
+  ret i32 %p.tr
+
+else5:                                            ; preds = %then
+  %mul = add i32 %p.tr, 1
+  %sub = add i32 %n.tr, -1
+  br label %tailrecurse
+}
+
+define i32 @nthprime(i32 %n) {
+nthprime:
+  %userfn = tail call i32 @next-prime(i32 2, i32 %n)
+  ret i32 %userfn
+}
+
+define i32 @myF(i32 %n) {
+myF:
+  %mul = add i32 %n, 2
+  ret i32 %mul
+}
 
 define i32 @"#anon"() {
 entry:
-  ret i32 20
-}
-
-define i32 @add-ten(i32 %x) {
-add-ten:
-  %mul = add i32 %x, 10
-  ret i32 %mul
+  %userfn = call i32 @nthprime(i32 100)
+  ret i32 %userfn
 }
 
 define i32 @"#anon.1"() {
 entry:
-  %userfn = call i32 @add-ten(i32 75)
+  %userfn = call i32 @"prime?"(i32 2147483647)
   ret i32 %userfn
-}
-
-define i32 @val() {
-entry:
-  %load = load i32*, i32** @n, align 8
-  %0 = bitcast i32* %load to i8*
-  tail call void @free(i8* %0)
-  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %array = bitcast i8* %malloccall to i32*
-  store i32* %array, i32** @n, align 8
-  store i32 888888, i32* %array, align 4
-  ret i32 888888
-}
-
-declare void @free(i8*)
-
-declare noalias i8* @malloc(i32)
-
-define i32 @locals(i32 %n, i32 %x) {
-locals:
-  %gt.inv = icmp slt i32 %n, 1
-  %. = select i1 %gt.inv, i32 3, i32 1
-  %mul = add i32 %., %x
-  ret i32 %mul
 }
 
 define i32 @"#anon.2"() {
 entry:
-  %userfn = call i32 @locals(i32 8, i32 12)
-  ret i32 %userfn
-}
-
-define i32 @"#anon.3"() {
-entry:
-  %userfn = call i32 @locals(i32 -10, i32 12)
-  ret i32 %userfn
-}
-
-define i32 @"#anon.4"() {
-entry:
-  %load = load i32*, i32** @n, align 8
-  %load1 = load i32, i32* %load, align 4
-  ret i32 %load1
-}
-
-define i32 @val.5() {
-entry:
-  %load = load i32*, i32** @myGlobal, align 8
-  %0 = bitcast i32* %load to i8*
-  tail call void @free(i8* %0)
-  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %array = bitcast i8* %malloccall to i32*
-  store i32* %array, i32** @myGlobal, align 8
-  store i32 6, i32* %array, align 4
-  ret i32 6
-}
-
-define i32 @val.6() {
-entry:
-  %load = load i32*, i32** @otherGlobal, align 8
-  %0 = bitcast i32* %load to i8*
-  tail call void @free(i8* %0)
-  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %array = bitcast i8* %malloccall to i32*
-  store i32* %array, i32** @otherGlobal, align 8
-  store i32 18, i32* %array, align 4
-  ret i32 18
-}
-
-define i32 @"#anon.7"() {
-entry:
-  %load = load i32*, i32** @myGlobal, align 8
-  %load1 = load i32, i32* %load, align 4
-  ret i32 %load1
-}
-
-define i32 @"#anon.8"() {
-entry:
-  %load = load i32*, i32** @myGlobal, align 8
-  store i32 9, i32* %load, align 4
-  ret i32 9
-}
-
-define i32 @"#anon.9"() {
-entry:
-  %load = load i32*, i32** @myGlobal, align 8
-  %load1 = load i32, i32* %load, align 4
-  ret i32 %load1
-}
-
-define i32 @"#anon.10"() {
-entry:
-  %load = load i32*, i32** @otherGlobal, align 8
-  %load1 = load i32, i32* %load, align 4
-  ret i32 %load1
-}
-
-define i32 @val.11() {
-entry:
-  %load = load i32*, i32** @otherGlobal, align 8
-  %0 = bitcast i32* %load to i8*
-  tail call void @free(i8* %0)
-  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %array = bitcast i8* %malloccall to i32*
-  store i32* %array, i32** @otherGlobal, align 8
-  store i32 12, i32* %array, align 4
-  ret i32 12
-}
-
-define i32 @"#anon.12"() {
-entry:
-  %load = load i32*, i32** @otherGlobal, align 8
-  %load1 = load i32, i32* %load, align 4
-  ret i32 %load1
-}
-
-define i32 @side-effect(i32 %n) {
-side-effect:
-  %load = load i32*, i32** @myGlobal, align 8
-  store i32 %n, i32* %load, align 4
-  ret i32 %n
-}
-
-define i32 @"#anon.13"() {
-entry:
-  %userfn = call i32 @side-effect(i32 2579)
-  ret i32 %userfn
-}
-
-define i32 @"#anon.14"() {
-entry:
-  %load = load i32*, i32** @myGlobal, align 8
-  %load1 = load i32, i32* %load, align 4
-  ret i32 %load1
+  %userfn = call i32 @"prime?"(i32 2147483646)
+  %not = xor i32 %userfn, -1
+  ret i32 %not
 }

@@ -113,13 +113,13 @@ pub fn codegen_call<'a>(
         .map(|e| e.codegen(compiler).map(BasicMetadataValueEnum::IntValue))
         .collect::<Result<Vec<_>, String>>()?;
 
-    compiler
+    Ok(compiler
         .builder
         .build_call(function, &args, "userfn")
         .try_as_basic_value()
         .left()
-        .map(|e| Ok(e.into_int_value()))
-        .unwrap()
+        .ok_or(format!("weirdness in call {}", function))?
+        .into_int_value())
 }
 
 pub fn codegen_if<'a>(
