@@ -150,7 +150,6 @@ impl<'a> AstDef<'a> {
             Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_free_globals(compiler)?),
             _ => unreachable!("Unreachable defgen {:?}", self),
         };
-        compiler.clear_curr_function();
         Ok(native)
     }
 }

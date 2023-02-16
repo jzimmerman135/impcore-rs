@@ -88,8 +88,6 @@ pub fn defgen_global<'a>(
     let basic_block = compiler.context.append_basic_block(fn_value, "entry");
     compiler.builder.position_at_end(basic_block);
     compiler.curr_function = Some(fn_value);
-
-    // calculate value
     let int_value = body.codegen(compiler)?;
 
     let global_ptr = match compiler.global_table.get(name) {
