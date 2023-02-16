@@ -1,22 +1,2 @@
-20 
-20 20
-x 20
-20 x
-55 x x20 x_20 __20x
-20 x 
-prime 
-;; 20x FAILS
-v
-20
-(hello 20 x)
-(hello? 5 ( hello  5  50 ))(* 10 5)5(++ 50)
-(if 0 1 2)
-v[2] v[(++ 1)]
-(define myfunc (n x) (+ n x))
-(alloc v[5])
-(myf (+ p 1)(+ n 1))
-(if 5(++ 1)1)
-(define myFunc( n y)(+ 10 n))
-;; (define myFunc( n 20)(+ 10 n)) FAILS
-(+ (set x[5] 10)10)
-(prinln (if 5 10 (* 10 20)))
+(define add-two (a b) (+ a b))
+(add-two 5 10)

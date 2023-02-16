@@ -1,24 +1,44 @@
+use clap::Parser as ArgParser;
 use impcore_rs::jit;
 use impcore_rs::parser::ImpcoreParser;
 use impcore_rs::{print_ast, print_ir, rip};
 use std::{fs, process};
 
+pub static DEBUG_MODE: bool = false;
+
+#[derive(ArgParser, Debug)]
+struct Cli {
+    #[arg(short, long)]
+    debug: bool,
+    #[arg(short, long)]
+    filename: Option<String>,
+}
+
 fn main() {
-    let filename = "./imp/slow.imp";
+    let cli = Cli::parse();
+
+    let filename = if let Some(ref file) = cli.filename {
+        file.as_str()
+    } else {
+        "./imp/hard.imp"
+    };
+
     let contents = fs::read_to_string(filename)
         .unwrap_or_else(|_| rip(format!("Failed to open file {}", filename)));
 
-    let top_level_nodes = ImpcoreParser::generate_ast(&contents)
+    let ast = ImpcoreParser::generate_ast(&contents)
         .unwrap_or_else(|s| rip(s))
         .prepare();
 
-    print_ast(&top_level_nodes);
+    if cli.debug {
+        print_ast(&ast);
+    }
 
     let context = inkwell::context::Context::create();
     let mut compiler =
         jit::Compiler::new(&context, jit::ExecutionMode::Jit).expect("Failed to build compiler");
 
-    let tles = top_level_nodes
+    let tles = ast
         .iter()
         .map(|e| e.defgen(&mut compiler))
         .collect::<Result<Vec<_>, String>>()
@@ -27,8 +47,10 @@ fn main() {
             process::exit(1)
         });
 
-    print_ir(&compiler);
+    if cli.debug {
+        print_ir(&compiler);
+        eprintln!("\nEXECUTION OUTPUT\n--------------------------------------------------");
+    }
 
-    println!("\nEXECUTION OUTPUT\n--------------------------------------------------");
     compiler.top_level_run_all(&tles);
 }

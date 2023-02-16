@@ -1,5 +1,14 @@
+use inkwell::AddressSpace;
+
 use super::*;
 use crate::ast::AstExpr;
+
+pub fn declare_global<'a>(name: &str, compiler: &mut Compiler<'a>) {
+    let addr_space = AddressSpace::default();
+    let ptr_type = compiler.context.i32_type().ptr_type(addr_space);
+    let global_ptr = compiler.module.add_global(ptr_type, Some(addr_space), name);
+    global_ptr.set_initializer(&ptr_type.const_null());
+}
 
 pub fn defgen_anonymous<'a>(
     body: &AstExpr<'a>,
@@ -125,7 +134,7 @@ pub fn defgen_global<'a>(
     Ok(fn_value)
 }
 
-pub fn defgen_free_globals<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a>, String> {
+pub fn defgen_cleanup<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a>, String> {
     let itype = compiler.context.i32_type();
     let fn_type = itype.fn_type(&[], false);
     let fn_value = compiler.module.add_function("cleanup", fn_type, None);

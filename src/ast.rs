@@ -6,7 +6,7 @@ use crate::{
     parser::{def_parse, expr_parse, *},
     static_analysis,
 };
-use inkwell::{values::IntValue, AddressSpace};
+use inkwell::values::IntValue;
 use std::{
     collections::HashSet,
     slice::{Iter, IterMut},
@@ -141,13 +141,10 @@ impl<'a> AstDef<'a> {
                 NativeTopLevel::TopLevelExpr(defgen::defgen_global(name, value, compiler)?)
             }
             Self::DeclareGlobal(name) => {
-                let addr_space = AddressSpace::default();
-                let ptr_type = compiler.context.i32_type().ptr_type(addr_space);
-                let global_ptr = compiler.module.add_global(ptr_type, Some(addr_space), name);
-                global_ptr.set_initializer(&ptr_type.const_null());
+                defgen::declare_global(name, compiler);
                 NativeTopLevel::Noop
             }
-            Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_free_globals(compiler)?),
+            Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_cleanup(compiler)?),
             _ => unreachable!("Unreachable defgen {:?}", self),
         };
         Ok(native)

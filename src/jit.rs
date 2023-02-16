@@ -117,7 +117,6 @@ impl<'ctx> Compiler<'ctx> {
 
     fn run_native_unverified(&mut self, top_level_def: &NativeTopLevel<'ctx>) {
         match *top_level_def {
-            // later these will natively print
             NativeTopLevel::FunctionDef(_, name) => println!("{}", name),
             NativeTopLevel::TopLevelExpr(fn_value) => {
                 let res = unsafe { self.execution_engine.run_function(fn_value, &[]) };
@@ -125,7 +124,9 @@ impl<'ctx> Compiler<'ctx> {
             }
             NativeTopLevel::FreeAll(fn_value) => {
                 let res = unsafe { self.execution_engine.run_function(fn_value, &[]) };
-                println!("exiting with code {}", res.as_int(true))
+                if res.as_int(true) == 1 {
+                    eprintln!("ERROR: failed to free memory exiting with code 1",)
+                }
             }
             NativeTopLevel::Quiet(fn_value) => unsafe {
                 self.execution_engine.run_function(fn_value, &[]);

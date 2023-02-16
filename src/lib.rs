@@ -12,15 +12,15 @@ pub mod static_analysis;
 
 #[allow(unused)]
 pub fn print_ast(ast: &Ast) {
-    println!("\nPRINTING AST\n------------");
+    eprintln!("\nPRINTING AST\n------------");
     for node in ast.iter() {
-        println!("{:?}", node);
+        eprintln!("{:?}", node);
     }
 }
 
 #[allow(unused)]
 pub fn print_ir(compiler: &jit::Compiler) {
-    println!("\nLLVM IR\n--------------------------------------------------");
+    eprintln!("\nLLVM IR\n--------------------------------------------------");
     compiler.module.print_to_stderr();
 }
 
