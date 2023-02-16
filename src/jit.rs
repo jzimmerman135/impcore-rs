@@ -45,6 +45,7 @@ pub enum NativeTopLevel<'ctx> {
     FunctionDef(FunctionValue<'ctx>, &'ctx str),
     FreeAll(FunctionValue<'ctx>),
     Quiet(FunctionValue<'ctx>),
+    Noop,
 }
 
 impl<'a> NativeTopLevel<'a> {
@@ -129,6 +130,7 @@ impl<'ctx> Compiler<'ctx> {
             NativeTopLevel::Quiet(fn_value) => unsafe {
                 self.execution_engine.run_function(fn_value, &[]);
             },
+            NativeTopLevel::Noop => {}
             _ => unreachable!(
                 "not a top level expression or definition {:?}",
                 top_level_def

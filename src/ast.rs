@@ -6,7 +6,7 @@ use crate::{
     parser::{def_parse, expr_parse, *},
     static_analysis,
 };
-use inkwell::values::IntValue;
+use inkwell::{values::IntValue, AddressSpace};
 use std::{
     collections::HashSet,
     slice::{Iter, IterMut},
@@ -35,7 +35,6 @@ pub enum AstExpr<'a> {
     Begin(Vec<AstExpr<'a>>),
     Assign(&'a str, Box<AstExpr<'a>>, AstScope),
     Error,
-    Null,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -46,6 +45,7 @@ pub enum AstDef<'a> {
     CheckExpect(AstExpr<'a>, AstExpr<'a>, &'a str),
     CheckAssert(AstExpr<'a>, &'a str),
     CheckError(AstExpr<'a>, &'a str),
+    DeclareGlobal(&'a str),
     FreeAll,
 }
 
@@ -62,7 +62,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             Self::Global(_, body) => vec![body],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::FreeAll => vec![],
+            Self::DeclareGlobal(..) | Self::FreeAll => vec![],
         }
     }
 
@@ -73,7 +73,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             Self::Global(_, body) => vec![body],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::FreeAll => vec![],
+            Self::DeclareGlobal(..) | Self::FreeAll => vec![],
         }
     }
 }
@@ -81,7 +81,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
 impl<'a> AstChildren<'a> for AstExpr<'a> {
     fn children_mut(&mut self) -> Vec<&mut Self> {
         match self {
-            Self::Error | Self::Null | Self::Variable(..) | Self::Literal(..) => vec![],
+            Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
             Self::Unary(_, body) | Self::Assign(_, body, _) => vec![body],
             Self::While(cond, body) => vec![cond, body],
@@ -94,7 +94,7 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
 
     fn children(&self) -> Vec<&Self> {
         match self {
-            Self::Error | Self::Null | Self::Variable(..) | Self::Literal(..) => vec![],
+            Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
             Self::Unary(_, body) | Self::Assign(_, body, _) => vec![body],
             Self::While(cond, body) => vec![cond, body],
@@ -138,7 +138,14 @@ impl<'a> AstDef<'a> {
                 contents,
             ),
             Self::Global(name, value) => {
-                NativeTopLevel::Quiet(defgen::defgen_global(name, value, compiler)?)
+                NativeTopLevel::TopLevelExpr(defgen::defgen_global(name, value, compiler)?)
+            }
+            Self::DeclareGlobal(name) => {
+                let addr_space = AddressSpace::default();
+                let ptr_type = compiler.context.i32_type().ptr_type(addr_space);
+                let global_ptr = compiler.module.add_global(ptr_type, Some(addr_space), name);
+                global_ptr.set_initializer(&ptr_type.const_null());
+                NativeTopLevel::Noop
             }
             Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_free_globals(compiler)?),
             _ => unreachable!("Unreachable defgen {:?}", self),
@@ -175,7 +182,6 @@ impl<'a> AstExpr<'a> {
             Self::Assign(name, body, ..) => codegen::codegen_assign(name, body, compiler),
             Self::Error => codegen::codegen_literal(1, compiler),
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
-            Self::Null => codegen::codegen_literal(0, compiler),
         }
     }
 }

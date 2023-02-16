@@ -13,7 +13,7 @@ pub fn predefine_globals(ast: &mut Ast) {
         .map(|e| {
             if let AstDef::Global(n, _) = e {
                 if global_names.insert(n) {
-                    declarations.push(AstDef::Global(n, AstExpr::Null));
+                    declarations.push(AstDef::DeclareGlobal(n));
                 }
             }
             e
