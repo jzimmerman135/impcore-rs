@@ -104,12 +104,16 @@ pub fn defgen_global<'a>(
             .ok_or(format!("Unbound global variable {}", name))?,
     };
 
-    let alloc_ptr = compiler.builder.build_malloc(int_type, "array")?;
+    let array = compiler
+        .builder
+        .build_load(global_ptr.as_pointer_value(), "load");
+    compiler.builder.build_free(array.into_pointer_value());
+    let array = compiler.builder.build_malloc(int_type, "array")?;
     compiler
         .builder
-        .build_store(global_ptr.as_pointer_value(), alloc_ptr);
+        .build_store(global_ptr.as_pointer_value(), array);
 
-    compiler.builder.build_store(alloc_ptr, int_value);
+    compiler.builder.build_store(array, int_value);
     compiler.builder.build_return(Some(&int_value));
 
     if !fn_value.verify(true) {

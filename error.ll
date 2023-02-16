@@ -25,12 +25,17 @@ entry:
 
 define i32 @val() {
 entry:
+  %load = load i32*, i32** @n, align 8
+  %0 = bitcast i32* %load to i8*
+  tail call void @free(i8* %0)
   %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
   %array = bitcast i8* %malloccall to i32*
   store i32* %array, i32** @n, align 8
   store i32 888888, i32* %array, align 4
   ret i32 888888
 }
+
+declare void @free(i8*)
 
 declare noalias i8* @malloc(i32)
 
@@ -63,6 +68,9 @@ entry:
 
 define i32 @val.5() {
 entry:
+  %load = load i32*, i32** @myGlobal, align 8
+  %0 = bitcast i32* %load to i8*
+  tail call void @free(i8* %0)
   %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
   %array = bitcast i8* %malloccall to i32*
   store i32* %array, i32** @myGlobal, align 8
@@ -72,6 +80,9 @@ entry:
 
 define i32 @val.6() {
 entry:
+  %load = load i32*, i32** @otherGlobal, align 8
+  %0 = bitcast i32* %load to i8*
+  tail call void @free(i8* %0)
   %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
   %array = bitcast i8* %malloccall to i32*
   store i32* %array, i32** @otherGlobal, align 8
@@ -109,6 +120,9 @@ entry:
 
 define i32 @val.11() {
 entry:
+  %load = load i32*, i32** @otherGlobal, align 8
+  %0 = bitcast i32* %load to i8*
+  tail call void @free(i8* %0)
   %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
   %array = bitcast i8* %malloccall to i32*
   store i32* %array, i32** @otherGlobal, align 8
