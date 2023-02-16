@@ -5,10 +5,10 @@
             1
             (has-divisor? n (+ d 1)))))
 
-(define prime? (n)
-    (if (< n 2)
+(define prime? (v)
+    (if (< v 2)
         0
-        (not (has-divisor? n 2))))
+        (not (has-divisor? v 2))))
 
 (define next-prime (p n)
     (if (prime? p)
@@ -17,15 +17,20 @@
             (next-prime (+ p 1)(- n 1)))
         (next-prime (+ p 1) n)))
  
-(define nthprime (n)
-    (next-prime 2 n))
+(define nthprime (t)
+    (next-prime 2 t))
+
 
 (check-assert (prime? 2147483647))
 (check-assert (not (prime? 2147483646)))
 
-(define myF (n) (+ n 2))
-(nthprime 100)
+(nthprime 1000)
+(nthprime 1001)
+(nthprime 1002)
+(nthprime 1003)
+(nthprime 1004)
 
+;; (nthprime 10000)
 ;; (nthprime 10001)
 ;; (nthprime 10002)
 ;; (nthprime 10003)

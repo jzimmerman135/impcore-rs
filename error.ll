@@ -26,18 +26,19 @@ else8:                                            ; preds = %else
   br label %tailrecurse
 }
 
-define i32 @"prime?"(i32 %n) {
+define i32 @"prime?"(i32 %v) {
 "prime?":
-  %lt = icmp slt i32 %n, 2
+  %lt = icmp slt i32 %v, 2
   br i1 %lt, label %ifcont, label %else
 
 else:                                             ; preds = %"prime?"
-  %userfn = tail call i32 @"has-divisor?"(i32 %n, i32 2)
-  %not = xor i32 %userfn, -1
+  %userfn = tail call i32 @"has-divisor?"(i32 %v, i32 2)
+  %not = icmp eq i32 %userfn, 0
+  %cast2 = sext i1 %not to i32
   br label %ifcont
 
 ifcont:                                           ; preds = %"prime?", %else
-  %iftmp = phi i32 [ %not, %else ], [ 0, %"prime?" ]
+  %iftmp = phi i32 [ %cast2, %else ], [ 0, %"prime?" ]
   ret i32 %iftmp
 }
 
@@ -69,33 +70,52 @@ else5:                                            ; preds = %then
   br label %tailrecurse
 }
 
-define i32 @nthprime(i32 %n) {
+define i32 @nthprime(i32 %t) {
 nthprime:
-  %userfn = tail call i32 @next-prime(i32 2, i32 %n)
+  %userfn = tail call i32 @next-prime(i32 2, i32 %t)
   ret i32 %userfn
-}
-
-define i32 @myF(i32 %n) {
-myF:
-  %mul = add i32 %n, 2
-  ret i32 %mul
 }
 
 define i32 @"#anon"() {
 entry:
-  %userfn = call i32 @nthprime(i32 100)
+  %userfn = call i32 @nthprime(i32 1000)
   ret i32 %userfn
 }
 
 define i32 @"#anon.1"() {
 entry:
-  %userfn = call i32 @"prime?"(i32 2147483647)
+  %userfn = call i32 @nthprime(i32 1001)
   ret i32 %userfn
 }
 
 define i32 @"#anon.2"() {
 entry:
+  %userfn = call i32 @nthprime(i32 1002)
+  ret i32 %userfn
+}
+
+define i32 @"#anon.3"() {
+entry:
+  %userfn = call i32 @nthprime(i32 1003)
+  ret i32 %userfn
+}
+
+define i32 @"#anon.4"() {
+entry:
+  %userfn = call i32 @nthprime(i32 1004)
+  ret i32 %userfn
+}
+
+define i32 @"#anon.5"() {
+entry:
+  %userfn = call i32 @"prime?"(i32 2147483647)
+  ret i32 %userfn
+}
+
+define i32 @"#anon.6"() {
+entry:
   %userfn = call i32 @"prime?"(i32 2147483646)
-  %not = xor i32 %userfn, -1
-  ret i32 %not
+  %not = icmp eq i32 %userfn, 0
+  %cast = sext i1 %not to i32
+  ret i32 %cast
 }
