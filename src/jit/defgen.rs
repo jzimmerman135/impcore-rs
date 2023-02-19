@@ -88,6 +88,7 @@ fn defgen_prototype<'a>(name: &str, params: &[&str], compiler: &Compiler<'a>) ->
 
 pub fn defgen_global<'a>(
     name: &'a str,
+    maybe_size: Option<&AstExpr<'a>>,
     body: &AstExpr<'a>,
     compiler: &mut Compiler<'a>,
 ) -> Result<FunctionValue<'a>, String> {
@@ -116,7 +117,16 @@ pub fn defgen_global<'a>(
         .builder
         .build_load(global_ptr.as_pointer_value(), "load");
     compiler.builder.build_free(array.into_pointer_value());
-    let array = compiler.builder.build_malloc(int_type, "array")?;
+
+    let array = if let Some(size_expr) = maybe_size {
+        let size = size_expr.codegen(compiler)?;
+        compiler
+            .builder
+            .build_array_malloc(int_type, size, "array")?
+    } else {
+        compiler.builder.build_malloc(int_type, "array")?
+    };
+
     compiler
         .builder
         .build_store(global_ptr.as_pointer_value(), array);

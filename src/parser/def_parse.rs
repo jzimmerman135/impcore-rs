@@ -4,9 +4,18 @@ use super::*;
 
 pub fn parse_val(def: Pair<Rule>) -> AstDef {
     let mut def = def.into_inner();
-    let name = def.next().unwrap().as_str();
-    let value = AstExpr::parse(def.next().unwrap());
-    AstDef::Global(name, value)
+    let name = def.next().unwrap();
+    if let Rule::array_value = name.as_rule() {
+        let mut array = name.into_inner();
+        let name = array.next().unwrap().as_str();
+        let index = AstExpr::parse(array.next().unwrap());
+        let value = AstExpr::parse(def.next().unwrap());
+        AstDef::Global(name, value, Some(index))
+    } else {
+        let name = name.as_str();
+        let value = AstExpr::parse(def.next().unwrap());
+        AstDef::Global(name, value, None)
+    }
 }
 
 pub fn parse_define(def: Pair<Rule>) -> AstDef {

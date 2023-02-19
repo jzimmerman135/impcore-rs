@@ -27,3 +27,10 @@ t
 (+ n 3)
 (val t 11)
 (+ t 1)
+
+;; 8 - ? working with arrays
+(val arr[18] 6)
+(set arr[9] 12)
+;; (set arr[3] 7)
+;; arr[3]
+;; arr[9]

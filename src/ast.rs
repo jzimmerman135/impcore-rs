@@ -15,14 +15,14 @@ pub struct Ast<'a>(pub Vec<AstDef<'a>>);
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstExpr<'a> {
     Literal(i32),
-    Variable(&'a str),
+    Variable(&'a str, Option<Box<AstExpr<'a>>>),
     Binary(&'a str, Box<AstExpr<'a>>, Box<AstExpr<'a>>),
     Unary(&'a str, Box<AstExpr<'a>>),
     Call(&'a str, Vec<AstExpr<'a>>),
     If(Box<AstExpr<'a>>, Box<AstExpr<'a>>, Box<AstExpr<'a>>),
     While(Box<AstExpr<'a>>, Box<AstExpr<'a>>),
     Begin(Vec<AstExpr<'a>>),
-    Assign(&'a str, Box<AstExpr<'a>>),
+    Assign(&'a str, Box<AstExpr<'a>>, Option<Box<AstExpr<'a>>>),
     Error,
 }
 
@@ -30,7 +30,7 @@ pub enum AstExpr<'a> {
 pub enum AstDef<'a> {
     TopLevelExpr(AstExpr<'a>),
     Function(&'a str, Vec<&'a str>, HashSet<&'a str>, AstExpr<'a>),
-    Global(&'a str, AstExpr<'a>),
+    Global(&'a str, AstExpr<'a>, Option<AstExpr<'a>>),
     CheckExpect(AstExpr<'a>, AstExpr<'a>, &'a str),
     CheckAssert(AstExpr<'a>, &'a str),
     CheckError(AstExpr<'a>, &'a str),
@@ -48,7 +48,8 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
         match self {
             Self::Function(_, _, _, body) => vec![body],
             Self::TopLevelExpr(body) => vec![body],
-            Self::Global(_, body) => vec![body],
+            Self::Global(_, body, None) => vec![body],
+            Self::Global(_, body, Some(child)) => vec![body, child],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
             Self::DeclareGlobal(..) | Self::FreeAll => vec![],
@@ -59,7 +60,8 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
         match self {
             Self::Function(_, _, _, body) => vec![body],
             Self::TopLevelExpr(body) => vec![body],
-            Self::Global(_, body) => vec![body],
+            Self::Global(_, body, None) => vec![body],
+            Self::Global(_, body, Some(child)) => vec![body, child],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
             Self::DeclareGlobal(..) | Self::FreeAll => vec![],
@@ -70,10 +72,12 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
 impl<'a> AstChildren<'a> for AstExpr<'a> {
     fn children_mut(&mut self) -> Vec<&mut Self> {
         match self {
-            Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
+            Self::Variable(_, Some(body)) => vec![body],
+            Self::Error | Self::Variable(_, None) | Self::Literal(..) => vec![],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
-            Self::Unary(_, body) | Self::Assign(_, body) => vec![body],
+            Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
             Self::While(cond, body) => vec![cond, body],
+            Self::Assign(_, body, Some(index)) => vec![body, index],
             Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter_mut().collect::<Vec<_>>(),
             Self::If(c, t, f) => {
                 vec![c, t, f]
@@ -83,10 +87,12 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
 
     fn children(&self) -> Vec<&Self> {
         match self {
-            Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
+            Self::Variable(_, Some(body)) => vec![body],
+            Self::Error | Self::Variable(_, None) | Self::Literal(..) => vec![],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
-            Self::Unary(_, body) | Self::Assign(_, body) => vec![body],
+            Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
             Self::While(cond, body) => vec![cond, body],
+            Self::Assign(_, body, Some(index)) => vec![body, index],
             Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter().collect::<Vec<_>>(),
             Self::If(c, t, f) => {
                 vec![c, t, f]
@@ -126,15 +132,15 @@ impl<'a> AstDef<'a> {
                 defgen::defgen_anonymous(rhs, compiler)?,
                 contents,
             ),
-            Self::Global(name, value) => {
-                NativeTopLevel::TopLevelExpr(defgen::defgen_global(name, value, compiler)?)
-            }
+            Self::Global(name, value, index) => NativeTopLevel::TopLevelExpr(
+                defgen::defgen_global(name, index.as_ref(), value, compiler)?,
+            ),
             Self::DeclareGlobal(name) => {
                 defgen::declare_global(name, compiler);
                 NativeTopLevel::Noop
             }
             Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_cleanup(compiler)?),
-            _ => unreachable!("Unreachable defgen {:?}", self),
+            _ => unimplemented!("unimplemented defgen {:?}", self),
         };
         Ok(native)
     }
@@ -152,6 +158,7 @@ impl<'a> AstExpr<'a> {
             Rule::whilex => expr_parse::parse_while(expr),
             Rule::begin => expr_parse::parse_begin(expr),
             Rule::set => expr_parse::parse_set(expr),
+            Rule::array_value => expr_parse::parse_indexer(expr),
             Rule::error => AstExpr::Error,
             _ => unreachable!("got unreachable expr {:?}", expr.as_rule()),
         }
@@ -165,8 +172,12 @@ impl<'a> AstExpr<'a> {
             Self::While(cond, body) => codegen::codegen_while(cond, body, compiler),
             Self::Call(name, args) => codegen::codegen_call(name, args, compiler),
             Self::Literal(value) => codegen::codegen_literal(*value, compiler),
-            Self::Variable(name) => codegen::codegen_variable(name, compiler),
-            Self::Assign(name, body) => codegen::codegen_assign(name, body, compiler),
+            Self::Variable(name, index) => {
+                codegen::codegen_variable(name, index.as_deref(), compiler)
+            }
+            Self::Assign(name, body, index) => {
+                codegen::codegen_assign(name, index.as_deref(), body, compiler)
+            }
             Self::Error => codegen::codegen_literal(1, compiler),
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
         }

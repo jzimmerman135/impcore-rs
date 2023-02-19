@@ -11,20 +11,34 @@ pub fn codegen_literal<'a>(
 
 pub fn codegen_variable<'a>(
     name: &str,
+    maybe_indexer: Option<&AstExpr<'a>>,
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
-    let addr = get_address(name, compiler)?;
+    let mut addr = get_address(name, compiler)?;
+    if let Some(indexer) = maybe_indexer {
+        let index = indexer.codegen(compiler)?;
+        addr = unsafe { compiler.builder.build_gep(addr, &[index], "index") };
+    }
+
     Ok(compiler.builder.build_load(addr, "load").into_int_value())
 }
 
 pub fn codegen_assign<'a>(
     name: &str,
+    maybe_indexer: Option<&AstExpr<'a>>,
     body: &AstExpr<'a>,
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
-    let addr = get_address(name, compiler)?;
+    let mut addr = get_address(name, compiler)?;
+
+    if let Some(indexer) = maybe_indexer {
+        let index = indexer.codegen(compiler)?;
+        addr = unsafe { compiler.builder.build_gep(addr, &[index], "index") };
+    }
+
     let value = body.codegen(compiler)?;
     compiler.builder.build_store(addr, value);
+
     Ok(value)
 }
 

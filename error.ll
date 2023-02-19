@@ -4,6 +4,7 @@ target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 
 @n = global i32* null
 @t = global i32* null
+@arr = global i32* null
 
 define i32 @add-ten(i32 %x) {
 add-ten:

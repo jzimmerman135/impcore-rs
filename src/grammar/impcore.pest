@@ -10,7 +10,6 @@ RBRACK = _{ WSP* ~ "]" }
 keyword = _{ "define" | "alloc" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
 RESERVED = _{ keyword ~ WSP+ }
 
-
 NUMBER = _{ ( "-" | "+" )? ~ "0x"? ~ ASCII_DIGIT+ }
 NAMED = _{ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-" )* }
 
@@ -45,7 +44,7 @@ exp = _{ ( ACCESSOR | LPAREN ~ ( CONTROL_FLOW | FUNCTION_CALL ) ~ RPAREN ) ~ WSP
 
 PARAMS = _{ LPAREN ~ parameter ~ ( WSP+ ~ parameter )* ~ RPAREN }
 define = { "define" ~ WSP+ ~ function_name ~ WSP* ~ PARAMS ~ WSP* ~ exp }
-val =  { "val" ~ WSP+ ~ variable ~ WSP+ ~ exp }
+val =  { "val" ~ WSP+ ~ (array_value | variable) ~ WSP+ ~ exp }
 alloc = { "alloc" ~ WSP+ ~ variable ~ LBRACK ~ exp ~ RBRACK }
 GLOBAL = _{ define | val | alloc }
 
