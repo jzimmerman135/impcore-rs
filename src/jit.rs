@@ -13,6 +13,7 @@ pub use inkwell::{
     values::{AsValueRef, BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue},
     OptimizationLevel,
 };
+
 use inkwell::{
     targets::{InitializationConfig, Target},
     values::{GlobalValue, PointerValue},
@@ -66,7 +67,7 @@ impl<'ctx> Compiler<'ctx> {
                 module.create_jit_execution_engine(OptimizationLevel::Aggressive)?
             }
             ExecutionMode::Interpreter => module.create_interpreter_execution_engine()?,
-            _ => panic!("Cannot create a compiler with dead execution engine"),
+            ExecutionMode::Dead => panic!("Cannot create a compiler with dead execution engine"),
         };
         let fpm = Self::get_optimization_pass_manager(&module);
 

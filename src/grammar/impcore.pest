@@ -7,7 +7,9 @@ RPAREN = _{ WSP* ~ ")" }
 LBRACK = _{ "[" ~ WSP* }
 RBRACK = _{ WSP* ~ "]" }
 
-RESERVED = _{ "define" | "alloc" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
+keyword = _{ "define" | "alloc" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
+RESERVED = _{ keyword ~ WSP+ }
+
 
 NUMBER = _{ ( "-" | "+" )? ~ "0x"? ~ ASCII_DIGIT+ }
 NAMED = _{ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-" )* }

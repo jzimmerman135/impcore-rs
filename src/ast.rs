@@ -1,8 +1,5 @@
 use crate::{
-    jit::{
-        codegen::{self},
-        defgen, Compiler, NativeTopLevel,
-    },
+    jit::{codegen, defgen, Compiler, NativeTopLevel},
     parser::{def_parse, expr_parse, *},
     static_analysis,
 };
@@ -16,24 +13,16 @@ use std::{
 pub struct Ast<'a>(pub Vec<AstDef<'a>>);
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum AstScope {
-    Unknown,
-    Local,
-    Global,
-    Param,
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub enum AstExpr<'a> {
     Literal(i32),
-    Variable(&'a str, AstScope),
+    Variable(&'a str),
     Binary(&'a str, Box<AstExpr<'a>>, Box<AstExpr<'a>>),
     Unary(&'a str, Box<AstExpr<'a>>),
     Call(&'a str, Vec<AstExpr<'a>>),
     If(Box<AstExpr<'a>>, Box<AstExpr<'a>>, Box<AstExpr<'a>>),
     While(Box<AstExpr<'a>>, Box<AstExpr<'a>>),
     Begin(Vec<AstExpr<'a>>),
-    Assign(&'a str, Box<AstExpr<'a>>, AstScope),
+    Assign(&'a str, Box<AstExpr<'a>>),
     Error,
 }
 
@@ -83,7 +72,7 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
         match self {
             Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
-            Self::Unary(_, body) | Self::Assign(_, body, _) => vec![body],
+            Self::Unary(_, body) | Self::Assign(_, body) => vec![body],
             Self::While(cond, body) => vec![cond, body],
             Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter_mut().collect::<Vec<_>>(),
             Self::If(c, t, f) => {
@@ -96,7 +85,7 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
         match self {
             Self::Error | Self::Variable(..) | Self::Literal(..) => vec![],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
-            Self::Unary(_, body) | Self::Assign(_, body, _) => vec![body],
+            Self::Unary(_, body) | Self::Assign(_, body) => vec![body],
             Self::While(cond, body) => vec![cond, body],
             Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter().collect::<Vec<_>>(),
             Self::If(c, t, f) => {
@@ -176,8 +165,8 @@ impl<'a> AstExpr<'a> {
             Self::While(cond, body) => codegen::codegen_while(cond, body, compiler),
             Self::Call(name, args) => codegen::codegen_call(name, args, compiler),
             Self::Literal(value) => codegen::codegen_literal(*value, compiler),
-            Self::Variable(name, ..) => codegen::codegen_variable(name, compiler),
-            Self::Assign(name, body, ..) => codegen::codegen_assign(name, body, compiler),
+            Self::Variable(name) => codegen::codegen_variable(name, compiler),
+            Self::Assign(name, body) => codegen::codegen_assign(name, body, compiler),
             Self::Error => codegen::codegen_literal(1, compiler),
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
         }

@@ -1,28 +1,29 @@
-20
 (define add-ten (x) (+ 10 x))
-(add-ten (* 15 5))
+(define locals (n x)
+    (begin (if (> n 0)
+               (set n 14)
+               (set n (- 0 13)))
+            (+ n x)))
+(define set-global-with-loop (x) 
+    (+ x
+        (while (< (- t 1) x)
+                (set t (+ t 1)))))            
 
-(val n 888888)
+;; 0 - 3 tests variables and top level expressions
+(+ 0 0)
+1
+(val n 2)
+(add-ten (/ 70 -10))
 
-(define locals (n x) (begin (if (> n 0) (set n 1) (set n 3)) (+ n x)))
-(locals 8 12)
-(locals -10 12)
+;; 4 - 6 tests local scope precedence
+(locals 8 -10)
+(locals -8 18)
+(+ n 4)
 
-n
-
-(val myGlobal 6)
-(val otherGlobal 18)
-myGlobal
-(set myGlobal 9)
-myGlobal
-otherGlobal
-(val otherGlobal 12)
-otherGlobal
-(define side-effect (n) (set myGlobal n))
-(side-effect 2579)
-myGlobal
-
-;; (val g 10)
-;; (val n 20)
-;; n
-;; (val n 21)
+;; 7 - 12 tests multiple globals and setting them various contexts
+(val t (set n 7))
+(set-global-with-loop 8)
+t
+(+ n 3)
+(val t 11)
+(+ t 1)

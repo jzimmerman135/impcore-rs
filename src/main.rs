@@ -2,9 +2,7 @@ use clap::Parser as ArgParser;
 use impcore_rs::jit;
 use impcore_rs::parser::ImpcoreParser;
 use impcore_rs::{print_ast, print_ir, rip};
-use std::{fs, process};
-
-pub static DEBUG_MODE: bool = false;
+use std::fs;
 
 #[derive(ArgParser, Debug)]
 struct Cli {
@@ -17,14 +15,10 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let filename = if let Some(ref file) = cli.filename {
-        file.as_str()
-    } else {
-        "./imp/hard.imp"
-    };
+    let input_file = cli.filename.as_deref().unwrap_or("./imp/basic.imp");
 
-    let contents = fs::read_to_string(filename)
-        .unwrap_or_else(|_| rip(format!("Failed to open file {}", filename)));
+    let contents = fs::read_to_string(input_file)
+        .unwrap_or_else(|_| rip(format!("Failed to open file {}", input_file)));
 
     let ast = ImpcoreParser::generate_ast(&contents)
         .unwrap_or_else(|s| rip(s))
@@ -42,10 +36,7 @@ fn main() {
         .iter()
         .map(|e| e.defgen(&mut compiler))
         .collect::<Result<Vec<_>, String>>()
-        .unwrap_or_else(|e| {
-            eprintln!("error: {}", e);
-            process::exit(1)
-        });
+        .unwrap_or_else(|e| rip(e));
 
     if cli.debug {
         print_ir(&compiler);

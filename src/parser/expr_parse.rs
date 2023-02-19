@@ -1,5 +1,4 @@
 use super::*;
-use crate::ast::AstScope;
 
 pub fn parse_literal(expr: Pair<Rule>) -> AstExpr {
     let num = expr.as_str().parse().unwrap();
@@ -8,7 +7,7 @@ pub fn parse_literal(expr: Pair<Rule>) -> AstExpr {
 
 pub fn parse_variable(expr: Pair<Rule>) -> AstExpr {
     let name = expr.as_str();
-    AstExpr::Variable(name, AstScope::Unknown)
+    AstExpr::Variable(name)
 }
 
 pub fn parse_binary(expr: Pair<Rule>) -> AstExpr {
@@ -61,5 +60,5 @@ pub fn parse_set(expr: Pair<Rule>) -> AstExpr {
     let mut inner_expr = expr.into_inner();
     let name = inner_expr.next().unwrap().as_str();
     let newval = AstExpr::parse(inner_expr.next().unwrap());
-    AstExpr::Assign(name, Box::new(newval), AstScope::Unknown)
+    AstExpr::Assign(name, Box::new(newval))
 }

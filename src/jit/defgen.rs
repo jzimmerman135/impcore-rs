@@ -3,11 +3,12 @@ use inkwell::AddressSpace;
 use super::*;
 use crate::ast::AstExpr;
 
-pub fn declare_global<'a>(name: &str, compiler: &mut Compiler<'a>) {
+pub fn declare_global<'a>(name: &'a str, compiler: &mut Compiler<'a>) {
     let addr_space = AddressSpace::default();
     let ptr_type = compiler.context.i32_type().ptr_type(addr_space);
     let global_ptr = compiler.module.add_global(ptr_type, Some(addr_space), name);
     global_ptr.set_initializer(&ptr_type.const_null());
+    compiler.global_table.insert(name, global_ptr);
 }
 
 pub fn defgen_anonymous<'a>(
