@@ -1,7 +1,7 @@
 use inkwell::AddressSpace;
 
 use super::*;
-use crate::ast::AstExpr;
+use crate::ast::{AstExpr, AstType};
 
 pub fn declare_global<'a>(name: &'a str, compiler: &mut Compiler<'a>) {
     let addr_space = AddressSpace::default();
@@ -37,25 +37,31 @@ pub fn defgen_anonymous<'a>(
 
 pub fn defgen_function<'a>(
     name: &str,
-    variable_params: &[&'a str],
-    pointer_params: &[&'a str],
+    params: &[(&'a str, AstType)],
     body: &AstExpr<'a>,
     compiler: &mut Compiler<'a>,
 ) -> Result<FunctionValue<'a>, String> {
-    let fn_value = defgen_prototype(name, variable_params, compiler);
+    let fn_value = defgen_prototype(name, params, compiler);
     let int_type = compiler.context.i32_type();
-    let ptr_type = int_type.ptr_type(AddressSpace::default());
+    let _ptr_type = int_type.ptr_type(AddressSpace::default());
 
     let entry = compiler.context.append_basic_block(fn_value, name);
     compiler.builder.position_at_end(entry);
     compiler.curr_function = Some(fn_value);
 
-    for (&param, param_value) in variable_params.iter().zip(fn_value.get_param_iter()) {
-        let alloca = compiler.builder.build_alloca(int_type, "alloca");
-        compiler
-            .builder
-            .build_store(alloca, param_value.into_int_value());
-        compiler.param_table.insert(param, alloca);
+    for (&param, param_value) in params.iter().zip(fn_value.get_param_iter()) {
+        let alloca = match param.1 {
+            AstType::Integer => {
+                let alloca = compiler.builder.build_alloca(int_type, "alloca");
+                compiler
+                    .builder
+                    .build_store(alloca, param_value.into_int_value());
+                alloca
+            }
+            AstType::Pointer => continue,
+        };
+
+        compiler.param_table.insert(param.0, alloca);
     }
 
     let body = body.codegen(compiler)?;
@@ -74,16 +80,25 @@ pub fn defgen_function<'a>(
     Ok(fn_value)
 }
 
-fn defgen_prototype<'a>(name: &str, params: &[&str], compiler: &Compiler<'a>) -> FunctionValue<'a> {
-    let ret_type = compiler.context.i32_type();
-    let args_types = std::iter::repeat(ret_type)
-        .take(params.len())
-        .map(|f| f.into())
-        .collect::<Vec<BasicMetadataTypeEnum>>();
+fn defgen_prototype<'a>(
+    name: &str,
+    params: &[(&str, AstType)],
+    compiler: &Compiler<'a>,
+) -> FunctionValue<'a> {
+    let int_type = compiler.context.i32_type();
+
+    let mut args_types: Vec<BasicMetadataTypeEnum> = vec![];
+    for param in params {
+        match param.1 {
+            AstType::Pointer => continue,
+            AstType::Integer => args_types.push(int_type.into()),
+        }
+    }
+
     let fn_type = compiler.context.i32_type().fn_type(&args_types, false);
     let fn_val = compiler.module.add_function(name, fn_type, None);
     for (i, arg) in fn_val.get_param_iter().enumerate() {
-        arg.into_int_value().set_name(params[i]);
+        arg.into_int_value().set_name(params[i].0);
     }
     fn_val
 }

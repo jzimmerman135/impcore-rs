@@ -4,10 +4,7 @@ use crate::{
     static_analysis,
 };
 use inkwell::values::IntValue;
-use std::{
-    collections::HashSet,
-    slice::{Iter, IterMut},
-};
+use std::slice::{Iter, IterMut};
 
 #[derive(Clone)]
 pub struct Ast<'a>(pub Vec<AstDef<'a>>);
@@ -26,10 +23,16 @@ pub enum AstExpr<'a> {
     Error,
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum AstType {
+    Integer,
+    Pointer,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstDef<'a> {
     TopLevelExpr(AstExpr<'a>),
-    Function(&'a str, Vec<&'a str>, Vec<&'a str>, AstExpr<'a>),
+    Function(&'a str, Vec<(&'a str, AstType)>, AstExpr<'a>),
     Global(&'a str, AstExpr<'a>, Option<AstExpr<'a>>),
     CheckExpect(AstExpr<'a>, AstExpr<'a>, &'a str),
     CheckAssert(AstExpr<'a>, &'a str),
@@ -46,7 +49,7 @@ pub trait AstChildren<'a> {
 impl<'a> AstChildren<'a> for AstDef<'a> {
     fn children(&self) -> Vec<&AstExpr<'a>> {
         match self {
-            Self::Function(_, _, _, body) => vec![body],
+            Self::Function(_, _, body) => vec![body],
             Self::TopLevelExpr(body) => vec![body],
             Self::Global(_, body, None) => vec![body],
             Self::Global(_, body, Some(child)) => vec![body, child],
@@ -58,7 +61,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
 
     fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>> {
         match self {
-            Self::Function(_, _, _, body) => vec![body],
+            Self::Function(_, _, body) => vec![body],
             Self::TopLevelExpr(body) => vec![body],
             Self::Global(_, body, None) => vec![body],
             Self::Global(_, body, Some(child)) => vec![body, child],
@@ -118,8 +121,8 @@ impl<'a> AstDef<'a> {
     pub fn defgen(&self, compiler: &mut Compiler<'a>) -> Result<NativeTopLevel<'a>, String> {
         compiler.clear_curr_function();
         let native = match self {
-            Self::Function(name, vars, ptrs, body) => NativeTopLevel::FunctionDef(
-                defgen::defgen_function(name, vars, ptrs, body, compiler)?,
+            Self::Function(name, params, body) => NativeTopLevel::FunctionDef(
+                defgen::defgen_function(name, params, body, compiler)?,
                 name,
             ),
             Self::TopLevelExpr(body) => {

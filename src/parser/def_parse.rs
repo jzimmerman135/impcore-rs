@@ -1,3 +1,5 @@
+use crate::ast::AstType;
+
 use super::*;
 
 pub fn parse_val(def: Pair<Rule>) -> AstDef {
@@ -21,18 +23,21 @@ pub fn parse_define(def: Pair<Rule>) -> AstDef {
     let (param_exprs, body_expr): (Vec<_>, Vec<_>) =
         inner_expr.partition(|e| e.as_rule() == Rule::parameter);
 
-    let mut variables = vec![];
-    let mut pointers = vec![];
+    let mut params = vec![];
     for param in param_exprs {
         let inner_param = param.into_inner().next().unwrap();
         match inner_param.as_rule() {
-            Rule::variable => variables.push(inner_param.as_str()),
-            Rule::pointer => pointers.push(inner_param.into_inner().next().unwrap().as_str()),
+            Rule::variable => params.push((inner_param.as_str(), AstType::Integer)),
+            Rule::pointer => params.push((
+                inner_param.into_inner().next().unwrap().as_str(),
+                AstType::Pointer,
+            )),
             _ => unreachable!("Unreacheable rule {:?}", inner_param.as_rule()),
         }
     }
+
     let body = AstExpr::parse(body_expr.into_iter().next().unwrap());
-    AstDef::Function(name, variables, pointers, body)
+    AstDef::Function(name, params, body)
 }
 
 pub fn parse_check_expect(def: Pair<Rule>) -> AstDef {
