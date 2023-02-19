@@ -37,19 +37,21 @@ pub fn defgen_anonymous<'a>(
 
 pub fn defgen_function<'a>(
     name: &str,
-    params: &[&'a str],
+    variable_params: &[&'a str],
+    pointer_params: &[&'a str],
     body: &AstExpr<'a>,
     compiler: &mut Compiler<'a>,
 ) -> Result<FunctionValue<'a>, String> {
-    let fn_value = defgen_prototype(name, params, compiler);
-    let itype = compiler.context.i32_type();
+    let fn_value = defgen_prototype(name, variable_params, compiler);
+    let int_type = compiler.context.i32_type();
+    let ptr_type = int_type.ptr_type(AddressSpace::default());
 
     let entry = compiler.context.append_basic_block(fn_value, name);
     compiler.builder.position_at_end(entry);
     compiler.curr_function = Some(fn_value);
 
-    for (&param, param_value) in params.iter().zip(fn_value.get_param_iter()) {
-        let alloca = compiler.builder.build_alloca(itype, "alloca");
+    for (&param, param_value) in variable_params.iter().zip(fn_value.get_param_iter()) {
+        let alloca = compiler.builder.build_alloca(int_type, "alloca");
         compiler
             .builder
             .build_store(alloca, param_value.into_int_value());

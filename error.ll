@@ -245,4 +245,16 @@ entry:
   ret i32 %sub
 }
 
+define i32 @my-ptr-fn(i32 %x, i32 %i) {
+my-ptr-fn:
+  %mul = add i32 %i, %x
+  ret i32 %mul
+}
+
+define i32 @"#anon.20"() {
+entry:
+  %userfn = call i32 @my-ptr-fn(i32 10, i32 2)
+  ret i32 %userfn
+}
+
 attributes #0 = { argmemonly nofree nounwind willreturn writeonly }

@@ -15,6 +15,7 @@ pub fn codegen_variable<'a>(
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
     let mut addr = get_address(name, compiler)?;
+
     if let Some(indexer) = maybe_indexer {
         let index = indexer.codegen(compiler)?;
         addr = unsafe { compiler.builder.build_gep(addr, &[index], "index") };

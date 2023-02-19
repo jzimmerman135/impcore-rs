@@ -29,7 +29,7 @@ pub enum AstExpr<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstDef<'a> {
     TopLevelExpr(AstExpr<'a>),
-    Function(&'a str, Vec<&'a str>, HashSet<&'a str>, AstExpr<'a>),
+    Function(&'a str, Vec<&'a str>, Vec<&'a str>, AstExpr<'a>),
     Global(&'a str, AstExpr<'a>, Option<AstExpr<'a>>),
     CheckExpect(AstExpr<'a>, AstExpr<'a>, &'a str),
     CheckAssert(AstExpr<'a>, &'a str),
@@ -118,8 +118,8 @@ impl<'a> AstDef<'a> {
     pub fn defgen(&self, compiler: &mut Compiler<'a>) -> Result<NativeTopLevel<'a>, String> {
         compiler.clear_curr_function();
         let native = match self {
-            Self::Function(name, params, _, body) => NativeTopLevel::FunctionDef(
-                defgen::defgen_function(name, params, body, compiler)?,
+            Self::Function(name, vars, ptrs, body) => NativeTopLevel::FunctionDef(
+                defgen::defgen_function(name, vars, ptrs, body, compiler)?,
                 name,
             ),
             Self::TopLevelExpr(body) => {

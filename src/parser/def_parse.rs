@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use super::*;
 
 pub fn parse_val(def: Pair<Rule>) -> AstDef {
@@ -22,10 +20,19 @@ pub fn parse_define(def: Pair<Rule>) -> AstDef {
     let name = inner_expr.next().unwrap().as_str();
     let (param_exprs, body_expr): (Vec<_>, Vec<_>) =
         inner_expr.partition(|e| e.as_rule() == Rule::parameter);
-    let params = param_exprs.iter().map(|e| e.as_str()).collect::<Vec<_>>();
-    let locals = HashSet::new();
+
+    let mut variables = vec![];
+    let mut pointers = vec![];
+    for param in param_exprs {
+        let inner_param = param.into_inner().next().unwrap();
+        match inner_param.as_rule() {
+            Rule::variable => variables.push(inner_param.as_str()),
+            Rule::pointer => pointers.push(inner_param.into_inner().next().unwrap().as_str()),
+            _ => unreachable!("Unreacheable rule {:?}", inner_param.as_rule()),
+        }
+    }
     let body = AstExpr::parse(body_expr.into_iter().next().unwrap());
-    AstDef::Function(name, params, locals, body)
+    AstDef::Function(name, variables, pointers, body)
 }
 
 pub fn parse_check_expect(def: Pair<Rule>) -> AstDef {

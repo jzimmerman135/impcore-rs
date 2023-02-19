@@ -15,7 +15,8 @@ NAMED = _{ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-
 
 function_name = @{ !RESERVED ~ NAMED ~ "?"? }
 literal = @{ NUMBER }
-parameter = @{ NAMED }
+pointer = { variable ~ LBRACK ~ RBRACK } 
+parameter = ${ pointer | variable }
 variable = @{ NAMED }
 array_value = { variable ~ LBRACK ~ exp ~ RBRACK }
 ACCESSOR = _{ literal | array_value | variable }
