@@ -118,21 +118,25 @@ pub fn defgen_global<'a>(
         .build_load(global_ptr.as_pointer_value(), "load");
     compiler.builder.build_free(array.into_pointer_value());
 
-    let array = if let Some(size_expr) = maybe_size {
+    let (array, retval) = if let Some(size_expr) = maybe_size {
         let size = size_expr.codegen(compiler)?;
+        let array = compiler
+            .builder
+            .build_array_malloc(int_type, size, "array")?;
         compiler
             .builder
-            .build_array_malloc(int_type, size, "array")?
+            .build_memset(array, 4, compiler.context.i8_type().const_zero(), size)?;
+        (array, size)
     } else {
-        compiler.builder.build_malloc(int_type, "array")?
+        let array = compiler.builder.build_malloc(int_type, "single")?;
+        compiler.builder.build_store(array, int_value);
+        (array, int_value)
     };
 
     compiler
         .builder
         .build_store(global_ptr.as_pointer_value(), array);
-
-    compiler.builder.build_store(array, int_value);
-    compiler.builder.build_return(Some(&int_value));
+    compiler.builder.build_return(Some(&retval));
 
     if !fn_value.verify(true) {
         compiler.module.print_to_stderr();

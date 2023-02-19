@@ -12,12 +12,9 @@ pub fn parse_variable(expr: Pair<Rule>) -> AstExpr {
 
 pub fn parse_indexer(expr: Pair<Rule>) -> AstExpr {
     let mut inner_expr = expr.into_inner();
-    let mut array = inner_expr.next().unwrap().into_inner();
-    eprintln!("{:?}", array);
-    let name = array.next().unwrap().as_str();
-    let index = AstExpr::parse(array.next().unwrap());
-    let value = AstExpr::parse(inner_expr.next().unwrap());
-    AstExpr::Assign(name, Box::new(value), Some(Box::new(index)))
+    let name = inner_expr.next().unwrap().as_str();
+    let index = AstExpr::parse(inner_expr.next().unwrap());
+    AstExpr::Variable(name, Some(Box::new(index)))
 }
 
 pub fn parse_binary(expr: Pair<Rule>) -> AstExpr {
@@ -68,7 +65,16 @@ pub fn parse_begin(expr: Pair<Rule>) -> AstExpr {
 
 pub fn parse_set(expr: Pair<Rule>) -> AstExpr {
     let mut inner_expr = expr.into_inner();
-    let name = inner_expr.next().unwrap().as_str();
+    let name = inner_expr.next().unwrap();
+    if let Rule::array_value = name.as_rule() {
+        let mut array = name.into_inner();
+        let name = array.next().unwrap().as_str();
+        let index = AstExpr::parse(array.next().unwrap());
+        let value = AstExpr::parse(inner_expr.next().unwrap());
+        return AstExpr::Assign(name, Box::new(value), Some(Box::new(index)));
+    }
+
+    let name = name.as_str();
     let newval = AstExpr::parse(inner_expr.next().unwrap());
     AstExpr::Assign(name, Box::new(newval), None)
 }

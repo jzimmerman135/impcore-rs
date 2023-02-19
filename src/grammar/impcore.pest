@@ -44,9 +44,9 @@ exp = _{ ( ACCESSOR | LPAREN ~ ( CONTROL_FLOW | FUNCTION_CALL ) ~ RPAREN ) ~ WSP
 
 PARAMS = _{ LPAREN ~ parameter ~ ( WSP+ ~ parameter )* ~ RPAREN }
 define = { "define" ~ WSP+ ~ function_name ~ WSP* ~ PARAMS ~ WSP* ~ exp }
-val =  { "val" ~ WSP+ ~ (array_value | variable) ~ WSP+ ~ exp }
-alloc = { "alloc" ~ WSP+ ~ variable ~ LBRACK ~ exp ~ RBRACK }
-GLOBAL = _{ define | val | alloc }
+val =  { "val" ~ WSP+ ~ variable ~ WSP+ ~ exp }
+alloc = { "val" ~ WSP+ ~ variable ~ LBRACK ~ RBRACK ~ WSP+ ~ exp }
+GLOBAL = _{ define | alloc | val }
 
 check_expect = { "check-expect" ~ WSP+ ~ exp{2} }
 check_assert = { "check-assert" ~ WSP+ ~ exp }

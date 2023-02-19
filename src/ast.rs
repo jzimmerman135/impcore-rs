@@ -110,7 +110,8 @@ impl<'a> AstDef<'a> {
             Rule::check_expect => def_parse::parse_check_expect(def),
             Rule::check_error => def_parse::parse_check_error(def),
             Rule::define => def_parse::parse_define(def),
-            _ => unreachable!("got unreachable def {:?}", def.as_rule()),
+            Rule::alloc => def_parse::parse_alloc(def),
+            _ => unreachable!("got unreachable def rule {:?}", def.as_rule()),
         }
     }
 
@@ -160,7 +161,7 @@ impl<'a> AstExpr<'a> {
             Rule::set => expr_parse::parse_set(expr),
             Rule::array_value => expr_parse::parse_indexer(expr),
             Rule::error => AstExpr::Error,
-            _ => unreachable!("got unreachable expr {:?}", expr.as_rule()),
+            _ => unreachable!("got unreachable expr rule {:?}", expr.as_rule()),
         }
     }
 

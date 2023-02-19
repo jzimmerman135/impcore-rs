@@ -7,7 +7,11 @@
 (define set-global-with-loop (x) 
     (+ x
         (while (< (- t 1) x)
-                (set t (+ t 1)))))            
+                (set t (+ t 1)))))
+(define sum-arr (i sum) 
+    (if (= i 0)
+        sum
+        (sum-arr (-- i) (+ sum arr[i]))))
 
 ;; 0 - 3 tests variables and top level expressions
 (+ 0 0)
@@ -28,9 +32,12 @@ t
 (val t 11)
 (+ t 1)
 
-;; 8 - ? working with arrays
-(val arr[18] 6)
-(set arr[9] 12)
-;; (set arr[3] 7)
-;; arr[3]
-;; arr[9]
+;; 13 - 20 working with global arrays
+(val arr[] 13)
+(set arr[3] 14)
+(set arr[9] 15)
+(+ 2 arr[3])
+(+ 2 arr[9])
+(set arr[3] 18)
+(+ arr[3] 1)
+(- (sum-arr 12 0) 13)

@@ -41,6 +41,29 @@ afterwhile:                                       ; preds = %loop
   ret i32 %x
 }
 
+define i32 @sum-arr(i32 %i, i32 %sum) {
+sum-arr:
+  br label %tailrecurse
+
+tailrecurse:                                      ; preds = %else, %sum-arr
+  %i.tr = phi i32 [ %i, %sum-arr ], [ %decr, %else ]
+  %sum.tr = phi i32 [ %sum, %sum-arr ], [ %mul, %else ]
+  %eq = icmp eq i32 %i.tr, 0
+  br i1 %eq, label %ifcont, label %else
+
+else:                                             ; preds = %tailrecurse
+  %decr = add i32 %i.tr, -1
+  %load5 = load i32*, i32** @arr, align 8
+  %0 = sext i32 %i.tr to i64
+  %index = getelementptr i32, i32* %load5, i64 %0
+  %load7 = load i32, i32* %index, align 4
+  %mul = add i32 %load7, %sum.tr
+  br label %tailrecurse
+
+ifcont:                                           ; preds = %tailrecurse
+  ret i32 %sum.tr
+}
+
 define i32 @"#anon"() {
 entry:
   ret i32 0
@@ -57,9 +80,9 @@ entry:
   %0 = bitcast i32* %load to i8*
   tail call void @free(i8* %0)
   %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %array = bitcast i8* %malloccall to i32*
-  store i32* %array, i32** @n, align 8
-  store i32 2, i32* %array, align 4
+  %single = bitcast i8* %malloccall to i32*
+  store i32 2, i32* %single, align 4
+  store i32* %single, i32** @n, align 8
   ret i32 2
 }
 
@@ -101,9 +124,9 @@ entry:
   %0 = bitcast i32* %load1 to i8*
   tail call void @free(i8* %0)
   %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %array = bitcast i8* %malloccall to i32*
-  store i32* %array, i32** @t, align 8
-  store i32 7, i32* %array, align 4
+  %single = bitcast i8* %malloccall to i32*
+  store i32 7, i32* %single, align 4
+  store i32* %single, i32** @t, align 8
   ret i32 7
 }
 
@@ -134,9 +157,9 @@ entry:
   %0 = bitcast i32* %load to i8*
   tail call void @free(i8* %0)
   %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %array = bitcast i8* %malloccall to i32*
-  store i32* %array, i32** @t, align 8
-  store i32 11, i32* %array, align 4
+  %single = bitcast i8* %malloccall to i32*
+  store i32 11, i32* %single, align 4
+  store i32* %single, i32** @t, align 8
   ret i32 11
 }
 
@@ -147,3 +170,79 @@ entry:
   %mul = add i32 %load1, 1
   ret i32 %mul
 }
+
+define i32 @val.12() {
+entry:
+  %load = load i32*, i32** @arr, align 8
+  %0 = bitcast i32* %load to i8*
+  tail call void @free(i8* %0)
+  %malloccall = tail call i8* @malloc(i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 13))
+  %array = bitcast i8* %malloccall to i32*
+  %1 = bitcast i32* %array to i8*
+  call void @llvm.memset.p0i8.i32(i8* align 4 %1, i8 0, i32 13, i1 false)
+  store i32* %array, i32** @arr, align 8
+  ret i32 13
+}
+
+; Function Attrs: argmemonly nofree nounwind willreturn writeonly
+declare void @llvm.memset.p0i8.i32(i8* nocapture writeonly, i8, i32, i1 immarg) #0
+
+define i32 @"#anon.13"() {
+entry:
+  %load = load i32*, i32** @arr, align 8
+  %index = getelementptr i32, i32* %load, i32 3
+  store i32 14, i32* %index, align 4
+  ret i32 14
+}
+
+define i32 @"#anon.14"() {
+entry:
+  %load = load i32*, i32** @arr, align 8
+  %index = getelementptr i32, i32* %load, i32 9
+  store i32 15, i32* %index, align 4
+  ret i32 15
+}
+
+define i32 @"#anon.15"() {
+entry:
+  %load = load i32*, i32** @arr, align 8
+  %index = getelementptr i32, i32* %load, i32 3
+  %load1 = load i32, i32* %index, align 4
+  %mul = add i32 2, %load1
+  ret i32 %mul
+}
+
+define i32 @"#anon.16"() {
+entry:
+  %load = load i32*, i32** @arr, align 8
+  %index = getelementptr i32, i32* %load, i32 9
+  %load1 = load i32, i32* %index, align 4
+  %mul = add i32 2, %load1
+  ret i32 %mul
+}
+
+define i32 @"#anon.17"() {
+entry:
+  %load = load i32*, i32** @arr, align 8
+  %index = getelementptr i32, i32* %load, i32 3
+  store i32 18, i32* %index, align 4
+  ret i32 18
+}
+
+define i32 @"#anon.18"() {
+entry:
+  %load = load i32*, i32** @arr, align 8
+  %index = getelementptr i32, i32* %load, i32 3
+  %load1 = load i32, i32* %index, align 4
+  %mul = add i32 %load1, 1
+  ret i32 %mul
+}
+
+define i32 @"#anon.19"() {
+entry:
+  %userfn = call i32 @sum-arr(i32 12, i32 0)
+  %sub = sub i32 %userfn, 13
+  ret i32 %sub
+}
+
+attributes #0 = { argmemonly nofree nounwind willreturn writeonly }
