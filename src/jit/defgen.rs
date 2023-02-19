@@ -43,7 +43,10 @@ pub fn defgen_function<'a>(
 ) -> Result<FunctionValue<'a>, String> {
     let fn_value = defgen_prototype(name, params, compiler);
     let int_type = compiler.context.i32_type();
+<<<<<<< Updated upstream
     let _ptr_type = int_type.ptr_type(AddressSpace::default());
+=======
+>>>>>>> Stashed changes
 
     let entry = compiler.context.append_basic_block(fn_value, name);
     compiler.builder.position_at_end(entry);
@@ -58,7 +61,11 @@ pub fn defgen_function<'a>(
                     .build_store(alloca, param_value.into_int_value());
                 alloca
             }
+<<<<<<< Updated upstream
             AstType::Pointer => continue,
+=======
+            AstType::Pointer => unimplemented!("Pointers as parameters not yet ready"),
+>>>>>>> Stashed changes
         };
 
         compiler.param_table.insert(param.0, alloca);
@@ -90,15 +97,26 @@ fn defgen_prototype<'a>(
     let mut args_types: Vec<BasicMetadataTypeEnum> = vec![];
     for param in params {
         match param.1 {
+<<<<<<< Updated upstream
             AstType::Pointer => continue,
+=======
+>>>>>>> Stashed changes
             AstType::Integer => args_types.push(int_type.into()),
+            AstType::Pointer => unimplemented!("Pointer arguments aren't ready yet"),
         }
     }
 
     let fn_type = compiler.context.i32_type().fn_type(&args_types, false);
     let fn_val = compiler.module.add_function(name, fn_type, None);
     for (i, arg) in fn_val.get_param_iter().enumerate() {
+<<<<<<< Updated upstream
         arg.into_int_value().set_name(params[i].0);
+=======
+        match params[i].1 {
+            AstType::Integer => arg.into_int_value().set_name(params[i].0),
+            AstType::Pointer => unimplemented!("Pointer arguments aren't ready yet"),
+        }
+>>>>>>> Stashed changes
     }
     fn_val
 }
