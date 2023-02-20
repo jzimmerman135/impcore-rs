@@ -92,6 +92,7 @@ pub fn codegen_binary<'a>(
         "!=" => compiler
             .builder
             .build_int_compare(IntPredicate::NE, lhs, rhs, "ne"),
+        "^" => compiler.builder.build_xor(lhs, rhs, "xor"),
         _ => unimplemented!("Haven't built the {} binary operator yet", operator),
     };
     let itype = compiler.context.i32_type();

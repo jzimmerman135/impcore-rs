@@ -16,12 +16,13 @@ NAMED = _{ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-
 function_name = @{ !RESERVED ~ NAMED ~ "?"? }
 literal = @{ NUMBER }
 pointer = @{ variable ~ "[" } 
-parameter = ${ pointer ~ RBRACK | variable }
+parameter = ${ PTR | variable }
 variable = @{ NAMED }
 array_value = { pointer ~ exp ~ RBRACK }
 ACCESSOR = _{ literal | array_value | variable }
 
-ARG = _{ (pointer ~ RBRACK ~ WSP* | exp) }
+PTR = _{ pointer ~ RBRACK }
+ARG = _{ (PTR ~ WSP* | exp) }
 
 arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
 bitwise_operator = { ">>" | "<<" | "^" | "&" | "|" }
@@ -48,7 +49,7 @@ exp = _{ ( ACCESSOR | LPAREN ~ ( CONTROL_FLOW | FUNCTION_CALL ) ~ RPAREN ) ~ WSP
 PARAMS = _{ LPAREN ~ parameter ~ ( WSP+ ~ parameter )* ~ RPAREN }
 define = { "define" ~ WSP+ ~ function_name ~ WSP* ~ PARAMS ~ WSP* ~ exp }
 val =  { "val" ~ WSP+ ~ variable ~ WSP+ ~ exp }
-alloc = { "val" ~ WSP+ ~ pointer ~ RBRACK ~ WSP+ ~ exp }
+alloc = { "val" ~ WSP+ ~ PTR ~ WSP+ ~ exp }
 GLOBAL = _{ define | alloc | val }
 
 check_expect = { "check-expect" ~ WSP+ ~ exp{2} }

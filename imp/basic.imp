@@ -12,6 +12,12 @@
     (if (= i 0)
         sum
         (sum-arr (-- i) (+ sum arr[i]))))
+(define array-xor-swap (A[] i j)
+    (begin 
+        (set A[i] (^ A[i] A[j]))
+        (set A[j] (^ A[j] A[i]))
+        (set A[i] (^ A[i] A[j]))
+        0))
 
 ;; 0 - 3 tests variables and top level expressions
 (+ 0 0)
@@ -42,3 +48,10 @@ t
 (+ arr[3] 1)
 (- (sum-arr 12 0) 13)
 
+;; 21 - 26 passing global arrays
+(val swaparr[] 21)
+(set swaparr[0] 22)
+(set swaparr[6] 23)
+(+ 24 (array-xor-swap swaparr[] 0 6))
+(+ 3 swaparr[6])
+(+ 3 swaparr[0])

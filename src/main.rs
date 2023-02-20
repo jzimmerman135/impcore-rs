@@ -15,7 +15,7 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let input_file = cli.filename.as_deref().unwrap_or("./imp/unit.imp");
+    let input_file = cli.filename.as_deref().unwrap_or("./imp/basic.imp");
 
     let contents = fs::read_to_string(input_file)
         .unwrap_or_else(|_| rip(format!("Failed to open file {}", input_file)));
