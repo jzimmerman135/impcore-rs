@@ -15,11 +15,13 @@ NAMED = _{ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-
 
 function_name = @{ !RESERVED ~ NAMED ~ "?"? }
 literal = @{ NUMBER }
-pointer = { variable ~ LBRACK ~ RBRACK } 
-parameter = ${ pointer | variable }
+pointer = @{ variable ~ "[" } 
+parameter = ${ pointer ~ RBRACK | variable }
 variable = @{ NAMED }
-array_value = { variable ~ LBRACK ~ exp ~ RBRACK }
+array_value = { pointer ~ exp ~ RBRACK }
 ACCESSOR = _{ literal | array_value | variable }
+
+ARG = _{ (pointer ~ RBRACK ~ WSP* | exp) }
 
 arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
 bitwise_operator = { ">>" | "<<" | "^" | "&" | "|" }
@@ -31,7 +33,7 @@ binary_operator = @{ comparison_operator | arithmetic_operator | bitwise_operato
 unary = { unary_operator ~ WSP+ ~ exp }
 print = { print_operator ~ WSP+ ~ exp }
 binary = { binary_operator ~ WSP+ ~ exp{2} }
-user = { function_name ~ WSP+ ~ exp+ }
+user = { function_name ~ WSP+ ~ ARG+ }
 FUNCTION_CALL = _{ unary | binary | print | user }
 
 ifx = { "if" ~ WSP+ ~ exp{3} }
@@ -46,7 +48,7 @@ exp = _{ ( ACCESSOR | LPAREN ~ ( CONTROL_FLOW | FUNCTION_CALL ) ~ RPAREN ) ~ WSP
 PARAMS = _{ LPAREN ~ parameter ~ ( WSP+ ~ parameter )* ~ RPAREN }
 define = { "define" ~ WSP+ ~ function_name ~ WSP* ~ PARAMS ~ WSP* ~ exp }
 val =  { "val" ~ WSP+ ~ variable ~ WSP+ ~ exp }
-alloc = { "val" ~ WSP+ ~ variable ~ LBRACK ~ RBRACK ~ WSP+ ~ exp }
+alloc = { "val" ~ WSP+ ~ pointer ~ RBRACK ~ WSP+ ~ exp }
 GLOBAL = _{ define | alloc | val }
 
 check_expect = { "check-expect" ~ WSP+ ~ exp{2} }

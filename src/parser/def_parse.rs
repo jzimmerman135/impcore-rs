@@ -27,10 +27,7 @@ pub fn parse_define(def: Pair<Rule>) -> AstDef {
         let inner_param = param.into_inner().next().unwrap();
         match inner_param.as_rule() {
             Rule::variable => params.push((inner_param.as_str(), AstType::Integer)),
-            Rule::pointer => params.push((
-                inner_param.into_inner().next().unwrap().as_str(),
-                AstType::Pointer,
-            )),
+            Rule::pointer => params.push((inner_param.as_str(), AstType::Pointer)),
             _ => unreachable!("Unreacheable rule {:?}", inner_param.as_rule()),
         }
     }

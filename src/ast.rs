@@ -13,6 +13,7 @@ pub struct Ast<'a>(pub Vec<AstDef<'a>>);
 pub enum AstExpr<'a> {
     Literal(i32),
     Variable(&'a str, Option<Box<AstExpr<'a>>>),
+    Pointer(&'a str),
     Binary(&'a str, Box<AstExpr<'a>>, Box<AstExpr<'a>>),
     Unary(&'a str, Box<AstExpr<'a>>),
     Call(&'a str, Vec<AstExpr<'a>>),
@@ -39,67 +40,6 @@ pub enum AstDef<'a> {
     CheckError(AstExpr<'a>, &'a str),
     DeclareGlobal(&'a str),
     FreeAll,
-}
-
-pub trait AstChildren<'a> {
-    fn children(&self) -> Vec<&AstExpr<'a>>;
-    fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>>;
-}
-
-impl<'a> AstChildren<'a> for AstDef<'a> {
-    fn children(&self) -> Vec<&AstExpr<'a>> {
-        match self {
-            Self::Function(_, _, body) => vec![body],
-            Self::TopLevelExpr(body) => vec![body],
-            Self::Global(_, body, _) => vec![body],
-            Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
-            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::DeclareGlobal(..) | Self::FreeAll => vec![],
-        }
-    }
-
-    fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>> {
-        match self {
-            Self::Function(_, _, body) => vec![body],
-            Self::TopLevelExpr(body) => vec![body],
-            Self::Global(_, body, _) => vec![body],
-            Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
-            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::DeclareGlobal(..) | Self::FreeAll => vec![],
-        }
-    }
-}
-
-impl<'a> AstChildren<'a> for AstExpr<'a> {
-    fn children_mut(&mut self) -> Vec<&mut Self> {
-        match self {
-            Self::Variable(_, Some(body)) => vec![body],
-            Self::Error | Self::Variable(_, None) | Self::Literal(..) => vec![],
-            Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
-            Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
-            Self::While(cond, body) => vec![cond, body],
-            Self::Assign(_, body, Some(index)) => vec![body, index],
-            Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter_mut().collect::<Vec<_>>(),
-            Self::If(c, t, f) => {
-                vec![c, t, f]
-            }
-        }
-    }
-
-    fn children(&self) -> Vec<&Self> {
-        match self {
-            Self::Variable(_, Some(body)) => vec![body],
-            Self::Error | Self::Variable(_, None) | Self::Literal(..) => vec![],
-            Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
-            Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
-            Self::While(cond, body) => vec![cond, body],
-            Self::Assign(_, body, Some(index)) => vec![body, index],
-            Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter().collect::<Vec<_>>(),
-            Self::If(c, t, f) => {
-                vec![c, t, f]
-            }
-        }
-    }
 }
 
 impl<'a> AstDef<'a> {
@@ -161,6 +101,7 @@ impl<'a> AstExpr<'a> {
             Rule::begin => expr_parse::parse_begin(expr),
             Rule::set => expr_parse::parse_set(expr),
             Rule::array_value => expr_parse::parse_indexer(expr),
+            Rule::pointer => expr_parse::parse_pointer(expr),
             Rule::error => AstExpr::Error,
             _ => unreachable!("got unreachable expr rule {:?}", expr.as_rule()),
         }
@@ -182,6 +123,68 @@ impl<'a> AstExpr<'a> {
             }
             Self::Error => codegen::codegen_literal(1, compiler),
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
+            Self::Pointer(_) => panic!("cannot codegen from a pointer"),
+        }
+    }
+}
+
+pub trait AstChildren<'a> {
+    fn children(&self) -> Vec<&AstExpr<'a>>;
+    fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>>;
+}
+
+impl<'a> AstChildren<'a> for AstDef<'a> {
+    fn children(&self) -> Vec<&AstExpr<'a>> {
+        match self {
+            Self::Function(_, _, body) => vec![body],
+            Self::TopLevelExpr(body) => vec![body],
+            Self::Global(_, body, _) => vec![body],
+            Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
+            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
+            Self::DeclareGlobal(..) | Self::FreeAll => vec![],
+        }
+    }
+
+    fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>> {
+        match self {
+            Self::Function(_, _, body) => vec![body],
+            Self::TopLevelExpr(body) => vec![body],
+            Self::Global(_, body, _) => vec![body],
+            Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
+            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
+            Self::DeclareGlobal(..) | Self::FreeAll => vec![],
+        }
+    }
+}
+
+impl<'a> AstChildren<'a> for AstExpr<'a> {
+    fn children_mut(&mut self) -> Vec<&mut Self> {
+        match self {
+            Self::Variable(_, Some(body)) => vec![body],
+            Self::Error | Self::Variable(_, None) | Self::Literal(..) | Self::Pointer(..) => vec![],
+            Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
+            Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
+            Self::While(cond, body) => vec![cond, body],
+            Self::Assign(_, body, Some(index)) => vec![body, index],
+            Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter_mut().collect::<Vec<_>>(),
+            Self::If(c, t, f) => {
+                vec![c, t, f]
+            }
+        }
+    }
+
+    fn children(&self) -> Vec<&Self> {
+        match self {
+            Self::Variable(_, Some(body)) => vec![body],
+            Self::Error | Self::Variable(_, None) | Self::Literal(..) | Self::Pointer(..) => vec![],
+            Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
+            Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
+            Self::While(cond, body) => vec![cond, body],
+            Self::Assign(_, body, Some(index)) => vec![body, index],
+            Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter().collect::<Vec<_>>(),
+            Self::If(c, t, f) => {
+                vec![c, t, f]
+            }
         }
     }
 }

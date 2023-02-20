@@ -1,0 +1,8 @@
+(val arr[] 15)
+(set arr[8] 2001)
+(define array-index (x[] i) x[i])
+(array-index arr[] 8)
+(define array-set-index-to (x[] i v) (set x[i] v))
+(array-set-index-to arr[] 8 2005)
+
+arr[8]

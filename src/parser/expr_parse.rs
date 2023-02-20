@@ -10,6 +10,11 @@ pub fn parse_variable(expr: Pair<Rule>) -> AstExpr {
     AstExpr::Variable(name, None)
 }
 
+pub fn parse_pointer(expr: Pair<Rule>) -> AstExpr {
+    let name = expr.as_str();
+    AstExpr::Pointer(name)
+}
+
 pub fn parse_indexer(expr: Pair<Rule>) -> AstExpr {
     let mut inner_expr = expr.into_inner();
     let name = inner_expr.next().unwrap().as_str();

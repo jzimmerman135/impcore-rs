@@ -21,6 +21,11 @@ pub fn codegen_variable<'a>(
         addr = unsafe { compiler.builder.build_gep(addr, &[index], "index") };
     }
 
+    compiler
+        .module
+        .print_to_file("error.ll")
+        .or(Err("oops".to_string()))?;
+
     Ok(compiler.builder.build_load(addr, "load").into_int_value())
 }
 
@@ -45,7 +50,10 @@ pub fn codegen_assign<'a>(
 
 fn get_address<'a>(name: &str, compiler: &Compiler<'a>) -> Result<PointerValue<'a>, String> {
     match compiler.param_table.get(name) {
-        Some(&e) => Some(e),
+        Some(&e) => match name.chars().last().unwrap() {
+            '[' => Some(compiler.builder.build_load(e, "load").into_pointer_value()),
+            _ => Some(e),
+        },
         None => compiler.global_table.get(name).map(|e| {
             compiler
                 .builder
@@ -129,7 +137,12 @@ pub fn codegen_call<'a>(
 
     let args = args
         .iter()
-        .map(|e| e.codegen(compiler).map(BasicMetadataValueEnum::IntValue))
+        .map(|e| match e {
+            AstExpr::Pointer(name) => {
+                get_address(name, compiler).map(BasicMetadataValueEnum::PointerValue)
+            }
+            _ => e.codegen(compiler).map(BasicMetadataValueEnum::IntValue),
+        })
         .collect::<Result<Vec<_>, String>>()?;
 
     Ok(compiler
