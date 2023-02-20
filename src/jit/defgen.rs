@@ -107,8 +107,8 @@ fn defgen_prototype<'a>(
 
 pub fn defgen_global<'a>(
     name: &'a str,
-    maybe_size: Option<&AstExpr<'a>>,
     body: &AstExpr<'a>,
+    var_type: AstType,
     compiler: &mut Compiler<'a>,
 ) -> Result<FunctionValue<'a>, String> {
     // setup block
@@ -118,7 +118,7 @@ pub fn defgen_global<'a>(
     let basic_block = compiler.context.append_basic_block(fn_value, "entry");
     compiler.builder.position_at_end(basic_block);
     compiler.curr_function = Some(fn_value);
-    let int_value = body.codegen(compiler)?;
+    let body_value = body.codegen(compiler)?;
 
     let global_ptr = match compiler.global_table.get(name) {
         Some(&global_ptr) => global_ptr,
@@ -137,8 +137,8 @@ pub fn defgen_global<'a>(
         .build_load(global_ptr.as_pointer_value(), "load");
     compiler.builder.build_free(array.into_pointer_value());
 
-    let (array, retval) = if let Some(size_expr) = maybe_size {
-        let size = size_expr.codegen(compiler)?;
+    let (array, retval) = if let AstType::Pointer = var_type {
+        let size = body_value;
         let array = compiler
             .builder
             .build_array_malloc(int_type, size, "array")?;
@@ -148,8 +148,8 @@ pub fn defgen_global<'a>(
         (array, size)
     } else {
         let array = compiler.builder.build_malloc(int_type, "single")?;
-        compiler.builder.build_store(array, int_value);
-        (array, int_value)
+        compiler.builder.build_store(array, body_value);
+        (array, body_value)
     };
 
     compiler

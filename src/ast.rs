@@ -33,7 +33,7 @@ pub enum AstType {
 pub enum AstDef<'a> {
     TopLevelExpr(AstExpr<'a>),
     Function(&'a str, Vec<(&'a str, AstType)>, AstExpr<'a>),
-    Global(&'a str, AstExpr<'a>, Option<AstExpr<'a>>),
+    Global(&'a str, AstExpr<'a>, AstType),
     CheckExpect(AstExpr<'a>, AstExpr<'a>, &'a str),
     CheckAssert(AstExpr<'a>, &'a str),
     CheckError(AstExpr<'a>, &'a str),
@@ -51,8 +51,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
         match self {
             Self::Function(_, _, body) => vec![body],
             Self::TopLevelExpr(body) => vec![body],
-            Self::Global(_, body, None) => vec![body],
-            Self::Global(_, body, Some(child)) => vec![body, child],
+            Self::Global(_, body, _) => vec![body],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
             Self::DeclareGlobal(..) | Self::FreeAll => vec![],
@@ -63,8 +62,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
         match self {
             Self::Function(_, _, body) => vec![body],
             Self::TopLevelExpr(body) => vec![body],
-            Self::Global(_, body, None) => vec![body],
-            Self::Global(_, body, Some(child)) => vec![body, child],
+            Self::Global(_, body, _) => vec![body],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
             Self::DeclareGlobal(..) | Self::FreeAll => vec![],
@@ -136,8 +134,8 @@ impl<'a> AstDef<'a> {
                 defgen::defgen_anonymous(rhs, compiler)?,
                 contents,
             ),
-            Self::Global(name, value, index) => NativeTopLevel::TopLevelExpr(
-                defgen::defgen_global(name, index.as_ref(), value, compiler)?,
+            Self::Global(name, value, var_type) => NativeTopLevel::TopLevelExpr(
+                defgen::defgen_global(name, value, *var_type, compiler)?,
             ),
             Self::DeclareGlobal(name) => {
                 defgen::declare_global(name, compiler);

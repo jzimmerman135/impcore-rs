@@ -6,15 +6,14 @@ pub fn parse_val(def: Pair<Rule>) -> AstDef {
     let mut def = def.into_inner();
     let name = def.next().unwrap().as_str();
     let value = AstExpr::parse(def.next().unwrap());
-    AstDef::Global(name, value, None)
+    AstDef::Global(name, value, AstType::Integer)
 }
 
 pub fn parse_alloc(def: Pair<Rule>) -> AstDef {
     let mut def = def.into_inner();
     let name = def.next().unwrap().as_str();
     let size = AstExpr::parse(def.next().unwrap());
-    let value = AstExpr::Literal(0);
-    AstDef::Global(name, value, Some(size))
+    AstDef::Global(name, size, AstType::Pointer)
 }
 
 pub fn parse_define(def: Pair<Rule>) -> AstDef {
