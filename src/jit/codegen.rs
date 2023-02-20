@@ -21,11 +21,6 @@ pub fn codegen_variable<'a>(
         addr = unsafe { compiler.builder.build_gep(addr, &[index], "index") };
     }
 
-    compiler
-        .module
-        .print_to_file("error.ll")
-        .or(Err("oops".to_string()))?;
-
     Ok(compiler.builder.build_load(addr, "load").into_int_value())
 }
 
@@ -49,10 +44,11 @@ pub fn codegen_assign<'a>(
 }
 
 fn get_address<'a>(name: &str, compiler: &Compiler<'a>) -> Result<PointerValue<'a>, String> {
-    match compiler.param_table.get(name) {
-        Some(&e) => match name.chars().last().unwrap() {
-            '[' => Some(compiler.builder.build_load(e, "load").into_pointer_value()),
-            _ => Some(e),
+    let local_variable = compiler.param_table.get(name);
+    match local_variable {
+        Some(&e) => match compiler.is_pointer(name) {
+            true => Some(compiler.builder.build_load(e, "load").into_pointer_value()),
+            false => Some(e),
         },
         None => compiler.global_table.get(name).map(|e| {
             compiler

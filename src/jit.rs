@@ -84,6 +84,11 @@ impl<'ctx> Compiler<'ctx> {
         })
     }
 
+    /// Does not check if name is actually bound
+    fn is_pointer(&self, name: &str) -> bool {
+        name.ends_with('[')
+    }
+
     fn get_optimization_pass_manager(module: &Module<'ctx>) -> PassManager<FunctionValue<'ctx>> {
         let fpm = PassManager::create(module);
         fpm.add_instruction_combining_pass();
