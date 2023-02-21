@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 pub mod codegen;
 pub mod defgen;
+pub mod implib;
 pub use inkwell::{
     builder::Builder,
     context::Context,
@@ -88,36 +89,20 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     fn build_lib(&mut self) {
-        let context = &self.context;
-        let module = &self.module;
-        let builder = &self.builder;
-        let int_type = context.i32_type();
-        let str_type = context.i8_type().ptr_type(AddressSpace::default());
+        let int_type = self.context.i32_type();
+        let str_type = self.context.i8_type().ptr_type(AddressSpace::default());
 
         let main_fn_type = int_type.fn_type(&[], false);
-        let main_fn = module.add_function("main", main_fn_type, None);
+        let main_fn = self.module.add_function("main", main_fn_type, None);
         self.lib.insert("main", main_fn);
 
         let printf_type = int_type.fn_type(&[str_type.into()], true);
-        let printf_fn = module.add_function("printf", printf_type, Some(Linkage::External));
+        let printf_fn = self
+            .module
+            .add_function("printf", printf_type, Some(Linkage::External));
         self.lib.insert("printf", printf_fn);
 
-        let impcore_printers = [("println", "%i\n"), ("print", "%i"), ("printu", "%u")];
-        for (printer_name, fmt_str) in impcore_printers {
-            let unary_type = int_type.fn_type(&[int_type.into()], false);
-            let print_fn = module.add_function(printer_name, unary_type, None);
-            let block = context.append_basic_block(print_fn, "entry");
-            builder.position_at_end(block);
-            let int_arg = print_fn.get_first_param().unwrap().into_int_value();
-            let fmt_arr = context.const_string(fmt_str.as_bytes(), true);
-            let alloca = builder.build_alloca(fmt_arr.get_type(), "alloca");
-            builder.build_store(alloca, fmt_arr);
-            let fmt_ptr = builder.build_bitcast(alloca, str_type, "cast");
-            builder.build_call(printf_fn, &[fmt_ptr.into(), int_arg.into()], "printfcall");
-            builder.build_return(Some(&int_arg));
-            self.fpm.run_on(&print_fn);
-            self.lib.insert(printer_name, print_fn);
-        }
+        implib::build_impcore_printers(self);
     }
 
     /// Does not check if name is actually bound

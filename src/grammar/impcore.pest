@@ -27,10 +27,10 @@ ARG = _{ (PTR ~ WSP* | exp) }
 
 arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
 bitwise_operator = { ">>>" | ">>" | "<<" | "^" | "&" | "|" }
-comparison_operator = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
+comparison_operator = { ">="  | "<=" | ">" | "<" | "&&" | "||" | "=" }
 print_operator = { "println" | "printu" | "print" }
 unary_operator = { "++" | "--" | "not" | "!" }
-binary_operator = @{ comparison_operator | arithmetic_operator | bitwise_operator }
+binary_operator = @{ bitwise_operator | comparison_operator | arithmetic_operator }
 
 unary = { unary_operator ~ WSP+ ~ exp }
 print = { print_operator ~ WSP+ ~ exp }
