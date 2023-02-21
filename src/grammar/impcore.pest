@@ -35,7 +35,7 @@ binary_operator = @{ bitwise_operator | comparison_operator | arithmetic_operato
 unary = { unary_operator ~ WSP+ ~ exp }
 print = { print_operator ~ WSP+ ~ exp }
 binary = { binary_operator ~ WSP+ ~ exp{2} }
-user = { function_name ~ WSP+ ~ ARG+ }
+user = { function_name ~ WSP* ~ ARG* }
 FUNCTION_CALL = _{ unary | binary | print | user }
 
 ifx = { "if" ~ WSP+ ~ exp{3} }
@@ -47,7 +47,7 @@ CONTROL_FLOW = _{ ifx | whilex | begin | set | error }
 
 exp = _{ ( ACCESSOR | LPAREN ~ ( CONTROL_FLOW | FUNCTION_CALL ) ~ RPAREN ) ~ WSP* }
 
-PARAMS = _{ LPAREN ~ parameter ~ ( WSP+ ~ parameter )* ~ RPAREN }
+PARAMS = _{ LPAREN ~ ( WSP* ~ parameter )* ~ RPAREN }
 define = { "define" ~ WSP+ ~ function_name ~ WSP* ~ PARAMS ~ WSP* ~ exp }
 val =  { "val" ~ WSP+ ~ variable ~ WSP+ ~ exp }
 alloc = { "val" ~ WSP+ ~ PTR ~ WSP+ ~ exp }

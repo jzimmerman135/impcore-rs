@@ -39,6 +39,7 @@ pub enum ExecutionMode {
     Jit,
     Dead,
 }
+
 #[derive(Debug)]
 pub enum NativeTopLevel<'ctx> {
     CheckAssert(FunctionValue<'ctx>, &'ctx str),
@@ -46,7 +47,6 @@ pub enum NativeTopLevel<'ctx> {
     TopLevelExpr(FunctionValue<'ctx>),
     FunctionDef(FunctionValue<'ctx>, &'ctx str),
     FreeAll(FunctionValue<'ctx>),
-    Quiet(FunctionValue<'ctx>),
     Noop,
 }
 
@@ -149,18 +149,15 @@ impl<'ctx> Compiler<'ctx> {
         match *top_level_def {
             NativeTopLevel::FunctionDef(..) if self.quiet_mode => (),
             NativeTopLevel::FunctionDef(_, name) => println!("{}", name),
-            NativeTopLevel::TopLevelExpr(fn_value) => {
-                unsafe { self.execution_engine.run_function(fn_value, &[]) };
-            }
+            NativeTopLevel::TopLevelExpr(fn_value) => unsafe {
+                self.execution_engine.run_function(fn_value, &[]);
+            },
             NativeTopLevel::FreeAll(fn_value) => {
                 let cleanup_code = unsafe { self.execution_engine.run_function(fn_value, &[]) };
                 if cleanup_code.as_int(true) == 1 {
                     eprintln!("ERROR: failed to free memory exiting with code 1",)
                 }
             }
-            NativeTopLevel::Quiet(fn_value) => unsafe {
-                self.execution_engine.run_function(fn_value, &[]);
-            },
             NativeTopLevel::Noop => {}
             _ => unreachable!(
                 "not a top level expression or definition {:?}",

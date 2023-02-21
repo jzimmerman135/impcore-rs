@@ -1,4 +1,4 @@
-;; Hello world in impcore
+;; Cheeky hello world in impcore
 (define char (x) (& x 0xff))
 (define word (a b c d)
   (| (char a)
@@ -7,8 +7,8 @@
            (<< (char d) 24)))))
 
 (val message[] 4)
-(set message[0] (word 72 101 108 108))
-(set message[1] (word 111 32 87 111))
-(set message[2] (word 114 108 100 33))
-(set message[3] (word 10 0 0 0))
+(set message[0] (word 72 101 108 108)) ;; Hell
+(set message[1] (word 111 32 87 111))  ;; o Wo
+(set message[2] (word 114 108 100 33)) ;; rld!
+(set message[3] (word 92 110 10 0))    ;;\\n\n\0
 (printstr message[])

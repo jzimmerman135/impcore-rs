@@ -39,6 +39,7 @@ pub fn defgen_anonymous<'a>(
     compiler.module.print_to_file("error.ll").unwrap();
     if !fn_value.verify(true) {
         compiler.module.print_to_stderr();
+        unsafe { fn_value.delete() };
         return Err(format!(
             "Could not verify anonymous expression \n{:?}\n{:?}",
             body, fn_value
@@ -65,21 +66,18 @@ pub fn defgen_function<'a>(
     for (&param, param_value) in params.iter().zip(fn_value.get_param_iter()) {
         let alloca = match param.1 {
             AstType::Integer => {
+                let param_int = param_value.into_int_value();
                 let alloca = compiler.builder.build_alloca(int_type, "alloca");
-                compiler
-                    .builder
-                    .build_store(alloca, param_value.into_int_value());
+                compiler.builder.build_store(alloca, param_int);
                 alloca
             }
             AstType::Pointer => {
+                let param_ptr = param_value.into_pointer_value();
                 let alloca = compiler.builder.build_alloca(ptr_type, "alloca");
-                compiler
-                    .builder
-                    .build_store(alloca, param_value.into_pointer_value());
+                compiler.builder.build_store(alloca, param_ptr);
                 alloca
             }
         };
-
         compiler.param_table.insert(param.0, alloca);
     }
 
@@ -88,14 +86,11 @@ pub fn defgen_function<'a>(
 
     if !fn_value.verify(true) {
         compiler.module.print_to_stderr();
-        unsafe {
-            fn_value.delete();
-        }
+        unsafe { fn_value.delete() };
         return Err(format!("Could not verify function {}", name));
     }
 
     compiler.fpm.run_on(&fn_value);
-
     Ok(fn_value)
 }
 
@@ -181,8 +176,9 @@ pub fn defgen_global<'a>(
 
     if !fn_value.verify(true) {
         compiler.module.print_to_stderr();
+        unsafe { fn_value.delete() };
         return Err(format!(
-            "Could not declare global pointer variable {} ",
+            "Could not mutate global pointer variable {} ",
             name
         ));
     }
