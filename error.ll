@@ -141,11 +141,13 @@ word:
 
 define i32 @"#anon"() {
 entry:
+  %printres = call i32 @println(i32 0)
   ret i32 0
 }
 
 define i32 @"#anon.1"() {
 entry:
+  %printres = call i32 @println(i32 1)
   ret i32 1
 }
 
@@ -158,6 +160,7 @@ entry:
   %single = bitcast i8* %malloccall to i32*
   store i32 2, i32* %single, align 4
   store i32* %single, i32** @n, align 8
+  %printres = call i32 @println(i32 2)
   ret i32 2
 }
 
@@ -168,18 +171,21 @@ declare noalias i8* @malloc(i32)
 define i32 @"#anon.2"() {
 entry:
   %userfn = call i32 @add-ten(i32 -7)
+  %printres = call i32 @println(i32 %userfn)
   ret i32 %userfn
 }
 
 define i32 @"#anon.3"() {
 entry:
   %userfn = call i32 @locals(i32 8, i32 -10)
+  %printres = call i32 @println(i32 %userfn)
   ret i32 %userfn
 }
 
 define i32 @"#anon.4"() {
 entry:
   %userfn = call i32 @locals(i32 -8, i32 18)
+  %printres = call i32 @println(i32 %userfn)
   ret i32 %userfn
 }
 
@@ -188,6 +194,7 @@ entry:
   %load = load i32*, i32** @n, align 8
   %load1 = load i32, i32* %load, align 4
   %mul = add i32 %load1, 4
+  %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
@@ -202,12 +209,14 @@ entry:
   %single = bitcast i8* %malloccall to i32*
   store i32 7, i32* %single, align 4
   store i32* %single, i32** @t, align 8
+  %printres = call i32 @println(i32 7)
   ret i32 7
 }
 
 define i32 @"#anon.7"() {
 entry:
   %userfn = call i32 @set-global-with-loop(i32 8)
+  %printres = call i32 @println(i32 %userfn)
   ret i32 %userfn
 }
 
@@ -215,6 +224,7 @@ define i32 @"#anon.8"() {
 entry:
   %load = load i32*, i32** @t, align 8
   %load1 = load i32, i32* %load, align 4
+  %printres = call i32 @println(i32 %load1)
   ret i32 %load1
 }
 
@@ -223,6 +233,7 @@ entry:
   %load = load i32*, i32** @n, align 8
   %load1 = load i32, i32* %load, align 4
   %mul = add i32 %load1, 3
+  %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
@@ -235,6 +246,7 @@ entry:
   %single = bitcast i8* %malloccall to i32*
   store i32 11, i32* %single, align 4
   store i32* %single, i32** @t, align 8
+  %printres = call i32 @println(i32 11)
   ret i32 11
 }
 
@@ -243,6 +255,7 @@ entry:
   %load = load i32*, i32** @t, align 8
   %load1 = load i32, i32* %load, align 4
   %mul = add i32 %load1, 1
+  %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
@@ -256,6 +269,7 @@ entry:
   %1 = bitcast i32* %array to i8*
   call void @llvm.memset.p0i8.i32(i8* align 4 %1, i8 0, i32 13, i1 false)
   store i32* %array, i32** @"arr[", align 8
+  %printres = call i32 @println(i32 13)
   ret i32 13
 }
 
@@ -267,6 +281,7 @@ entry:
   %load = load i32*, i32** @"arr[", align 8
   %index = getelementptr i32, i32* %load, i32 3
   store i32 14, i32* %index, align 4
+  %printres = call i32 @println(i32 14)
   ret i32 14
 }
 
@@ -275,6 +290,7 @@ entry:
   %load = load i32*, i32** @"arr[", align 8
   %index = getelementptr i32, i32* %load, i32 9
   store i32 15, i32* %index, align 4
+  %printres = call i32 @println(i32 15)
   ret i32 15
 }
 
@@ -284,6 +300,7 @@ entry:
   %index = getelementptr i32, i32* %load, i32 3
   %load1 = load i32, i32* %index, align 4
   %mul = add i32 2, %load1
+  %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
@@ -293,6 +310,7 @@ entry:
   %index = getelementptr i32, i32* %load, i32 9
   %load1 = load i32, i32* %index, align 4
   %mul = add i32 2, %load1
+  %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
@@ -301,6 +319,7 @@ entry:
   %load = load i32*, i32** @"arr[", align 8
   %index = getelementptr i32, i32* %load, i32 3
   store i32 18, i32* %index, align 4
+  %printres = call i32 @println(i32 18)
   ret i32 18
 }
 
@@ -310,6 +329,7 @@ entry:
   %index = getelementptr i32, i32* %load, i32 3
   %load1 = load i32, i32* %index, align 4
   %mul = add i32 %load1, 1
+  %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
@@ -317,6 +337,7 @@ define i32 @"#anon.19"() {
 entry:
   %userfn = call i32 @sum-arr(i32 12, i32 0)
   %sub = sub i32 %userfn, 13
+  %printres = call i32 @println(i32 %sub)
   ret i32 %sub
 }
 
@@ -330,6 +351,7 @@ entry:
   %1 = bitcast i32* %array to i8*
   call void @llvm.memset.p0i8.i32(i8* align 4 %1, i8 0, i32 21, i1 false)
   store i32* %array, i32** @"swaparr[", align 8
+  %printres = call i32 @println(i32 21)
   ret i32 21
 }
 
@@ -338,6 +360,7 @@ entry:
   %load = load i32*, i32** @"swaparr[", align 8
   %index = getelementptr i32, i32* %load, i32 0
   store i32 22, i32* %index, align 4
+  %printres = call i32 @println(i32 22)
   ret i32 22
 }
 
@@ -346,6 +369,7 @@ entry:
   %load = load i32*, i32** @"swaparr[", align 8
   %index = getelementptr i32, i32* %load, i32 6
   store i32 23, i32* %index, align 4
+  %printres = call i32 @println(i32 23)
   ret i32 23
 }
 
@@ -354,6 +378,7 @@ entry:
   %load = load i32*, i32** @"swaparr[", align 8
   %userfn = call i32 @array-xor-swap(i32* %load, i32 0, i32 6)
   %mul = add i32 24, %userfn
+  %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
@@ -363,6 +388,7 @@ entry:
   %index = getelementptr i32, i32* %load, i32 6
   %load1 = load i32, i32* %index, align 4
   %mul = add i32 3, %load1
+  %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
@@ -372,6 +398,7 @@ entry:
   %index = getelementptr i32, i32* %load, i32 0
   %load1 = load i32, i32* %index, align 4
   %mul = add i32 3, %load1
+  %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
@@ -384,6 +411,7 @@ entry:
   %single = bitcast i8* %malloccall to i32*
   store i32 27, i32* %single, align 4
   store i32* %single, i32** @bits, align 8
+  %printres = call i32 @println(i32 27)
   ret i32 27
 }
 
@@ -393,6 +421,7 @@ entry:
   %load1 = load i32, i32* %load, align 4
   %bitand = and i32 %load1, 24
   %bitor = or i32 %bitand, 4
+  %printres = call i32 @println(i32 %bitor)
   ret i32 %bitor
 }
 
@@ -406,6 +435,7 @@ entry:
   %1 = bitcast i32* %array to i8*
   call void @llvm.memset.p0i8.i32(i8* align 4 %1, i8 0, i32 29, i1 false)
   store i32* %array, i32** @"nums[", align 8
+  %printres = call i32 @println(i32 29)
   ret i32 29
 }
 
@@ -421,12 +451,14 @@ entry:
   store i32 %userfn3, i32* %index2, align 4
   %load4 = load i32*, i32** @"nums[", align 8
   %userfn5 = call i32 @printstr(i32* %load4)
+  %printres = call i32 @println(i32 32)
   ret i32 32
 }
 
 define i32 @"#anon.30"() {
 entry:
   %print = call i32 @print(i32 3)
+  %printres = call i32 @println(i32 %print)
   ret i32 %print
 }
 

@@ -18,7 +18,7 @@ fn main() {
 
     // Create printf function
     let printf_type = i32_type.fn_type(&[str_type.into()], true);
-    let printf = module.add_function("printf", printf_type.into(), Some(Linkage::External));
+    let printf = module.add_function("printf", printf_type, Some(Linkage::External));
 
     // Create main function
     let main_fn_type = i32_type.fn_type(&[], false);

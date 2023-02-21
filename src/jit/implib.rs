@@ -1,7 +1,7 @@
 use super::*;
 use crate::ast::AstType;
 
-pub fn build_impcore_printers<'ctx>(compiler: &mut Compiler<'ctx>) {
+pub fn build_implib_printers(compiler: &mut Compiler) {
     let context = &compiler.context;
     let module = &compiler.module;
     let builder = &compiler.builder;
@@ -44,4 +44,18 @@ pub fn build_impcore_printers<'ctx>(compiler: &mut Compiler<'ctx>) {
         compiler.fpm.run_on(&print_fn);
         compiler.lib.insert(printer_name, print_fn);
     }
+}
+
+pub fn add_printres<'ctx>(
+    fn_value: FunctionValue<'ctx>,
+    compiler: &Compiler<'ctx>,
+) -> FunctionValue<'ctx> {
+    let block = fn_value.get_last_basic_block().unwrap();
+    compiler.builder.position_at_end(block);
+    let fifty = compiler.context.i32_type().const_int(50, false);
+    let println = *compiler.lib.get("println").unwrap();
+    compiler
+        .builder
+        .build_call(println, &[fifty.into()], "printres");
+    fn_value
 }

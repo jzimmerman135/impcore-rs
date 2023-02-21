@@ -11,6 +11,17 @@ pub fn declare_global<'a>(name: &'a str, compiler: &mut Compiler<'a>) {
     compiler.global_table.insert(name, global_ptr);
 }
 
+pub fn printres<'a>(value: &IntValue<'a>, compiler: &Compiler<'a>) {
+    if compiler.quiet_mode {
+        return;
+    }
+    let v = *value;
+    let println = *compiler.lib.get("println").unwrap();
+    compiler
+        .builder
+        .build_call(println, &[v.into()], "printres");
+}
+
 pub fn defgen_anonymous<'a>(
     body: &AstExpr<'a>,
     compiler: &mut Compiler<'a>,
@@ -21,6 +32,8 @@ pub fn defgen_anonymous<'a>(
     compiler.builder.position_at_end(basic_block);
     compiler.curr_function = Some(fn_value);
     let v = body.codegen(compiler)?;
+
+    printres(&v, compiler);
     compiler.builder.build_return(Some(&v));
 
     compiler.module.print_to_file("error.ll").unwrap();
@@ -163,6 +176,7 @@ pub fn defgen_global<'a>(
     compiler
         .builder
         .build_store(global_ptr.as_pointer_value(), array);
+    printres(&retval, compiler);
     compiler.builder.build_return(Some(&retval));
 
     if !fn_value.verify(true) {

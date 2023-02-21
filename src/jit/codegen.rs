@@ -11,36 +11,36 @@ pub fn codegen_literal<'a>(
 
 pub fn codegen_variable<'a>(
     name: &str,
-    maybe_indexer: Option<&AstExpr<'a>>,
+    maybe_index: Option<&AstExpr<'a>>,
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
-    let mut addr = get_address(name, compiler)?;
-
-    if let Some(indexer) = maybe_indexer {
-        let index = indexer.codegen(compiler)?;
-        addr = unsafe { compiler.builder.build_gep(addr, &[index], "index") };
-    }
-
+    let addr = index_address(get_address(name, compiler)?, maybe_index, compiler)?;
     Ok(compiler.builder.build_load(addr, "load").into_int_value())
 }
 
 pub fn codegen_assign<'a>(
     name: &str,
-    maybe_indexer: Option<&AstExpr<'a>>,
+    maybe_index: Option<&AstExpr<'a>>,
     body: &AstExpr<'a>,
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
-    let mut addr = get_address(name, compiler)?;
-
-    if let Some(indexer) = maybe_indexer {
-        let index = indexer.codegen(compiler)?;
-        addr = unsafe { compiler.builder.build_gep(addr, &[index], "index") };
-    }
-
+    let addr = index_address(get_address(name, compiler)?, maybe_index, compiler)?;
     let value = body.codegen(compiler)?;
     compiler.builder.build_store(addr, value);
-
     Ok(value)
+}
+
+fn index_address<'a>(
+    addr: PointerValue<'a>,
+    index: Option<&AstExpr<'a>>,
+    compiler: &mut Compiler<'a>,
+) -> Result<PointerValue<'a>, String> {
+    if let Some(index_expr) = index {
+        let index_value = index_expr.codegen(compiler)?;
+        Ok(unsafe { compiler.builder.build_gep(addr, &[index_value], "index") })
+    } else {
+        Ok(addr)
+    }
 }
 
 fn get_address<'a>(name: &str, compiler: &Compiler<'a>) -> Result<PointerValue<'a>, String> {
@@ -82,19 +82,35 @@ pub fn codegen_binary<'a>(
             "<=" => builder.build_int_compare(IntPredicate::SLE, lhs, rhs, "le"),
             "=" => builder.build_int_compare(IntPredicate::EQ, lhs, rhs, "eq"),
             "!=" => builder.build_int_compare(IntPredicate::NE, lhs, rhs, "ne"),
-            "&&" | "and" => builder.build_and(lhs, rhs, "and"),
-            "||" | "or" => builder.build_or(lhs, rhs, "or"),
             "^" => builder.build_xor(lhs, rhs, "xor"),
             "&" => builder.build_and(lhs, rhs, "bitand"),
             "|" => builder.build_or(lhs, rhs, "bitor"),
             "<<" => builder.build_left_shift(lhs, rhs, "shiftl"),
             ">>" => builder.build_right_shift(lhs, rhs, true, "shiftr"),
             ">>>" => builder.build_right_shift(lhs, rhs, false, "ushiftr"),
+            "&&" | "and" => {
+                let zero = compiler.context.i32_type().const_zero();
+                let bool_false = compiler.context.bool_type().const_zero();
+                let is_lhs = builder.build_int_compare(IntPredicate::NE, lhs, zero, "icmp");
+                let is_rhs = builder.build_int_compare(IntPredicate::NE, rhs, zero, "icmp");
+                builder
+                    .build_select(is_lhs, is_rhs, bool_false, "select")
+                    .into_int_value()
+            }
+            "||" | "or" => {
+                let zero = compiler.context.i32_type().const_zero();
+                let bool_true = compiler.context.bool_type().const_zero();
+                let is_lhs = builder.build_int_compare(IntPredicate::NE, lhs, zero, "icmp");
+                let is_rhs = builder.build_int_compare(IntPredicate::NE, rhs, zero, "icmp");
+                builder
+                    .build_select(is_lhs, bool_true, is_rhs, "select")
+                    .into_int_value()
+            }
             _ => unimplemented!("Haven't built the {} binary operator yet", operator),
         }
     };
     let itype = compiler.context.i32_type();
-    let value = compiler.builder.build_int_cast(value, itype, "cast");
+    let value = compiler.builder.build_int_z_extend(value, itype, "zext");
     Ok(value)
 }
 
@@ -167,17 +183,18 @@ pub fn codegen_if<'a>(
     false_expr: &AstExpr<'a>,
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
-    let i32_type = compiler.context.i32_type();
+    let int_type = compiler.context.i32_type();
     let parent_fn = compiler
         .curr_function
         .ok_or("No curr function in the if block")?;
 
-    let zero = compiler.context.i32_type().const_zero();
     let cond_expr = condition_expr.codegen(compiler)?;
-    let comparison =
-        compiler
-            .builder
-            .build_int_compare(IntPredicate::NE, cond_expr, zero, "ifcond");
+    let comparison = compiler.builder.build_int_compare(
+        IntPredicate::NE,
+        cond_expr,
+        int_type.const_zero(),
+        "ifcond",
+    );
 
     let then_block = compiler.context.append_basic_block(parent_fn, "then");
     let else_block = compiler.context.append_basic_block(parent_fn, "else");
@@ -199,7 +216,7 @@ pub fn codegen_if<'a>(
 
     compiler.builder.position_at_end(merge_block);
 
-    let phi = compiler.builder.build_phi(i32_type, "iftmp");
+    let phi = compiler.builder.build_phi(int_type, "iftmp");
     phi.add_incoming(&[(&then_val, then_block), (&else_val, else_block)]);
     Ok(phi.as_basic_value().into_int_value())
 }
@@ -217,7 +234,7 @@ pub fn codegen_while<'a>(
     compiler.builder.build_unconditional_branch(loop_block);
     compiler.builder.position_at_end(loop_block);
 
-    let _body_value = body_expr.codegen(compiler)?;
+    body_expr.codegen(compiler)?;
     let end_cond = condition_expr.codegen(compiler)?;
     let zero = compiler.context.i32_type().const_int(0, false);
 

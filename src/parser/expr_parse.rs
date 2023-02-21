@@ -2,14 +2,13 @@ use super::*;
 use std::i32;
 
 pub fn parse_literal(expr: Pair<Rule>) -> AstExpr {
-    let numstring = expr.as_str();
-    let num = if numstring.starts_with("0x") {
-        i32::from_str_radix(numstring.strip_prefix("0x").unwrap(), 16)
-            .expect(format!("Invalid Hexadecimal literal {}", numstring).as_str())
+    let numstr = expr.as_str();
+    let number = if let Some(hexadecimal_str) = numstr.strip_prefix("0x") {
+        i32::from_str_radix(hexadecimal_str, 16).unwrap()
     } else {
-        numstring.parse().unwrap()
+        numstr.parse().unwrap()
     };
-    AstExpr::Literal(num)
+    AstExpr::Literal(number)
 }
 
 pub fn parse_variable(expr: Pair<Rule>) -> AstExpr {

@@ -9,6 +9,8 @@ struct Cli {
     #[arg(short, long)]
     debug: bool,
     #[arg(short, long)]
+    quiet: bool,
+    #[arg(short, long)]
     filename: Option<String>,
 }
 
@@ -31,6 +33,8 @@ fn main() {
     let context = inkwell::context::Context::create();
     let mut compiler =
         jit::Compiler::new(&context, jit::ExecutionMode::Jit).expect("Failed to build compiler");
+
+    compiler.quiet_mode = cli.quiet;
 
     let native_top_level_defs = ast
         .iter()

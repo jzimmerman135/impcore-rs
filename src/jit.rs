@@ -25,8 +25,9 @@ pub struct Compiler<'ctx> {
     pub builder: Builder<'ctx>,
     pub fpm: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
-    pub param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
-    pub global_table: HashMap<&'ctx str, GlobalValue<'ctx>>,
+    pub quiet_mode: bool,
+    param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
+    global_table: HashMap<&'ctx str, GlobalValue<'ctx>>,
     exec_mode: ExecutionMode,
     curr_function: Option<FunctionValue<'ctx>>,
     lib: HashMap<&'ctx str, FunctionValue<'ctx>>,
@@ -69,6 +70,7 @@ impl<'ctx> Compiler<'ctx> {
             ExecutionMode::Interpreter => module.create_interpreter_execution_engine()?,
             ExecutionMode::Dead => panic!("Cannot create a compiler with dead execution engine"),
         };
+
         let fpm = Self::get_optimization_pass_manager(&module);
 
         let mut compiler = Self {
@@ -77,6 +79,7 @@ impl<'ctx> Compiler<'ctx> {
             fpm,
             builder,
             execution_engine,
+            quiet_mode: false,
             exec_mode,
             param_table: HashMap::new(),
             global_table: HashMap::new(),
@@ -102,7 +105,7 @@ impl<'ctx> Compiler<'ctx> {
             .add_function("printf", printf_type, Some(Linkage::External));
         self.lib.insert("printf", printf_fn);
 
-        implib::build_impcore_printers(self);
+        implib::build_implib_printers(self);
     }
 
     /// Does not check if name is actually bound
@@ -144,14 +147,14 @@ impl<'ctx> Compiler<'ctx> {
 
     fn run_native_unverified(&mut self, top_level_def: &NativeTopLevel<'ctx>) {
         match *top_level_def {
+            NativeTopLevel::FunctionDef(..) if self.quiet_mode => (),
             NativeTopLevel::FunctionDef(_, name) => println!("{}", name),
             NativeTopLevel::TopLevelExpr(fn_value) => {
-                let res = unsafe { self.execution_engine.run_function(fn_value, &[]) };
-                println!("{}", res.as_int(true) as i64)
+                unsafe { self.execution_engine.run_function(fn_value, &[]) };
             }
             NativeTopLevel::FreeAll(fn_value) => {
-                let res = unsafe { self.execution_engine.run_function(fn_value, &[]) };
-                if res.as_int(true) == 1 {
+                let cleanup_code = unsafe { self.execution_engine.run_function(fn_value, &[]) };
+                if cleanup_code.as_int(true) == 1 {
                     eprintln!("ERROR: failed to free memory exiting with code 1",)
                 }
             }
