@@ -2,6 +2,10 @@
 source_filename = "tmp"
 target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 
+@fmt_ln = private unnamed_addr constant [4 x i8] c"%i\0A\00", align 1
+@fmt_i = private unnamed_addr constant [3 x i8] c"%i\00", align 1
+@fmt_u = private unnamed_addr constant [3 x i8] c"%u\00", align 1
+@fmt_str = private unnamed_addr constant [3 x i8] c"%s\00", align 1
 @"message[" = global i32* null
 
 declare i32 @main()
@@ -10,52 +14,26 @@ declare i32 @printf(i8*, ...)
 
 define i32 @println(i32 %0) {
 entry:
-  %alloca = alloca [4 x i8], align 1
-  %alloca.repack = getelementptr inbounds [4 x i8], [4 x i8]* %alloca, i64 0, i64 0
-  store i8 37, i8* %alloca.repack, align 1
-  %alloca.repack1 = getelementptr inbounds [4 x i8], [4 x i8]* %alloca, i64 0, i64 1
-  store i8 105, i8* %alloca.repack1, align 1
-  %alloca.repack2 = getelementptr inbounds [4 x i8], [4 x i8]* %alloca, i64 0, i64 2
-  store i8 10, i8* %alloca.repack2, align 1
-  %alloca.repack3 = getelementptr inbounds [4 x i8], [4 x i8]* %alloca, i64 0, i64 3
-  store i8 0, i8* %alloca.repack3, align 1
-  %printfcall = call i32 (i8*, ...) @printf(i8* noundef nonnull %alloca.repack, i32 %0)
+  %printfcall = tail call i32 (i8*, ...) @printf(i8* noundef nonnull dereferenceable(1) getelementptr inbounds ([4 x i8], [4 x i8]* @fmt_ln, i64 0, i64 0), i32 %0)
   ret i32 %0
 }
 
 define i32 @print(i32 %0) {
 entry:
-  %alloca = alloca [3 x i8], align 1
-  %alloca.repack = getelementptr inbounds [3 x i8], [3 x i8]* %alloca, i64 0, i64 0
-  store i8 37, i8* %alloca.repack, align 1
-  %alloca.repack1 = getelementptr inbounds [3 x i8], [3 x i8]* %alloca, i64 0, i64 1
-  store i8 105, i8* %alloca.repack1, align 1
-  %alloca.repack2 = getelementptr inbounds [3 x i8], [3 x i8]* %alloca, i64 0, i64 2
-  store i8 0, i8* %alloca.repack2, align 1
-  %printfcall = call i32 (i8*, ...) @printf(i8* noundef nonnull %alloca.repack, i32 %0)
+  %printfcall = tail call i32 (i8*, ...) @printf(i8* noundef nonnull dereferenceable(1) getelementptr inbounds ([3 x i8], [3 x i8]* @fmt_i, i64 0, i64 0), i32 %0)
   ret i32 %0
 }
 
 define i32 @printu(i32 %0) {
 entry:
-  %alloca = alloca [3 x i8], align 1
-  %alloca.repack = getelementptr inbounds [3 x i8], [3 x i8]* %alloca, i64 0, i64 0
-  store i8 37, i8* %alloca.repack, align 1
-  %alloca.repack1 = getelementptr inbounds [3 x i8], [3 x i8]* %alloca, i64 0, i64 1
-  store i8 117, i8* %alloca.repack1, align 1
-  %alloca.repack2 = getelementptr inbounds [3 x i8], [3 x i8]* %alloca, i64 0, i64 2
-  store i8 0, i8* %alloca.repack2, align 1
-  %printfcall = call i32 (i8*, ...) @printf(i8* noundef nonnull %alloca.repack, i32 %0)
+  %printfcall = tail call i32 (i8*, ...) @printf(i8* noundef nonnull dereferenceable(1) getelementptr inbounds ([3 x i8], [3 x i8]* @fmt_u, i64 0, i64 0), i32 %0)
   ret i32 %0
 }
 
 define i32 @printstr(i32* %0) {
 entry:
-  %alloca = alloca [3 x i8], align 1
-  store [3 x i8] c"%s\00", [3 x i8]* %alloca, align 1
-  %cast = bitcast [3 x i8]* %alloca to i8*
-  %cast1 = bitcast i32* %0 to i8*
-  %printfcall = call i32 (i8*, ...) @printf(i8* %cast, i8* %cast1)
+  %cast = bitcast i32* %0 to i8*
+  %printfcall = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @fmt_str, i32 0, i32 0), i8* %cast)
   ret i32 0
 }
 
