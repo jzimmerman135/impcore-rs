@@ -18,6 +18,12 @@
         (set A[j] (^ A[j] A[i]))
         (set A[i] (^ A[i] A[j]))
         0))
+(define char (x) (& x 0xff))
+(define word (a b c d)
+  (| (char a)
+     (| (<< (char b) 8)
+        (| (<< (char c) 16)
+           (<< (char d) 24)))))
 
 ;; 0 - 3 tests variables and top level expressions
 (+ 0 0)
@@ -60,3 +66,12 @@ t
 ;; 27 - 28 binary arithmetic
 (val bits 0x1b)
 (| (& bits 0x18) 4)
+
+;; 29 - 33 printing
+(val nums[] 29)
+(begin 
+    (set nums[0] (word 51 48 10 51))
+    (set nums[1] (word 49 10 0 0))
+    (printstr nums[])
+    32)
+(print 3)
