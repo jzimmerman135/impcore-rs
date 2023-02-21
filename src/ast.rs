@@ -95,6 +95,7 @@ impl<'a> AstExpr<'a> {
             Rule::variable => expr_parse::parse_variable(expr),
             Rule::binary => expr_parse::parse_binary(expr),
             Rule::unary => expr_parse::parse_unary(expr),
+            Rule::print => expr_parse::parse_unary(expr),
             Rule::user => expr_parse::parse_call(expr),
             Rule::ifx => expr_parse::parse_if(expr),
             Rule::whilex => expr_parse::parse_while(expr),

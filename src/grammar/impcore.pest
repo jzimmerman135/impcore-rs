@@ -10,22 +10,23 @@ RBRACK = _{ WSP* ~ "]" }
 keyword = _{ "define" | "alloc" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
 RESERVED = _{ keyword ~ WSP+ }
 
-NUMBER = _{ ( "-" | "+" )? ~ "0x"? ~ ASCII_DIGIT+ }
+NUMBER = _{ ( "-" )?  ~ ASCII_DIGIT+ }
+HEXNUM = _ { ( "-" )? ~ "0x" ~ ASCII_HEX_DIGIT+ }
 NAMED = _{ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-" )* }
 
 function_name = @{ !RESERVED ~ NAMED ~ "?"? }
-literal = @{ NUMBER }
+literal = @{ HEXNUM | NUMBER }
 pointer = @{ variable ~ "[" } 
+PTR = _{ pointer ~ RBRACK }
 parameter = ${ PTR | variable }
 variable = @{ NAMED }
 array_value = { pointer ~ exp ~ RBRACK }
 ACCESSOR = _{ literal | array_value | variable }
 
-PTR = _{ pointer ~ RBRACK }
 ARG = _{ (PTR ~ WSP* | exp) }
 
 arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
-bitwise_operator = { ">>" | "<<" | "^" | "&" | "|" }
+bitwise_operator = { ">>>" | ">>" | "<<" | "^" | "&" | "|" }
 comparison_operator = { ">=" | ">" | "<=" | "<" | "&&" | "||" | "=" }
 print_operator = { "println" | "printu" | "print" }
 unary_operator = { "++" | "--" | "not" | "!" }

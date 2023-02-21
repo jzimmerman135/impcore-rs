@@ -55,3 +55,8 @@ t
 (+ 24 (array-xor-swap swaparr[] 0 6))
 (+ 3 swaparr[6])
 (+ 3 swaparr[0])
+
+
+;; 27 - 28 binary arithmetic
+(val bits 0x1b)
+(| (& bits 0x18) 4)

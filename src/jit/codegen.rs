@@ -68,32 +68,30 @@ pub fn codegen_binary<'a>(
 ) -> Result<IntValue<'a>, String> {
     let lhs = lhs_expr.codegen(compiler)?;
     let rhs = rhs_expr.codegen(compiler)?;
-    let value = match operator {
-        "*" => compiler.builder.build_int_mul(lhs, rhs, "mul"),
-        "/" => compiler.builder.build_int_signed_div(lhs, rhs, "div"),
-        "+" => compiler.builder.build_int_add(lhs, rhs, "mul"),
-        "-" => compiler.builder.build_int_sub(lhs, rhs, "sub"),
-        "%" | "mod" => compiler.builder.build_int_signed_rem(lhs, rhs, "mod"),
-        ">" => compiler
-            .builder
-            .build_int_compare(IntPredicate::SGT, lhs, rhs, "gt"),
-        ">=" => compiler
-            .builder
-            .build_int_compare(IntPredicate::SGE, lhs, rhs, "ge"),
-        "<" => compiler
-            .builder
-            .build_int_compare(IntPredicate::SLT, lhs, rhs, "lt"),
-        "<=" => compiler
-            .builder
-            .build_int_compare(IntPredicate::SLE, lhs, rhs, "le"),
-        "=" => compiler
-            .builder
-            .build_int_compare(IntPredicate::EQ, lhs, rhs, "eq"),
-        "!=" => compiler
-            .builder
-            .build_int_compare(IntPredicate::NE, lhs, rhs, "ne"),
-        "^" => compiler.builder.build_xor(lhs, rhs, "xor"),
-        _ => unimplemented!("Haven't built the {} binary operator yet", operator),
+    let value = {
+        let builder = &compiler.builder;
+        match operator {
+            "*" => builder.build_int_mul(lhs, rhs, "mul"),
+            "/" => builder.build_int_signed_div(lhs, rhs, "div"),
+            "+" => builder.build_int_add(lhs, rhs, "mul"),
+            "-" => builder.build_int_sub(lhs, rhs, "sub"),
+            "%" | "mod" => builder.build_int_signed_rem(lhs, rhs, "mod"),
+            ">" => builder.build_int_compare(IntPredicate::SGT, lhs, rhs, "gt"),
+            ">=" => builder.build_int_compare(IntPredicate::SGE, lhs, rhs, "ge"),
+            "<" => builder.build_int_compare(IntPredicate::SLT, lhs, rhs, "lt"),
+            "<=" => builder.build_int_compare(IntPredicate::SLE, lhs, rhs, "le"),
+            "=" => builder.build_int_compare(IntPredicate::EQ, lhs, rhs, "eq"),
+            "!=" => builder.build_int_compare(IntPredicate::NE, lhs, rhs, "ne"),
+            "&&" | "and" => builder.build_and(lhs, rhs, "and"),
+            "||" | "or" => builder.build_or(lhs, rhs, "or"),
+            "^" => builder.build_xor(lhs, rhs, "xor"),
+            "&" => builder.build_and(lhs, rhs, "bitand"),
+            "|" => builder.build_or(lhs, rhs, "bitor"),
+            "<<" => builder.build_left_shift(lhs, rhs, "shiftl"),
+            ">>" => builder.build_right_shift(lhs, rhs, true, "shiftr"),
+            ">>>" => builder.build_right_shift(lhs, rhs, false, "ushiftr"),
+            _ => unimplemented!("Haven't built the {} binary operator yet", operator),
+        }
     };
     let itype = compiler.context.i32_type();
     let value = compiler.builder.build_int_cast(value, itype, "cast");
@@ -110,14 +108,26 @@ pub fn codegen_unary<'a>(
     let one = itype.const_int(1, true);
     let zero = itype.const_zero();
 
-    let value = match operator {
-        "++" => compiler.builder.build_int_add(body, one, "incr"),
-        "--" => compiler.builder.build_int_sub(body, one, "decr"),
-        "!" | "not" => compiler
-            .builder
-            .build_int_compare(IntPredicate::EQ, body, zero, "not"),
-        _ => unimplemented!("Haven't built the {} unary operator yet", operator),
+    let value = {
+        let builder = &compiler.builder;
+        match operator {
+            "++" => builder.build_int_add(body, one, "incr"),
+            "--" => builder.build_int_sub(body, one, "decr"),
+            "!" | "not" => builder.build_int_compare(IntPredicate::EQ, body, zero, "not"),
+            "println" | "printu" | "print" => builder
+                .build_call(
+                    *compiler.lib.get(operator).unwrap(),
+                    &[body.into()],
+                    "print",
+                )
+                .try_as_basic_value()
+                .left()
+                .unwrap()
+                .into_int_value(),
+            _ => unimplemented!("Haven't built the {} unary operator yet", operator),
+        }
     };
+
     let value = compiler.builder.build_int_cast(value, itype, "cast");
     Ok(value)
 }
