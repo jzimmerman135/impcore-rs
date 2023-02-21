@@ -1,5 +1,12 @@
 use crate::ast::*;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+#[allow(unused)]
+pub struct SymbolEnv<'a> {
+    functions: HashMap<&'a str, Vec<AstType>>,
+    globals: HashSet<(&'a str, AstType)>,
+    formals: HashSet<(&'a str, AstType)>,
+}
 
 pub fn append_garbage_collector(ast: &mut Ast) {
     ast.0.push(AstDef::FreeAll);
@@ -22,4 +29,10 @@ pub fn predefine_globals(ast: &mut Ast) {
 
     declarations.append(&mut defs);
     *ast = Ast(declarations)
+}
+
+pub fn check_lazy_functions(ast: &mut Ast, env: &SymbolEnv) {
+    let _ = ast;
+    let _ = env;
+    todo!();
 }

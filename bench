@@ -2,8 +2,8 @@
 FILE=imp/slow.imp
 PYFILE=imp/slow.py
 
-echo "IMPCORE"
-/usr/bin/time ../bpc/bare/impcore/impcore -q < $FILE > /dev/null
+# echo "IMPCORE"
+# /usr/bin/time ../bpc/bare/impcore/impcore -q < $FILE > /dev/null
 
 echo "PYTHON"
 /usr/bin/time python3 $PYFILE > /dev/null
@@ -12,12 +12,12 @@ cargo b --release --quiet > /dev/null
 echo "IMPCORE++"
 /usr/bin/time ./target/release/impcore-rs > /dev/null
 
-"""
+_="""
 IMPCORE
-Run-time error: CPU time exhausted
       290.87 real       283.54 user         6.63 sys
 PYTHON
         7.31 real         7.21 user         0.07 sys
 IMPCORE++
-        0.36 real         0.07 user         0.02 sys
+        0.29 real         0.02 user         0.02 sys
 """
+

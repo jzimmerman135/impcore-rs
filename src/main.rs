@@ -32,7 +32,7 @@ fn main() {
     let mut compiler =
         jit::Compiler::new(&context, jit::ExecutionMode::Jit).expect("Failed to build compiler");
 
-    let tles = ast
+    let native_top_level_defs = ast
         .iter()
         .map(|e| e.defgen(&mut compiler))
         .collect::<Result<Vec<_>, String>>()
@@ -43,5 +43,5 @@ fn main() {
         eprintln!("\nEXECUTION OUTPUT\n--------------------------------------------------");
     }
 
-    compiler.top_level_run_all(&tles);
+    compiler.top_level_run_all(&native_top_level_defs);
 }
