@@ -165,12 +165,20 @@ pub fn defgen_global<'a>(
 
     let (array, retval) = if let AstType::Pointer = var_type {
         let size = body_value;
+        let sizeof_int =
+            compiler
+                .builder
+                .build_int_cast(size.get_type().size_of(), int_type, "cast");
+        let n_bytes = compiler.builder.build_int_mul(size, sizeof_int, "bytes");
         let array = compiler
             .builder
             .build_array_malloc(int_type, size, "array")?;
-        compiler
-            .builder
-            .build_memset(array, 4, compiler.context.i8_type().const_zero(), size)?;
+        compiler.builder.build_memset(
+            array,
+            4,
+            compiler.context.i8_type().const_zero(),
+            n_bytes,
+        )?;
         (array, size)
     } else {
         let array = compiler.builder.build_malloc(int_type, "single")?;

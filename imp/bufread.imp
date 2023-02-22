@@ -9,22 +9,23 @@
            (<< (char d) 24)))))
 
 (define readstr (buffer[] bufsize i)
-  (if (= i bufsize)
+  (if (>= i bufsize)
     0
     (begin 
       (set buffer[i] (word (getc)(getc)(getc)(getc)))
       (readstr buffer[] bufsize (+ i 1)))))
 
+(define add-newline (buffer[] bufsize)
+    (set buffer[(- bufsize 1)] 
+      (| (word 0 0 10 0) 
+         (& buffer[(- bufsize 1)] 
+            (word 0xff 0xff 0 0)))))
 
-(define add-newline (buffer[] bufsize tmp)
-  (begin 
-    (set tmp buffer[(-- bufsize)])
-    (set tmp (| (word 0 0 10 0) (& tmp (word 0xff 0xff 0 0))))
-    (set buffer[(-- bufsize)] tmp)))
+(val bufsize 81)
+(val mybuf[] bufsize)
 
-(val bufs 2)
-(val mybuf[] bufs)
-(readstr mybuf[] bufs 0)
-(add-newline mybuf[] bufs _)
+
+(readstr mybuf[] bufsize 0)
+(add-newline mybuf[] bufsize)
 
 (printstr mybuf[])
