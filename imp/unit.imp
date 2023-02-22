@@ -1,3 +1,15 @@
-(val i 10)
-(++ i)
-i
+(define char (x) (& x 0xff))
+
+(define word (a b c d)
+  (| (char a)
+     (| (<< (char b) 8)
+        (| (<< (char c) 16)
+           (<< (char d) 24)))))
+
+(val bufsize 81)
+(val buffer[] bufsize)
+(set buffer[0] (word 97 98 99 100))
+(set buffer[1] (word 97 98 99 100))
+(set buffer[2] (word 97 98 99 100))
+(set buffer[3] (word 97 98 99 10))
+(printstr buffer[])
