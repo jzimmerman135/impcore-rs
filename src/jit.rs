@@ -113,6 +113,10 @@ impl<'ctx> Compiler<'ctx> {
         implib::input::add_stdin(self);
     }
 
+    fn pop_libglobals(&mut self) {
+        self.global_table.remove("#__stdin");
+    }
+
     /// Does not check if name is actually bound
     fn is_pointer(&self, name: &str) -> bool {
         name.ends_with('[')

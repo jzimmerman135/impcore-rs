@@ -4,5 +4,7 @@
 (& 0xff 0x10)
 (define no-args () 45)
 (no-args)
+(val x 10)
 
 (getc)
+x

@@ -213,6 +213,8 @@ pub fn defgen_cleanup<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'
     compiler.builder.position_at_end(basic_block);
     compiler.curr_function = Some(fn_value);
 
+    compiler.pop_libglobals();
+
     for (_, global_ptr) in compiler.global_table.iter() {
         let array = compiler
             .builder
