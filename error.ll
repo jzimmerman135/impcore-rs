@@ -2,12 +2,14 @@
 source_filename = "tmp"
 target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 
+%FILE = type opaque
+
 @fmt_ln = private unnamed_addr constant [4 x i8] c"%i\0A\00", align 1
 @fmt_i = private unnamed_addr constant [3 x i8] c"%i\00", align 1
 @fmt_u = private unnamed_addr constant [3 x i8] c"%u\00", align 1
 @fmt_str = private unnamed_addr constant [3 x i8] c"%s\00", align 1
-
-declare i32 @main()
+@__stdin = global i8* null
+@__fdopen_arg_read = private unnamed_addr constant [2 x i8] c"r\00", align 1
 
 declare i32 @printf(i8*, ...)
 
@@ -35,6 +37,29 @@ entry:
   ret i32 0
 }
 
+declare %FILE* @fdopen(i32, i8*)
+
+declare i32 @fgetc(%FILE*)
+
+define void @__init_stdin() {
+entry:
+  %fp = alloca i8**, align 8
+  store i8** @__stdin, i8*** %fp, align 8
+  %fdopen = call %FILE* @fdopen(i32 0, i8* getelementptr inbounds ([2 x i8], [2 x i8]* @__fdopen_arg_read, i32 0, i32 0))
+  %voidcast = bitcast %FILE* %fdopen to i8*
+  %load = load i8**, i8*** %fp, align 8
+  store i8* %voidcast, i8** %load, align 8
+  ret void
+}
+
+define i32 @getc() {
+entry:
+  %stdin = load i8*, i8** @__stdin, align 8
+  %fp = bitcast i8* %stdin to %FILE*
+  %call = call i32 @fgetc(%FILE* %fp)
+  ret i32 %call
+}
+
 define i32 @"#anon"() {
 entry:
   %printres = call i32 @println(i32 1)
@@ -49,12 +74,19 @@ entry:
 
 define i32 @no-args() {
 no-args:
-  ret i32 50
+  ret i32 45
 }
 
 define i32 @"#anon.2"() {
 entry:
   %userfn = call i32 @no-args()
+  %printres = call i32 @println(i32 %userfn)
+  ret i32 %userfn
+}
+
+define i32 @"#anon.3"() {
+entry:
+  %userfn = call i32 @getc()
   %printres = call i32 @println(i32 %userfn)
   ret i32 %userfn
 }

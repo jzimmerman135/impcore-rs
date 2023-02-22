@@ -92,20 +92,25 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     fn build_lib(&mut self) {
+        let addr_space = AddressSpace::default();
         let int_type = self.context.i32_type();
-        let str_type = self.context.i8_type().ptr_type(AddressSpace::default());
+        let str_type = self.context.i8_type().ptr_type(addr_space);
 
-        let main_fn_type = int_type.fn_type(&[], false);
-        let main_fn = self.module.add_function("main", main_fn_type, None);
-        self.lib.insert("main", main_fn);
+        // let main_fn_type = int_type.fn_type(&[], false);
+        // let main_fn = self.module.add_function("main", main_fn_type, None);
+        // self.lib.insert("main", main_fn);
 
         let printf_type = int_type.fn_type(&[str_type.into()], true);
         let printf_fn = self
             .module
             .add_function("printf", printf_type, Some(Linkage::External));
-        self.lib.insert("printf", printf_fn);
+        self.lib.insert("__printf", printf_fn);
 
-        implib::build_implib_printers(self);
+        implib::output::add_print_functions(self);
+    }
+
+    fn import_stdin(&mut self) {
+        implib::input::add_stdin(self);
     }
 
     /// Does not check if name is actually bound

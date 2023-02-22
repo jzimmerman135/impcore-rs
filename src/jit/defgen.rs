@@ -11,7 +11,17 @@ pub fn declare_global<'a>(name: &'a str, compiler: &mut Compiler<'a>) {
     compiler.global_table.insert(name, global_ptr);
 }
 
-pub fn printres<'a>(value: &IntValue<'a>, compiler: &Compiler<'a>) {
+pub fn declare_fileptr<'a>(name: &'a str, compiler: &mut Compiler<'a>) {
+    let addr_space = AddressSpace::default();
+    let fileptr_type = compiler.context.i8_type().ptr_type(addr_space);
+    let global_ptr = compiler
+        .module
+        .add_global(fileptr_type, Some(addr_space), name);
+    global_ptr.set_initializer(&fileptr_type.const_null());
+    compiler.global_table.insert(name, global_ptr);
+}
+
+fn printres<'a>(value: &IntValue<'a>, compiler: &Compiler<'a>) {
     if compiler.quiet_mode {
         return;
     }
@@ -184,6 +194,15 @@ pub fn defgen_global<'a>(
     }
 
     Ok(fn_value)
+}
+
+pub fn defgen_stdin<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a>, String> {
+    compiler.import_stdin();
+    compiler
+        .lib
+        .get("init_stdin")
+        .ok_or("Couldn't find it".to_string())
+        .copied()
 }
 
 pub fn defgen_cleanup<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a>, String> {

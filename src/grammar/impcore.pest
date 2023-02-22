@@ -7,7 +7,7 @@ RPAREN = _{ WSP* ~ ")" }
 LBRACK = _{ "[" ~ WSP* }
 RBRACK = _{ WSP* ~ "]" }
 
-keyword = _{ "define" | "alloc" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
+keyword = _{ "define" | "fgetc" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
 RESERVED = _{ keyword ~ WSP+ }
 
 NUMBER = _{ ( "-" )?  ~ ASCII_DIGIT+ }
@@ -36,7 +36,8 @@ unary = { unary_operator ~ WSP+ ~ exp }
 print = { print_operator ~ WSP+ ~ exp }
 binary = { binary_operator ~ WSP+ ~ exp{2} }
 user = { function_name ~ WSP* ~ ARG* }
-FUNCTION_CALL = _{ unary | binary | print | user }
+fgetc = { "fgetc" }
+FUNCTION_CALL = _{ unary | binary | print | fgetc | user }
 
 ifx = { "if" ~ WSP+ ~ exp{3} }
 whilex = { "while" ~ WSP+ ~ exp{2} }
@@ -51,7 +52,8 @@ PARAMS = _{ LPAREN ~ ( WSP* ~ parameter )* ~ RPAREN }
 define = { "define" ~ WSP+ ~ function_name ~ WSP* ~ PARAMS ~ WSP* ~ exp }
 val =  { "val" ~ WSP+ ~ variable ~ WSP+ ~ exp }
 alloc = { "val" ~ WSP+ ~ PTR ~ WSP+ ~ exp }
-GLOBAL = _{ define | alloc | val }
+import = { "import" ~ WSP+ ~ variable }
+GLOBAL = _{ define | alloc | import | val }
 
 check_expect = { "check-expect" ~ WSP+ ~ exp{2} }
 check_assert = { "check-assert" ~ WSP+ ~ exp }

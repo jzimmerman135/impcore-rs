@@ -17,13 +17,12 @@ pub fn predefine_globals(ast: &mut Ast) {
     let mut declarations = vec![];
     let mut defs = std::mem::take(&mut ast.0)
         .into_iter()
-        .map(|e| {
-            if let AstDef::Global(n, ..) = e {
-                if global_names.insert(n) {
-                    declarations.push(AstDef::DeclareGlobal(n));
-                }
+        .map(|e| match e {
+            AstDef::Global(n, ..) if global_names.insert(n) => {
+                declarations.push(AstDef::DeclareGlobal(n));
+                e
             }
-            e
+            _ => e,
         })
         .collect();
 

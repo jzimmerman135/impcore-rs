@@ -32,6 +32,7 @@ pub enum AstType {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstDef<'a> {
+    Import(&'a str),
     TopLevelExpr(AstExpr<'a>),
     Function(&'a str, Vec<(&'a str, AstType)>, AstExpr<'a>),
     Global(&'a str, AstExpr<'a>, AstType),
@@ -52,6 +53,7 @@ impl<'a> AstDef<'a> {
             Rule::check_error => def_parse::parse_check_error(def),
             Rule::define => def_parse::parse_define(def),
             Rule::alloc => def_parse::parse_alloc(def),
+            Rule::import => def_parse::parse_import(def),
             _ => unreachable!("got unreachable def rule {:?}", def.as_rule()),
         }
     }
@@ -74,6 +76,7 @@ impl<'a> AstDef<'a> {
                 defgen::defgen_anonymous(rhs, compiler)?,
                 contents,
             ),
+            Self::CheckError(..) => todo!(),
             Self::Global(name, value, var_type) => NativeTopLevel::TopLevelExpr(
                 defgen::defgen_global(name, value, *var_type, compiler)?,
             ),
@@ -82,7 +85,9 @@ impl<'a> AstDef<'a> {
                 NativeTopLevel::Noop
             }
             Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_cleanup(compiler)?),
-            _ => unimplemented!("unimplemented defgen {:?}", self),
+            Self::Import("stdin") => NativeTopLevel::TopLevelExpr(defgen::defgen_stdin(compiler)?),
+            Self::Import(name) => return Err(format!("Unbound libarary {}, got {:?}", name, self)),
+            //    _ => unimplemented!("unimplemented defgen {:?}", self),
         };
         Ok(native)
     }
@@ -97,6 +102,7 @@ impl<'a> AstExpr<'a> {
             Rule::unary => expr_parse::parse_unary(expr),
             Rule::print => expr_parse::parse_unary(expr),
             Rule::user => expr_parse::parse_call(expr),
+            Rule::fgetc => AstExpr::Call(expr.as_str(), vec![]),
             Rule::ifx => expr_parse::parse_if(expr),
             Rule::whilex => expr_parse::parse_while(expr),
             Rule::begin => expr_parse::parse_begin(expr),
@@ -142,7 +148,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             Self::Global(_, body, _) => vec![body],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::DeclareGlobal(..) | Self::FreeAll => vec![],
+            Self::Import(..) | Self::DeclareGlobal(..) | Self::FreeAll => vec![],
         }
     }
 
@@ -153,7 +159,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             Self::Global(_, body, _) => vec![body],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::DeclareGlobal(..) | Self::FreeAll => vec![],
+            Self::Import(..) | Self::DeclareGlobal(..) | Self::FreeAll => vec![],
         }
     }
 }

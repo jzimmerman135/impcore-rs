@@ -7,23 +7,45 @@ target triple = "arm64-apple-macosx13.0.0"
 %struct.__sFILEX = type opaque
 %struct.__sbuf = type { i8*, i32 }
 
-@__stdinp = external global %struct.__sFILE*, align 8
-@.str = private unnamed_addr constant [3 x i8] c"%c\00", align 1
+@__stdin = global i8* null, align 8
+@.str = private unnamed_addr constant [2 x i8] c"r\00", align 1
+@.str.1 = private unnamed_addr constant [3 x i8] c"%c\00", align 1
+
+; Function Attrs: noinline nounwind optnone ssp uwtable
+define void @init_stdin() #0 {
+  %1 = alloca i8**, align 8
+  store i8** @__stdin, i8*** %1, align 8
+  %2 = call %struct.__sFILE* @"\01_fdopen"(i32 0, i8* getelementptr inbounds ([2 x i8], [2 x i8]* @.str, i64 0, i64 0))
+  %3 = bitcast %struct.__sFILE* %2 to i8*
+  %4 = load i8**, i8*** %1, align 8
+  store i8* %3, i8** %4, align 8
+  ret void
+}
+
+declare %struct.__sFILE* @"\01_fdopen"(i32, i8*) #1
+
+; Function Attrs: noinline nounwind optnone ssp uwtable
+define i32 @impgetc() #0 {
+  %1 = load i8*, i8** @__stdin, align 8
+  %2 = bitcast i8* %1 to %struct.__sFILE*
+  %3 = call i32 @fgetc(%struct.__sFILE* %2)
+  ret i32 %3
+}
+
+declare i32 @fgetc(%struct.__sFILE*) #1
 
 ; Function Attrs: noinline nounwind optnone ssp uwtable
 define i32 @main() #0 {
   %1 = alloca i32, align 4
   %2 = alloca i32, align 4
   store i32 0, i32* %1, align 4
-  %3 = load %struct.__sFILE*, %struct.__sFILE** @__stdinp, align 8
-  %4 = call i32 @fgetc(%struct.__sFILE* %3)
-  store i32 %4, i32* %2, align 4
-  %5 = load i32, i32* %2, align 4
-  %6 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str, i64 0, i64 0), i32 %5)
+  call void @init_stdin()
+  %3 = call i32 @impgetc()
+  store i32 %3, i32* %2, align 4
+  %4 = load i32, i32* %2, align 4
+  %5 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @.str.1, i64 0, i64 0), i32 %4)
   ret i32 0
 }
-
-declare i32 @fgetc(%struct.__sFILE*) #1
 
 declare i32 @printf(i8*, ...) #1
 

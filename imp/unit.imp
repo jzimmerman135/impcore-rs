@@ -1,4 +1,8 @@
+(import stdin)
+
 (&& 0xff 0x10)
 (& 0xff 0x10)
-(define no-args () 50)
+(define no-args () 45)
 (no-args)
+
+(getc)
