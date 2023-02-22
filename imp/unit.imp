@@ -1,10 +1,3 @@
-(import stdin)
-
-(&& 0xff 0x10)
-(& 0xff 0x10)
-(define no-args () 45)
-(no-args)
-(val x 10)
-
-(begin (printc (getc)) (printc 10) 10)  
-x
+(val i 10)
+(++ i)
+i

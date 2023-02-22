@@ -1,0 +1,30 @@
+(import stdin)
+
+(define char (x) (& x 0xff))
+
+(define word (a b c d)
+  (| (char a)
+     (| (<< (char b) 8)
+        (| (<< (char c) 16)
+           (<< (char d) 24)))))
+
+(define readstr (buffer[] bufsize i)
+  (if (= i bufsize)
+    0
+    (begin 
+      (set buffer[i] (word (getc)(getc)(getc)(getc)))
+      (readstr buffer[] bufsize (+ i 1)))))
+
+
+(define add-newline (buffer[] bufsize tmp)
+  (begin 
+    (set tmp buffer[(-- bufsize)])
+    (set tmp (| (word 0 0 10 0) (& tmp (word 0xff 0xff 0 0))))
+    (set buffer[(-- bufsize)] tmp)))
+
+(val bufs 2)
+(val mybuf[] bufs)
+(readstr mybuf[] bufs 0)
+(add-newline mybuf[] bufs _)
+
+(printstr mybuf[])

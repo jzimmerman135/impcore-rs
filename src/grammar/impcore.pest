@@ -7,7 +7,7 @@ RPAREN = _{ WSP* ~ ")" }
 LBRACK = _{ "[" ~ WSP* }
 RBRACK = _{ WSP* ~ "]" }
 
-keyword = _{ "define" | "fgetc" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
+keyword = _{ "define" | "fgetc" | "import" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
 RESERVED = _{ keyword ~ WSP+ }
 
 NUMBER = _{ ( "-" )?  ~ ASCII_DIGIT+ }
@@ -28,7 +28,7 @@ ARG = _{ (PTR ~ WSP* | exp) }
 arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
 bitwise_operator = { ">>>" | ">>" | "<<" | "^" | "&&" | "||" | "&" | "|" }
 comparison_operator = { ">="  | "<=" | ">" | "<" |  "=" }
-print_operator = { "println" | "printu" | "print" }
+print_operator = { "println" | "printu" | "print" | "printc" }
 unary_operator = { "++" | "--" | "not" | "!" }
 binary_operator = @{ bitwise_operator | comparison_operator | arithmetic_operator }
 
