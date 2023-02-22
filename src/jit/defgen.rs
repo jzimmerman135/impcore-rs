@@ -213,9 +213,10 @@ pub fn defgen_cleanup<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'
     compiler.builder.position_at_end(basic_block);
     compiler.curr_function = Some(fn_value);
 
-    compiler.pop_libglobals();
-
-    for (_, global_ptr) in compiler.global_table.iter() {
+    for (name, global_ptr) in compiler.global_table.iter() {
+        if name.starts_with("#") {
+            continue;
+        }
         let array = compiler
             .builder
             .build_load(global_ptr.as_pointer_value(), "load");

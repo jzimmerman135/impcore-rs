@@ -7,6 +7,7 @@ target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 @fmt_ln = private unnamed_addr constant [4 x i8] c"%i\0A\00", align 1
 @fmt_i = private unnamed_addr constant [3 x i8] c"%i\00", align 1
 @fmt_u = private unnamed_addr constant [3 x i8] c"%u\00", align 1
+@fmt_c = private unnamed_addr constant [3 x i8] c"%c\00", align 1
 @fmt_str = private unnamed_addr constant [3 x i8] c"%s\00", align 1
 @x = global i32* null
 @__stdin = global i8* null
@@ -31,6 +32,15 @@ entry:
   %printfcall = tail call i32 (i8*, ...) @printf(i8* noundef nonnull dereferenceable(1) getelementptr inbounds ([3 x i8], [3 x i8]* @fmt_u, i64 0, i64 0), i32 %0)
   ret i32 %0
 }
+
+define i32 @printc(i32 %0) {
+entry:
+  %putchar = tail call i32 @putchar(i32 %0)
+  ret i32 %0
+}
+
+; Function Attrs: nofree nounwind
+declare noundef i32 @putchar(i32 noundef) #0
 
 define i32 @printstr(i32* %0) {
 entry:
@@ -105,8 +115,10 @@ declare noalias i8* @malloc(i32)
 define i32 @"#anon.3"() {
 entry:
   %userfn = call i32 @getc()
-  %printres = call i32 @println(i32 %userfn)
-  ret i32 %userfn
+  %userfn1 = call i32 @printc(i32 %userfn)
+  %userfn2 = call i32 @printc(i32 10)
+  %printres = call i32 @println(i32 10)
+  ret i32 10
 }
 
 define i32 @"#anon.4"() {
@@ -116,3 +128,5 @@ entry:
   %printres = call i32 @println(i32 %load1)
   ret i32 %load1
 }
+
+attributes #0 = { nofree nounwind }

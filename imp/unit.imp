@@ -6,5 +6,5 @@
 (no-args)
 (val x 10)
 
-(getc)
+(begin (printc (getc)) (printc 10) 10)  
 x

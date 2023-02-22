@@ -26,6 +26,7 @@ pub mod output {
             ("println", "%i\n", "fmt_ln", AstType::Integer),
             ("print", "%i", "fmt_i", AstType::Integer),
             ("printu", "%u", "fmt_u", AstType::Integer),
+            ("printc", "%c", "fmt_c", AstType::Integer),
             ("printstr", "%s", "fmt_str", AstType::Pointer),
         ];
 
