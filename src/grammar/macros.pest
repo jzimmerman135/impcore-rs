@@ -32,7 +32,7 @@ libimport = _{ "import" ~ WSP+ ~ lib }
 fileimport = _{ "import" ~ WSP+ ~ "\"" ~ file  ~ "\"" }
 
 replacer = { "replace" ~ WSP+ ~ macroval ~ WSP+ ~ exp }
-inliner = { "replace" ~ WSP+ ~ LPAREN ~ macroval ~ (WSP+ ~ variable)+ ~ RPAREN ~ WSP+ ~ exp }
+inliner = { "replace" ~ WSP+ ~ LPAREN ~ macroval ~ WSP+ ~ (WSP* ~ parameter)+ ~ RPAREN ~ WSP+ ~ exp }
 
 macrodef = _{ "#" ~ LPAREN ~ ( fileimport | libimport | inliner | replacer ) ~ RPAREN ~ NEWLINE }
 

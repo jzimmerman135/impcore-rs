@@ -19,20 +19,20 @@ pub fn parse_alloc(def: Pair<Rule>) -> AstDef {
 pub fn parse_define(def: Pair<Rule>) -> AstDef {
     let mut inner_expr = def.into_inner();
     let name = inner_expr.next().unwrap().as_str();
-    let (param_exprs, body_expr): (Vec<_>, Vec<_>) =
-        inner_expr.partition(|e| e.as_rule() == Rule::parameter);
-
-    let mut params = vec![];
-    for param in param_exprs {
-        let inner_param = param.into_inner().next().unwrap();
-        match inner_param.as_rule() {
-            Rule::variable => params.push((inner_param.as_str(), AstType::Integer)),
-            Rule::pointer => params.push((inner_param.as_str(), AstType::Pointer)),
-            _ => unreachable!("Unreacheable rule {:?}", inner_param.as_rule()),
-        }
-    }
-
-    let body = AstExpr::parse(body_expr.into_iter().next().unwrap());
+    let mut param_exprs = inner_expr.map(AstExpr::parse).collect::<Vec<_>>();
+    let body = param_exprs.pop().unwrap();
+    let params = param_exprs
+        .into_iter()
+        .filter_map(|e| {
+            if let AstExpr::Variable(name, _) = e {
+                return Some(match name.strip_suffix("]") {
+                    Some(ptrname) => (ptrname, AstType::Pointer),
+                    None => (name, AstType::Integer),
+                });
+            }
+            None
+        })
+        .collect();
     AstDef::Function(name, params, body)
 }
 

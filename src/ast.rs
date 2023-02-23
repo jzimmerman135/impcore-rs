@@ -127,6 +127,7 @@ impl<'a> AstExpr<'a> {
             Rule::pointer => expr_parse::parse_pointer(expr),
             Rule::error => AstExpr::Error,
             Rule::macroval => macro_parse::parse_macroval(expr),
+            Rule::parameter => expr_parse::parse_variable(expr),
             _ => unreachable!("got unreachable expr rule {:?}", expr.as_rule()),
         }
     }
