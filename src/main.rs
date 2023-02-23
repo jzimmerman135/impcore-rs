@@ -24,6 +24,7 @@ fn main() {
 
     let ast = ImpcoreParser::generate_ast(&contents)
         .unwrap_or_else(|s| rip(s))
+        .preprocess()
         .prepare();
 
     if cli.debug {

@@ -25,7 +25,7 @@ pub fn parse_define(def: Pair<Rule>) -> AstDef {
         .into_iter()
         .filter_map(|e| {
             if let AstExpr::Variable(name, _) = e {
-                return Some(match name.strip_suffix("]") {
+                return Some(match name.strip_suffix(']') {
                     Some(ptrname) => (ptrname, AstType::Pointer),
                     None => (name, AstType::Integer),
                 });

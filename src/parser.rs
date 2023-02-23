@@ -29,6 +29,7 @@ impl ImpcoreParser {
             .collect::<Vec<AstDef>>();
 
         defs.append(&mut tests);
-        Ok(Ast(defs))
+        let parser_output = Ast(defs);
+        Ok(parser_output)
     }
 }

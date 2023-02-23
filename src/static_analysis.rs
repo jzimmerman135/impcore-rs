@@ -1,18 +1,18 @@
 use crate::ast::*;
 use std::collections::{HashMap, HashSet};
-
-#[allow(unused)]
-pub struct SymbolEnv<'a> {
-    functions: HashMap<&'a str, Vec<AstType>>,
-    globals: HashSet<(&'a str, AstType)>,
-    formals: HashSet<(&'a str, AstType)>,
+impl<'a> Ast<'a> {
+    pub fn prepare(mut self) -> Self {
+        predefine_globals(&mut self);
+        append_garbage_collector(&mut self);
+        self
+    }
 }
 
-pub fn append_garbage_collector(ast: &mut Ast) {
+fn append_garbage_collector(ast: &mut Ast) {
     ast.0.push(AstDef::FreeAll);
 }
 
-pub fn predefine_globals(ast: &mut Ast) {
+fn predefine_globals(ast: &mut Ast) {
     let mut global_names = HashSet::new();
     let mut declarations = vec![];
     let mut defs = std::mem::take(&mut ast.0)
@@ -30,7 +30,15 @@ pub fn predefine_globals(ast: &mut Ast) {
     *ast = Ast(declarations)
 }
 
-pub fn check_lazy_functions(ast: &mut Ast, env: &SymbolEnv) {
+#[allow(dead_code)]
+pub struct SymbolEnv<'a> {
+    functions: HashMap<&'a str, Vec<AstType>>,
+    globals: HashSet<(&'a str, AstType)>,
+    formals: HashSet<(&'a str, AstType)>,
+}
+
+#[allow(dead_code)]
+fn check_lazy_functions(ast: &mut Ast, env: &SymbolEnv) {
     let _ = ast;
     let _ = env;
     todo!();

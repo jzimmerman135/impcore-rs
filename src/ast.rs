@@ -1,7 +1,6 @@
 use crate::{
     jit::{codegen, defgen, Compiler, NativeTopLevel},
     parser::{def_parse, expr_parse, *},
-    static_analysis,
 };
 use inkwell::values::IntValue;
 use std::slice::{Iter, IterMut};
@@ -190,7 +189,6 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
     fn children_mut(&mut self) -> Vec<&mut Self> {
         match self {
             Self::Variable(_, Some(body)) => vec![body],
-            Self::Error | Self::Variable(_, None) | Self::Literal(..) | Self::Pointer(..) => vec![],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
             Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
             Self::While(cond, body) => vec![cond, body],
@@ -199,14 +197,17 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
             Self::If(c, t, f) => {
                 vec![c, t, f]
             }
-            _ => unreachable!(),
+            Self::MacroVal(_)
+            | Self::Error
+            | Self::Variable(_, None)
+            | Self::Literal(..)
+            | Self::Pointer(..) => vec![],
         }
     }
 
     fn children(&self) -> Vec<&Self> {
         match self {
             Self::Variable(_, Some(body)) => vec![body],
-            Self::Error | Self::Variable(_, None) | Self::Literal(..) | Self::Pointer(..) => vec![],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
             Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
             Self::While(cond, body) => vec![cond, body],
@@ -215,7 +216,11 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
             Self::If(c, t, f) => {
                 vec![c, t, f]
             }
-            _ => unreachable!(),
+            Self::MacroVal(_)
+            | Self::Error
+            | Self::Variable(_, None)
+            | Self::Literal(..)
+            | Self::Pointer(..) => vec![],
         }
     }
 }
@@ -271,11 +276,5 @@ impl<'a> Ast<'a> {
 
     pub fn iter_mut(&mut self) -> IterMut<'_, AstDef<'a>> {
         self.0.iter_mut()
-    }
-
-    pub fn prepare(mut self) -> Self {
-        static_analysis::predefine_globals(&mut self);
-        static_analysis::append_garbage_collector(&mut self);
-        self
     }
 }
