@@ -3,10 +3,12 @@ use crate::ast::AstType;
 pub mod output {
     use super::*;
 
-    pub fn add_print_functions(compiler: &mut Compiler) {
-        let printers = build_implib_printers(compiler);
-        for (name, function) in printers {
-            compiler.lib.insert(name, function);
+    impl<'a> Compiler<'a> {
+        pub fn add_print_functions(&mut self) {
+            let printers = build_implib_printers(self);
+            for (name, function) in printers {
+                self.lib.insert(name, function);
+            }
         }
     }
 
@@ -62,36 +64,30 @@ pub mod output {
 
 pub mod input {
     use super::*;
+    impl<'a> Compiler<'a> {
+        pub fn add_stdin(&mut self) {
+            let addr_space = AddressSpace::default();
+            let int_type = self.context.i32_type();
+            let str_type = self.context.i8_type().ptr_type(addr_space);
+            let fileptr_type = self.context.opaque_struct_type("FILE").ptr_type(addr_space);
 
-    pub fn add_stdin(compiler: &mut Compiler) {
-        let addr_space = AddressSpace::default();
-        let int_type = compiler.context.i32_type();
-        let str_type = compiler.context.i8_type().ptr_type(addr_space);
-        let fileptr_type = compiler
-            .context
-            .opaque_struct_type("FILE")
-            .ptr_type(addr_space);
+            declare_global_stdin(self);
+            let fdopen_type = fileptr_type.fn_type(&[int_type.into(), str_type.into()], false);
+            let fdopen_fn =
+                self.module
+                    .add_function("fdopen", fdopen_type, Some(Linkage::External));
 
-        declare_global_stdin(compiler);
-        let fdopen_type = fileptr_type.fn_type(&[int_type.into(), str_type.into()], false);
-        let fdopen_fn =
-            compiler
+            let fgetc_type = int_type.fn_type(&[fileptr_type.into()], false);
+            let fgetc_fn = self
                 .module
-                .add_function("fdopen", fdopen_type, Some(Linkage::External));
+                .add_function("fgetc", fgetc_type, Some(Linkage::External));
 
-        let fgetc_type = int_type.fn_type(&[fileptr_type.into()], false);
-        let fgetc_fn = compiler
-            .module
-            .add_function("fgetc", fgetc_type, Some(Linkage::External));
-
-        compiler.lib.insert("__fdopen", fdopen_fn);
-        compiler.lib.insert("__fgetc", fgetc_fn);
-        compiler
-            .lib
-            .insert("init_stdin", build_init_stdin(compiler));
-        compiler.lib.insert("getc", build_fgetc(compiler));
+            self.lib.insert("__fdopen", fdopen_fn);
+            self.lib.insert("__fgetc", fgetc_fn);
+            self.lib.insert("init_stdin", build_init_stdin(self));
+            self.lib.insert("getc", build_fgetc(self));
+        }
     }
-
     fn declare_global_stdin(compiler: &mut Compiler) {
         let fileptr_type = compiler.context.i8_type().ptr_type(AddressSpace::default());
         let stdin_global =

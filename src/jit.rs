@@ -106,11 +106,7 @@ impl<'ctx> Compiler<'ctx> {
             .add_function("printf", printf_type, Some(Linkage::External));
         self.lib.insert("__printf", printf_fn);
 
-        implib::output::add_print_functions(self);
-    }
-
-    fn import_stdin(&mut self) {
-        implib::input::add_stdin(self);
+        self.add_print_functions();
     }
 
     /// Does not check if name is actually bound

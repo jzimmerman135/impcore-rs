@@ -165,8 +165,10 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "inkwell",
+ "lazy_static",
  "pest",
  "pest_derive",
+ "regex",
 ]
 
 [[package]]

@@ -1,12 +1,13 @@
 pub mod def_parse;
 pub mod expr_parse;
+pub mod macro_parse;
 
 use crate::ast::{Ast, AstDef, AstExpr};
 pub use pest::iterators::Pair;
 use pest::Parser;
 
 #[derive(Parser)]
-#[grammar = "grammar/impcore.pest"]
+#[grammar = "grammar/macros.pest"]
 pub struct ImpcoreParser;
 
 impl ImpcoreParser {
@@ -17,13 +18,13 @@ impl ImpcoreParser {
             .next()
             .unwrap()
             .into_inner()
-            .filter_map(|tle| match tle.as_rule() {
+            .filter_map(|tldef| match tldef.as_rule() {
                 Rule::EOI => None,
                 Rule::check_assert | Rule::check_error | Rule::check_expect => {
-                    tests.push(AstDef::parse(tle));
+                    tests.push(AstDef::parse(tldef));
                     None
                 }
-                _ => Some(AstDef::parse(tle)),
+                _ => Some(AstDef::parse(tldef)),
             })
             .collect::<Vec<AstDef>>();
 

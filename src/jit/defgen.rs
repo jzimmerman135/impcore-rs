@@ -205,7 +205,7 @@ pub fn defgen_global<'a>(
 }
 
 pub fn defgen_stdin<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a>, String> {
-    compiler.import_stdin();
+    compiler.add_stdin();
     compiler
         .lib
         .get("init_stdin")

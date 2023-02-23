@@ -1,4 +1,12 @@
+#(import stdin)
+#(import "hello.imp")
+#(import "hello.imp")
+
 (define char (x) (& x 0xff))
+
+#(replace 'EOF -1)
+#(replace ('SQ x) (* x x))
+#(replace ('NOT x) (if x 0 1))
 
 (define word (a b c d)
   (| (char a)
@@ -6,10 +14,13 @@
         (| (<< (char c) 16)
            (<< (char d) 24)))))
 
+'EOF 
 (val bufsize 81)
 (val buffer[] bufsize)
 (set buffer[0] (word 97 98 99 100))
 (set buffer[1] (word 97 98 99 100))
 (set buffer[2] (word 97 98 99 100))
 (set buffer[3] (word 97 98 99 10))
+(set buffer[4] (word 'EOF 'EOF 99 10))
+'EOF 
 (printstr buffer[])

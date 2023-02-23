@@ -21,6 +21,7 @@ pub enum AstExpr<'a> {
     While(Box<AstExpr<'a>>, Box<AstExpr<'a>>),
     Begin(Vec<AstExpr<'a>>),
     Assign(&'a str, Box<AstExpr<'a>>, Option<Box<AstExpr<'a>>>),
+    MacroVal(&'a str),
     Error,
 }
 
@@ -32,7 +33,7 @@ pub enum AstType {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstDef<'a> {
-    Import(&'a str),
+    ImportLib(&'a str),
     TopLevelExpr(AstExpr<'a>),
     Function(&'a str, Vec<(&'a str, AstType)>, AstExpr<'a>),
     Global(&'a str, AstExpr<'a>, AstType),
@@ -40,7 +41,15 @@ pub enum AstDef<'a> {
     CheckAssert(AstExpr<'a>, &'a str),
     CheckError(AstExpr<'a>, &'a str),
     DeclareGlobal(&'a str),
+    MacroDef(AstMacro<'a>),
     FreeAll,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum AstMacro<'a> {
+    ImportFile(&'a str),
+    Replacer(&'a str, AstExpr<'a>),
+    Inliner(&'a str, Vec<AstExpr<'a>>, AstExpr<'a>),
 }
 
 impl<'a> AstDef<'a> {
@@ -53,7 +62,10 @@ impl<'a> AstDef<'a> {
             Rule::check_error => def_parse::parse_check_error(def),
             Rule::define => def_parse::parse_define(def),
             Rule::alloc => def_parse::parse_alloc(def),
-            Rule::import => def_parse::parse_import(def),
+            Rule::lib => macro_parse::parse_importlib(def),
+            Rule::file => macro_parse::parse_importfile(def),
+            Rule::replacer => macro_parse::parse_replacer(def),
+            Rule::inliner => macro_parse::parse_inliner(def),
             _ => unreachable!("got unreachable def rule {:?}", def.as_rule()),
         }
     }
@@ -85,9 +97,13 @@ impl<'a> AstDef<'a> {
                 NativeTopLevel::Noop
             }
             Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_cleanup(compiler)?),
-            Self::Import("stdin") => NativeTopLevel::TopLevelExpr(defgen::defgen_stdin(compiler)?),
-            Self::Import(name) => return Err(format!("Unbound libarary {}, got {:?}", name, self)),
-            //    _ => unimplemented!("unimplemented defgen {:?}", self),
+            Self::ImportLib("stdin") => {
+                NativeTopLevel::TopLevelExpr(defgen::defgen_stdin(compiler)?)
+            }
+            Self::ImportLib(name) => {
+                return Err(format!("Unbound library {}, got {:?}", name, self))
+            }
+            _ => unreachable!("unreacheable defgen {:?}", self),
         };
         Ok(native)
     }
@@ -110,6 +126,7 @@ impl<'a> AstExpr<'a> {
             Rule::array_value => expr_parse::parse_indexer(expr),
             Rule::pointer => expr_parse::parse_pointer(expr),
             Rule::error => AstExpr::Error,
+            Rule::macroval => macro_parse::parse_macroval(expr),
             _ => unreachable!("got unreachable expr rule {:?}", expr.as_rule()),
         }
     }
@@ -130,7 +147,7 @@ impl<'a> AstExpr<'a> {
             }
             Self::Error => codegen::codegen_literal(1, compiler),
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
-            Self::Pointer(_) => panic!("cannot codegen from a pointer"),
+            _ => unreachable!("cannot codegen from {:?}", self),
         }
     }
 }
@@ -148,7 +165,9 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             Self::Global(_, body, _) => vec![body],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::Import(..) | Self::DeclareGlobal(..) | Self::FreeAll => vec![],
+            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) | Self::FreeAll => {
+                vec![]
+            }
         }
     }
 
@@ -159,7 +178,9 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             Self::Global(_, body, _) => vec![body],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::Import(..) | Self::DeclareGlobal(..) | Self::FreeAll => vec![],
+            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) | Self::FreeAll => {
+                vec![]
+            }
         }
     }
 }
@@ -177,6 +198,7 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
             Self::If(c, t, f) => {
                 vec![c, t, f]
             }
+            _ => unreachable!(),
         }
     }
 
@@ -192,6 +214,7 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
             Self::If(c, t, f) => {
                 vec![c, t, f]
             }
+            _ => unreachable!(),
         }
     }
 }
