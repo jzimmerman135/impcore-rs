@@ -32,7 +32,7 @@ impl<'a> MacroEnv<'a> {
             AstExpr::MacroVal(name) => self
                 .replacers
                 .get(&exp)
-                .ok_or(format!("Macro: {} not found", name))
+                .ok_or(format!("Macro not found: {}", name))
                 .cloned(),
             AstExpr::Call(name, args) if name.starts_with('\'') => {
                 let (formals, body) = self

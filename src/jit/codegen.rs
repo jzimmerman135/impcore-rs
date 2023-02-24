@@ -180,6 +180,16 @@ pub fn codegen_call<'a>(
         .get_function(name)
         .ok_or(format!("Unbound function {}", name))?;
 
+    let expected_argcount = function.get_params().len();
+    let received_argcount = args.len();
+
+    if expected_argcount != received_argcount {
+        return Err(format!(
+            "Function ({} ...) called with {} args instead of expected {}",
+            name, received_argcount, expected_argcount,
+        ));
+    }
+
     let args = args
         .iter()
         .map(|e| match e {
