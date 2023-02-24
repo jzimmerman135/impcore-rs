@@ -1,14 +1,10 @@
-use std::{collections::HashSet, fs, mem};
+use std::{collections::HashSet, mem};
 
-use crate::{
-    ast::{Ast, AstDef, AstMacro},
-    parser::ImpcoreParser,
-};
+use crate::ast::{Ast, AstDef, AstMacro};
 
 #[allow(unused)]
 struct MacroEnv<'a> {
     pub replacers: Vec<AstMacro<'a>>,
-    pub imports: Vec<(AstMacro<'a>, Ast<'a>)>,
     pub functions: Vec<AstMacro<'a>>,
     pub included: HashSet<&'a str>,
     pub depth: u32,
@@ -17,42 +13,40 @@ struct MacroEnv<'a> {
 impl<'a> MacroEnv<'a> {
     pub fn new() -> Self {
         let replacers = vec![];
-        let imports = vec![];
         let functions = vec![];
         Self {
             replacers,
-            imports,
             functions,
             included: HashSet::new(),
             depth: 0,
         }
     }
 
-    pub fn take(&mut self, ast: Ast<'a>) -> Ast<'a> {
+    pub fn take(&mut self, mut ast: Ast<'a>) -> Ast<'a> {
         let mut defs = vec![];
-        for def in ast.0.into_iter() {
+        for def in ast.defs.into_iter() {
             match def {
                 AstDef::MacroDef(m) => {
                     match m {
                         AstMacro::Inliner(..) => self.functions.push(m),
                         AstMacro::Replacer(..) => self.replacers.push(m),
                         AstMacro::ImportFile(filename) => {
-                            self.imports.push((m, Ast(vec![])));
-                            defs.push(AstDef::MacroDef(AstMacro::ImportFile(*&&filename)));
+                            defs.push(AstDef::MacroDef(AstMacro::ImportFile(filename)));
                         }
                     };
                 }
                 _ => defs.push(def),
             }
         }
-        Ast(defs)
+        ast.defs = defs;
+        ast
     }
 
     #[allow(dead_code)]
     pub fn place_files(&'a mut self, ast: &mut Ast<'a>) {
-        let defs_with_imports = mem::take(&mut ast.0)
+        let defs_with_imports = mem::take(&mut ast.defs)
             .into_iter()
-            .map(|def| match &def {
+            .flat_map(|def| match &def {
                 AstDef::MacroDef(AstMacro::ImportFile(filename))
                     if !self.included.insert(filename) =>
                 {
@@ -70,7 +64,7 @@ impl<'a> MacroEnv<'a> {
             })
             .collect::<Vec<_>>();
 
-        *ast = Ast(defs_with_imports.into_iter().flatten().collect());
+        ast.defs = defs_with_imports;
     }
 }
 

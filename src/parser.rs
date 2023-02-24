@@ -12,6 +12,7 @@ pub struct ImpcoreParser;
 
 impl ImpcoreParser {
     pub fn generate_ast(code: &str) -> Result<Ast, String> {
+        let mut parser_output = Ast { defs: vec![] };
         let mut tests = vec![];
         let mut defs = ImpcoreParser::parse(Rule::impcore, code)
             .map_err(|e| format!("Parsing Failed: {}", e))?
@@ -29,7 +30,8 @@ impl ImpcoreParser {
             .collect::<Vec<AstDef>>();
 
         defs.append(&mut tests);
-        let parser_output = Ast(defs);
+
+        parser_output.defs = defs;
         Ok(parser_output)
     }
 }

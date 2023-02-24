@@ -7,7 +7,9 @@ use inkwell::values::IntValue;
 use std::slice::{Iter, IterMut};
 
 #[derive(Clone)]
-pub struct Ast<'a>(pub Vec<AstDef<'a>>);
+pub struct Ast<'a> {
+    pub defs: Vec<AstDef<'a>>,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstExpr<'a> {
@@ -272,10 +274,10 @@ impl<'a> AstExpr<'a> {
 
 impl<'a> Ast<'a> {
     pub fn iter(&self) -> Iter<'_, AstDef> {
-        self.0.iter()
+        self.defs.iter()
     }
 
     pub fn iter_mut(&mut self) -> IterMut<'_, AstDef<'a>> {
-        self.0.iter_mut()
+        self.defs.iter_mut()
     }
 }

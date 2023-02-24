@@ -9,13 +9,13 @@ impl<'a> Ast<'a> {
 }
 
 fn append_garbage_collector(ast: &mut Ast) {
-    ast.0.push(AstDef::FreeAll);
+    ast.defs.push(AstDef::FreeAll);
 }
 
 fn predefine_globals(ast: &mut Ast) {
     let mut global_names = HashSet::new();
     let mut declarations = vec![];
-    let mut defs = std::mem::take(&mut ast.0)
+    let mut defs = std::mem::take(&mut ast.defs)
         .into_iter()
         .map(|e| match e {
             AstDef::Global(n, ..) if global_names.insert(n) => {
@@ -27,7 +27,7 @@ fn predefine_globals(ast: &mut Ast) {
         .collect();
 
     declarations.append(&mut defs);
-    *ast = Ast(declarations)
+    ast.defs = declarations;
 }
 
 #[allow(dead_code)]
