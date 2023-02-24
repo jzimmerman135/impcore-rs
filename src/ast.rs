@@ -154,19 +154,19 @@ impl<'a> AstDef<'a> {
         Ok(())
     }
 
-    pub fn reconstruct<F>(mut self, mut construct: F) -> Result<Self, String>
+    pub fn reconstruct<F>(mut self, construct: &F) -> Result<Self, String>
     where
-        F: FnMut(AstExpr<'a>) -> Result<AstExpr<'a>, String>,
+        F: Fn(AstExpr<'a>) -> Result<AstExpr<'a>, String>,
     {
         match &mut self {
             Self::CheckAssert(body, _)
             | Self::CheckError(body, _)
             | Self::Global(_, body, _)
             | Self::Function(_, _, body)
-            | Self::TopLevelExpr(body) => *body = construct(mem::take(body))?,
+            | Self::TopLevelExpr(body) => *body = mem::take(body).reconstruct(construct)?,
             Self::CheckExpect(lhs, rhs, _) => {
-                *lhs = construct(mem::take(lhs))?;
-                *rhs = construct(mem::take(rhs))?;
+                *lhs = mem::take(lhs).reconstruct(construct)?;
+                *rhs = mem::take(rhs).reconstruct(construct)?;
             }
             Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) | Self::FreeAll => {
                 return Ok(self)
@@ -177,37 +177,37 @@ impl<'a> AstDef<'a> {
 }
 
 impl<'a> AstExpr<'a> {
-    pub fn reconstruct<F>(mut self, mut construct: F) -> Result<Self, String>
+    pub fn reconstruct<F>(mut self, construct: &F) -> Result<Self, String>
     where
-        F: FnMut(AstExpr<'a>) -> Result<AstExpr<'a>, String>,
+        F: Fn(AstExpr<'a>) -> Result<AstExpr<'a>, String>,
     {
         self = construct(self)?;
         match &mut self {
             Self::Unary(_, body) | Self::Assign(_, body, None) | Self::Variable(_, Some(body)) => {
-                *body = Box::new(construct(mem::take(body))?);
+                *body = Box::new(mem::take(body).reconstruct(construct)?);
             }
             Self::Binary(_, lhs, rhs) => {
-                *lhs = Box::new(construct(mem::take(lhs))?);
-                *rhs = Box::new(construct(mem::take(rhs))?);
+                *lhs = Box::new(mem::take(lhs).reconstruct(construct)?);
+                *rhs = Box::new(mem::take(rhs).reconstruct(construct)?);
             }
             Self::While(cond, body) => {
-                *cond = Box::new(construct(mem::take(cond))?);
-                *body = Box::new(construct(mem::take(body))?);
+                *cond = Box::new(mem::take(cond).reconstruct(construct)?);
+                *body = Box::new(mem::take(body).reconstruct(construct)?);
             }
             Self::Assign(_, body, Some(index)) => {
-                *body = Box::new(construct(mem::take(body))?);
-                *index = Box::new(construct(mem::take(index))?);
+                *body = Box::new(mem::take(body).reconstruct(construct)?);
+                *index = Box::new(mem::take(index).reconstruct(construct)?);
             }
             Self::Begin(exprs) | Self::Call(_, exprs) => {
                 *exprs = mem::take(exprs)
                     .into_iter()
-                    .map(construct)
+                    .map(|e| e.reconstruct(construct))
                     .collect::<Result<Vec<_>, String>>()?;
             }
             Self::If(cond, truecase, falsecase) => {
-                *cond = Box::new(construct(mem::take(cond))?);
-                *truecase = Box::new(construct(mem::take(truecase))?);
-                *falsecase = Box::new(construct(mem::take(falsecase))?);
+                *cond = Box::new(mem::take(cond).reconstruct(construct)?);
+                *truecase = Box::new(mem::take(truecase).reconstruct(construct)?);
+                *falsecase = Box::new(mem::take(falsecase).reconstruct(construct)?);
             }
             Self::MacroVal(_)
             | Self::Error

@@ -4,7 +4,8 @@
 
 (define char (x) (& x 0xff))
 
-#(replace 'EOF -1)
+#(replace 'HI (+ (- 97 1) 1))
+#(replace 'EOF (+ -1 1))
 #(replace ('SQ x) (* x x))
 #(replace ('NOT x) (if x 0 1))
 
@@ -20,7 +21,7 @@
 (set buffer[0] (word 97 98 99 100))
 (set buffer[1] (word 97 98 99 100))
 (set buffer[2] (word 97 98 99 100))
-(set buffer[3] (word 97 98 99 10))
-(set buffer[4] (word 'EOF 'EOF 99 10))
+(set buffer[3] (word 'HI 98 99 10))
+(set buffer[4] (word 'EOF 'EOF 0 0))
 'EOF 
 (printstr buffer[])

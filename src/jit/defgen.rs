@@ -37,7 +37,7 @@ impl<'a> AstDef<'a> {
             Self::ImportLib(name) => {
                 return Err(format!("Unbound library {}, got {:?}", name, self))
             }
-            _ => unreachable!("unreacheable defgen {:?}", self),
+            _ => NativeTopLevel::Noop,
         };
         Ok(native)
     }

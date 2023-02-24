@@ -9,6 +9,7 @@ use regex::Regex;
 use crate::ast::{Ast, AstDef, AstExpr, AstMacro};
 
 #[allow(unused)]
+#[derive(Debug)]
 struct MacroEnv<'a> {
     pub replacers: HashMap<AstExpr<'a>, AstExpr<'a>>,
     pub functions: Vec<AstMacro<'a>>,
@@ -18,13 +19,22 @@ struct MacroEnv<'a> {
 
 impl<'a> MacroEnv<'a> {
     pub fn new() -> Self {
-        let replacers = HashMap::new();
-        let functions = vec![];
         Self {
-            replacers,
-            functions,
+            replacers: HashMap::new(),
+            functions: vec![],
             included: HashSet::new(),
             depth: 0,
+        }
+    }
+
+    pub fn try_replace(&self, exp: AstExpr<'a>) -> Result<AstExpr<'a>, String> {
+        match &exp {
+            AstExpr::MacroVal(name) => self
+                .replacers
+                .get(&exp)
+                .ok_or(format!("Macro: {} not found", name))
+                .cloned(),
+            _ => Ok(exp),
         }
     }
 
@@ -70,17 +80,43 @@ impl<'a> MacroEnv<'a> {
     }
 }
 
-pub fn collect_code(entryfile: &str) -> Result<HashMap<String, String>, String> {
-    let mut path = PathBuf::from(entryfile);
-    let filename = path.file_name().unwrap().to_str().unwrap().to_string();
-    path.pop();
-    let import_pattern = Regex::new(r#"#\(import\s+"(?P<filename>\S*)"\s*\)"#).unwrap();
-    collect_code_recurse(&filename, path, HashMap::new(), &import_pattern)
+pub struct CodeBase(HashMap<String, String>);
+impl CodeBase {
+    pub fn get(&self, filepath: &str) -> Result<&String, String> {
+        self.0
+            .get(filepath)
+            .ok_or(format!("Could not locate file {}", filepath))
+    }
+
+    fn parse_asts<'a>(&'a self) -> Result<HashMap<&'a str, Ast<'a>>, String> {
+        let mut map = HashMap::new();
+        for (name, contents) in self.0.iter() {
+            map.insert(name.as_str(), Ast::from(contents)?);
+        }
+        Ok(map)
+    }
+
+    pub fn build_ast<'a>(&'a self, entry_filepath: &str) -> Result<Ast<'a>, String> {
+        let mut asts = self.parse_asts()?;
+        let ast = asts
+            .remove(entry_filepath)
+            .ok_or(format!("Couldn't find ast for {}", entry_filepath))?;
+        Ok(ast)
+    }
+
+    pub fn collect(entry_filepath: &str) -> Result<Self, String> {
+        let mut path = PathBuf::from(entry_filepath);
+        let filename = path.file_name().unwrap().to_str().unwrap().to_string();
+        path.pop();
+        let import_pattern = Regex::new(r#"#\(import\s+"(?P<filename>\S*)"\s*\)"#).unwrap();
+        let map = collect_code_recurse(&filename, &mut path, HashMap::new(), &import_pattern)?;
+        Ok(CodeBase(map))
+    }
 }
 
 fn collect_code_recurse(
     filename: &str,
-    mut basedir: PathBuf,
+    basedir: &mut PathBuf,
     mut included_files: HashMap<String, String>,
     import_pattern: &Regex,
 ) -> Result<HashMap<String, String>, String> {
@@ -93,22 +129,16 @@ fn collect_code_recurse(
     }
 
     let contents = fs::read_to_string(&pathstring)
-        .map_err(|_| format!("Failed to open filename {}", filename))?;
+        .map_err(|_| format!("Failed to open filename {:?} {}", basedir, pathstring))?;
 
     included_files.insert(pathstring.clone(), String::new());
 
     for capture in import_pattern.captures_iter(&contents) {
         let filename = &capture["filename"];
-        included_files = collect_code_recurse(
-            filename,
-            mem::take(&mut basedir),
-            included_files,
-            import_pattern,
-        )?;
+        included_files = collect_code_recurse(filename, basedir, included_files, import_pattern)?;
     }
 
     included_files.insert(pathstring, contents);
-
     Ok(included_files)
 }
 
@@ -116,6 +146,12 @@ impl<'a> Ast<'a> {
     pub fn expand_macros(mut self) -> Self {
         let mut macro_env = MacroEnv::new();
         self = macro_env.take(self);
+        self.defs = self
+            .defs
+            .into_iter()
+            .map(|def| def.reconstruct(&|e| macro_env.try_replace(e)))
+            .collect::<Result<_, _>>()
+            .unwrap();
         self
     }
 }
