@@ -20,7 +20,7 @@ pub fn parse_replacer(def: Pair<Rule>) -> AstDef {
     let mut innerdef = def.into_inner();
     let identifier = innerdef.next().unwrap().as_str();
     let expr = AstExpr::parse(innerdef.next().unwrap());
-    AstDef::MacroDef(AstMacro::Replacer(identifier, expr))
+    AstDef::MacroDef(AstMacro::Replacer(AstExpr::MacroVal(identifier), expr))
 }
 
 pub fn parse_inliner(def: Pair<Rule>) -> AstDef {

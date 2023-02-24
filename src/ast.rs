@@ -1,12 +1,15 @@
 use crate::parser::ImpcoreParser;
-use std::slice::{Iter, IterMut};
+use std::{
+    mem,
+    slice::{Iter, IterMut},
+};
 
 #[derive(Clone)]
 pub struct Ast<'a> {
     pub defs: Vec<AstDef<'a>>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum AstExpr<'a> {
     Literal(i32),
     Variable(&'a str, Option<Box<AstExpr<'a>>>),
@@ -45,14 +48,14 @@ pub enum AstDef<'a> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum AstMacro<'a> {
     ImportFile(&'a str),
-    Replacer(&'a str, AstExpr<'a>),
+    Replacer(AstExpr<'a>, AstExpr<'a>),
     Inliner(&'a str, Vec<AstExpr<'a>>, AstExpr<'a>),
 }
 
 impl<'a> Ast<'a> {
     pub fn from(contents: &str) -> Result<Ast, String> {
         Ok(ImpcoreParser::generate_ast(contents)?
-            .preprocess()
+            .expand_macros()
             .prepare())
     }
 }
@@ -149,6 +152,76 @@ impl<'a> AstDef<'a> {
             child.for_each(apply)?;
         }
         Ok(())
+    }
+
+    pub fn reconstruct<F>(mut self, mut construct: F) -> Result<Self, String>
+    where
+        F: FnMut(AstExpr<'a>) -> Result<AstExpr<'a>, String>,
+    {
+        match &mut self {
+            Self::CheckAssert(body, _)
+            | Self::CheckError(body, _)
+            | Self::Global(_, body, _)
+            | Self::Function(_, _, body)
+            | Self::TopLevelExpr(body) => *body = construct(mem::take(body))?,
+            Self::CheckExpect(lhs, rhs, _) => {
+                *lhs = construct(mem::take(lhs))?;
+                *rhs = construct(mem::take(rhs))?;
+            }
+            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) | Self::FreeAll => {
+                return Ok(self)
+            }
+        };
+        Ok(self)
+    }
+}
+
+impl<'a> AstExpr<'a> {
+    pub fn reconstruct<F>(mut self, mut construct: F) -> Result<Self, String>
+    where
+        F: FnMut(AstExpr<'a>) -> Result<AstExpr<'a>, String>,
+    {
+        self = construct(self)?;
+        match &mut self {
+            Self::Unary(_, body) | Self::Assign(_, body, None) | Self::Variable(_, Some(body)) => {
+                *body = Box::new(construct(mem::take(body))?);
+            }
+            Self::Binary(_, lhs, rhs) => {
+                *lhs = Box::new(construct(mem::take(lhs))?);
+                *rhs = Box::new(construct(mem::take(rhs))?);
+            }
+            Self::While(cond, body) => {
+                *cond = Box::new(construct(mem::take(cond))?);
+                *body = Box::new(construct(mem::take(body))?);
+            }
+            Self::Assign(_, body, Some(index)) => {
+                *body = Box::new(construct(mem::take(body))?);
+                *index = Box::new(construct(mem::take(index))?);
+            }
+            Self::Begin(exprs) | Self::Call(_, exprs) => {
+                *exprs = mem::take(exprs)
+                    .into_iter()
+                    .map(construct)
+                    .collect::<Result<Vec<_>, String>>()?;
+            }
+            Self::If(cond, truecase, falsecase) => {
+                *cond = Box::new(construct(mem::take(cond))?);
+                *truecase = Box::new(construct(mem::take(truecase))?);
+                *falsecase = Box::new(construct(mem::take(falsecase))?);
+            }
+            Self::MacroVal(_)
+            | Self::Error
+            | Self::Variable(_, None)
+            | Self::Literal(..)
+            | Self::Pointer(..) => return Ok(self),
+        };
+        Ok(self)
+    }
+}
+
+impl<'a> Default for AstExpr<'a> {
+    fn default() -> Self {
+        AstExpr::Error
     }
 }
 

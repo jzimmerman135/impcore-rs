@@ -1,15 +1,16 @@
 use std::{
     collections::{HashMap, HashSet},
     fs, mem,
+    path::PathBuf,
 };
 
 use regex::Regex;
 
-use crate::ast::{Ast, AstDef, AstMacro};
+use crate::ast::{Ast, AstDef, AstExpr, AstMacro};
 
 #[allow(unused)]
 struct MacroEnv<'a> {
-    pub replacers: Vec<AstMacro<'a>>,
+    pub replacers: HashMap<AstExpr<'a>, AstExpr<'a>>,
     pub functions: Vec<AstMacro<'a>>,
     pub included: HashSet<&'a str>,
     pub depth: u32,
@@ -17,7 +18,7 @@ struct MacroEnv<'a> {
 
 impl<'a> MacroEnv<'a> {
     pub fn new() -> Self {
-        let replacers = vec![];
+        let replacers = HashMap::new();
         let functions = vec![];
         Self {
             replacers,
@@ -34,8 +35,11 @@ impl<'a> MacroEnv<'a> {
                 AstDef::MacroDef(m) => {
                     match m {
                         AstMacro::Inliner(..) => self.functions.push(m),
-                        AstMacro::Replacer(..) => self.replacers.push(m),
+                        AstMacro::Replacer(macroval, expr) => {
+                            self.replacers.insert(macroval, expr);
+                        }
                         AstMacro::ImportFile(filename) => {
+                            self.included.insert(filename);
                             defs.push(AstDef::MacroDef(AstMacro::ImportFile(filename)));
                         }
                     };
@@ -57,7 +61,6 @@ impl<'a> MacroEnv<'a> {
                 {
                     vec![def]
                 }
-
                 AstDef::MacroDef(AstMacro::ImportFile(_)) => vec![],
                 _ => vec![def],
             })
@@ -67,31 +70,50 @@ impl<'a> MacroEnv<'a> {
     }
 }
 
-pub fn collect_code<'a>(entryfile: &'a str) -> Vec<(String, String)> {
-    let mut files = HashMap::new();
-    let import_pattern = Regex::new(r#"#\(import\s+"(\S*)"\s*\)"#).unwrap();
-    collect_code_helper(entryfile, &mut files, &import_pattern);
-    files.into_iter().collect()
+pub fn collect_code(entryfile: &str) -> Result<HashMap<String, String>, String> {
+    let mut path = PathBuf::from(entryfile);
+    let filename = path.file_name().unwrap().to_str().unwrap().to_string();
+    path.pop();
+    let import_pattern = Regex::new(r#"#\(import\s+"(?P<filename>\S*)"\s*\)"#).unwrap();
+    collect_code_recurse(&filename, path, HashMap::new(), &import_pattern)
 }
 
-fn collect_code_helper<'a>(
-    filename: &'a str,
-    included_files: &mut HashMap<String, String>,
+fn collect_code_recurse(
+    filename: &str,
+    mut basedir: PathBuf,
+    mut included_files: HashMap<String, String>,
     import_pattern: &Regex,
-) {
-    if included_files.contains_key(filename) {
-        return;
+) -> Result<HashMap<String, String>, String> {
+    basedir.push(filename);
+    let pathstring = basedir.to_str().unwrap().to_string();
+    basedir.pop();
+
+    if included_files.contains_key(&pathstring) {
+        return Ok(included_files);
     }
-    let contents = fs::read_to_string(&filename).unwrap();
+
+    let contents = fs::read_to_string(&pathstring)
+        .map_err(|_| format!("Failed to open filename {}", filename))?;
+
+    included_files.insert(pathstring.clone(), String::new());
+
     for capture in import_pattern.captures_iter(&contents) {
         let filename = &capture["filename"];
-        collect_code_helper(filename, included_files, import_pattern);
+        included_files = collect_code_recurse(
+            filename,
+            mem::take(&mut basedir),
+            included_files,
+            import_pattern,
+        )?;
     }
-    included_files.insert(filename.to_string(), contents);
+
+    included_files.insert(pathstring, contents);
+
+    Ok(included_files)
 }
 
 impl<'a> Ast<'a> {
-    pub fn preprocess(mut self) -> Self {
+    pub fn expand_macros(mut self) -> Self {
         let mut macro_env = MacroEnv::new();
         self = macro_env.take(self);
         self
