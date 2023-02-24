@@ -1,4 +1,9 @@
-use std::{collections::HashSet, mem};
+use std::{
+    collections::{HashMap, HashSet},
+    fs, mem,
+};
+
+use regex::Regex;
 
 use crate::ast::{Ast, AstDef, AstMacro};
 
@@ -50,12 +55,6 @@ impl<'a> MacroEnv<'a> {
                 AstDef::MacroDef(AstMacro::ImportFile(filename))
                     if !self.included.insert(filename) =>
                 {
-                    // let contents = fs::read_to_string(filename).unwrap();
-                    // ImpcoreParser::generate_ast(contents.as_str())
-                    //     .unwrap()
-                    //     .preprocess()
-                    //     .prepare()
-                    //     .0
                     vec![def]
                 }
 
@@ -66,6 +65,29 @@ impl<'a> MacroEnv<'a> {
 
         ast.defs = defs_with_imports;
     }
+}
+
+pub fn collect_code<'a>(entryfile: &'a str) -> Vec<(String, String)> {
+    let mut files = HashMap::new();
+    let import_pattern = Regex::new(r#"#\(import\s+"(\S*)"\s*\)"#).unwrap();
+    collect_code_helper(entryfile, &mut files, &import_pattern);
+    files.into_iter().collect()
+}
+
+fn collect_code_helper<'a>(
+    filename: &'a str,
+    included_files: &mut HashMap<String, String>,
+    import_pattern: &Regex,
+) {
+    if included_files.contains_key(filename) {
+        return;
+    }
+    let contents = fs::read_to_string(&filename).unwrap();
+    for capture in import_pattern.captures_iter(&contents) {
+        let filename = &capture["filename"];
+        collect_code_helper(filename, included_files, import_pattern);
+    }
+    included_files.insert(filename.to_string(), contents);
 }
 
 impl<'a> Ast<'a> {

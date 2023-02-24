@@ -1,6 +1,6 @@
 use clap::Parser as ArgParser;
+use impcore_rs::ast::Ast;
 use impcore_rs::jit;
-use impcore_rs::parser::ImpcoreParser;
 use impcore_rs::{print_ast, print_ir, rip};
 use std::fs;
 
@@ -22,10 +22,7 @@ fn main() {
     let contents = fs::read_to_string(input_file)
         .unwrap_or_else(|_| rip(format!("Failed to open file {}", input_file)));
 
-    let ast = ImpcoreParser::generate_ast(&contents)
-        .unwrap_or_else(|s| rip(s))
-        .preprocess()
-        .prepare();
+    let ast = Ast::from(&contents).unwrap_or_else(|s| rip(s));
 
     if cli.debug {
         print_ast(&ast);

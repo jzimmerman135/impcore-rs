@@ -1,6 +1,24 @@
+use super::*;
 use crate::ast::AstType;
 
-use super::*;
+impl<'a> AstDef<'a> {
+    pub fn parse(def: Pair<Rule>) -> AstDef {
+        match def.as_rule() {
+            Rule::tle => AstDef::TopLevelExpr(AstExpr::parse(def.into_inner().next().unwrap())),
+            Rule::val => def_parse::parse_val(def),
+            Rule::check_assert => def_parse::parse_check_assert(def),
+            Rule::check_expect => def_parse::parse_check_expect(def),
+            Rule::check_error => def_parse::parse_check_error(def),
+            Rule::define => def_parse::parse_define(def),
+            Rule::alloc => def_parse::parse_alloc(def),
+            Rule::lib => macro_parse::parse_importlib(def),
+            Rule::file => macro_parse::parse_importfile(def),
+            Rule::replacer => macro_parse::parse_replacer(def),
+            Rule::inliner => macro_parse::parse_inliner(def),
+            _ => unreachable!("got unreachable def rule {:?}", def.as_rule()),
+        }
+    }
+}
 
 pub fn parse_val(def: Pair<Rule>) -> AstDef {
     let mut def = def.into_inner();

@@ -2,6 +2,28 @@ use super::*;
 use crate::ast::AstExpr;
 use inkwell::IntPredicate;
 
+impl<'a> AstExpr<'a> {
+    pub fn codegen(&self, compiler: &mut Compiler<'a>) -> Result<IntValue<'a>, String> {
+        match self {
+            Self::Binary(op, lhs, rhs) => codegen::codegen_binary(op, lhs, rhs, compiler),
+            Self::Unary(op, body) => codegen::codegen_unary(op, body, compiler),
+            Self::If(cond, t, f) => codegen::codegen_if(cond, t, f, compiler),
+            Self::While(cond, body) => codegen::codegen_while(cond, body, compiler),
+            Self::Call(name, args) => codegen::codegen_call(name, args, compiler),
+            Self::Literal(value) => codegen::codegen_literal(*value, compiler),
+            Self::Variable(name, index) => {
+                codegen::codegen_variable(name, index.as_deref(), compiler)
+            }
+            Self::Assign(name, body, index) => {
+                codegen::codegen_assign(name, index.as_deref(), body, compiler)
+            }
+            Self::Error => codegen::codegen_literal(1, compiler),
+            Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
+            _ => unreachable!("cannot codegen from {:?}", self),
+        }
+    }
+}
+
 pub fn codegen_literal<'a>(
     value: i32,
     compiler: &mut Compiler<'a>,

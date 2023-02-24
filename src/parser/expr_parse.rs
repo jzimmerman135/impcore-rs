@@ -1,6 +1,30 @@
 use super::*;
 use std::i32;
 
+impl<'a> AstExpr<'a> {
+    pub fn parse(expr: Pair<Rule>) -> AstExpr {
+        match expr.as_rule() {
+            Rule::literal => expr_parse::parse_literal(expr),
+            Rule::variable => expr_parse::parse_variable(expr),
+            Rule::binary => expr_parse::parse_binary(expr),
+            Rule::unary => expr_parse::parse_unary(expr),
+            Rule::print => expr_parse::parse_unary(expr),
+            Rule::user => expr_parse::parse_call(expr),
+            Rule::fgetc => AstExpr::Call(expr.as_str(), vec![]),
+            Rule::ifx => expr_parse::parse_if(expr),
+            Rule::whilex => expr_parse::parse_while(expr),
+            Rule::begin => expr_parse::parse_begin(expr),
+            Rule::set => expr_parse::parse_set(expr),
+            Rule::array_value => expr_parse::parse_indexer(expr),
+            Rule::pointer => expr_parse::parse_pointer(expr),
+            Rule::error => AstExpr::Error,
+            Rule::macroval => macro_parse::parse_macroval(expr),
+            Rule::parameter => expr_parse::parse_variable(expr),
+            _ => unreachable!("got unreachable expr rule {:?}", expr.as_rule()),
+        }
+    }
+}
+
 pub fn parse_literal(expr: Pair<Rule>) -> AstExpr {
     let numstr = expr.as_str();
     let number = if let Some(hexadecimal_str) = numstr.strip_prefix("0x") {

@@ -1,7 +1,47 @@
 use inkwell::AddressSpace;
 
 use super::*;
-use crate::ast::{AstExpr, AstType};
+use crate::ast::{AstDef, AstExpr, AstType};
+
+impl<'a> AstDef<'a> {
+    pub fn defgen(&self, compiler: &mut Compiler<'a>) -> Result<NativeTopLevel<'a>, String> {
+        compiler.clear_curr_function();
+        let native = match self {
+            Self::Function(name, params, body) => NativeTopLevel::FunctionDef(
+                defgen::defgen_function(name, params, body, compiler)?,
+                name,
+            ),
+            Self::TopLevelExpr(body) => {
+                NativeTopLevel::TopLevelExpr(defgen::defgen_anonymous(body, compiler)?)
+            }
+            Self::CheckAssert(body, contents) => {
+                NativeTopLevel::CheckAssert(defgen::defgen_anonymous(body, compiler)?, contents)
+            }
+            Self::CheckExpect(lhs, rhs, contents) => NativeTopLevel::CheckExpect(
+                defgen::defgen_anonymous(lhs, compiler)?,
+                defgen::defgen_anonymous(rhs, compiler)?,
+                contents,
+            ),
+            Self::CheckError(..) => todo!(),
+            Self::Global(name, value, var_type) => NativeTopLevel::TopLevelExpr(
+                defgen::defgen_global(name, value, *var_type, compiler)?,
+            ),
+            Self::DeclareGlobal(name) => {
+                defgen::declare_global(name, compiler);
+                NativeTopLevel::Noop
+            }
+            Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_cleanup(compiler)?),
+            Self::ImportLib("stdin") => {
+                NativeTopLevel::TopLevelExpr(defgen::defgen_stdin(compiler)?)
+            }
+            Self::ImportLib(name) => {
+                return Err(format!("Unbound library {}, got {:?}", name, self))
+            }
+            _ => unreachable!("unreacheable defgen {:?}", self),
+        };
+        Ok(native)
+    }
+}
 
 pub fn declare_global<'a>(name: &'a str, compiler: &mut Compiler<'a>) {
     let addr_space = AddressSpace::default();

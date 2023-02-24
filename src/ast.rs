@@ -1,9 +1,4 @@
-use crate::{
-    jit::{codegen, defgen, Compiler, NativeTopLevel},
-    parser::{def_parse, expr_parse, *},
-};
-
-use inkwell::values::IntValue;
+use crate::parser::ImpcoreParser;
 use std::slice::{Iter, IterMut};
 
 #[derive(Clone)]
@@ -54,104 +49,11 @@ pub enum AstMacro<'a> {
     Inliner(&'a str, Vec<AstExpr<'a>>, AstExpr<'a>),
 }
 
-impl<'a> AstDef<'a> {
-    pub fn parse(def: Pair<Rule>) -> AstDef {
-        match def.as_rule() {
-            Rule::tle => AstDef::TopLevelExpr(AstExpr::parse(def.into_inner().next().unwrap())),
-            Rule::val => def_parse::parse_val(def),
-            Rule::check_assert => def_parse::parse_check_assert(def),
-            Rule::check_expect => def_parse::parse_check_expect(def),
-            Rule::check_error => def_parse::parse_check_error(def),
-            Rule::define => def_parse::parse_define(def),
-            Rule::alloc => def_parse::parse_alloc(def),
-            Rule::lib => macro_parse::parse_importlib(def),
-            Rule::file => macro_parse::parse_importfile(def),
-            Rule::replacer => macro_parse::parse_replacer(def),
-            Rule::inliner => macro_parse::parse_inliner(def),
-            _ => unreachable!("got unreachable def rule {:?}", def.as_rule()),
-        }
-    }
-
-    pub fn defgen(&self, compiler: &mut Compiler<'a>) -> Result<NativeTopLevel<'a>, String> {
-        compiler.clear_curr_function();
-        let native = match self {
-            Self::Function(name, params, body) => NativeTopLevel::FunctionDef(
-                defgen::defgen_function(name, params, body, compiler)?,
-                name,
-            ),
-            Self::TopLevelExpr(body) => {
-                NativeTopLevel::TopLevelExpr(defgen::defgen_anonymous(body, compiler)?)
-            }
-            Self::CheckAssert(body, contents) => {
-                NativeTopLevel::CheckAssert(defgen::defgen_anonymous(body, compiler)?, contents)
-            }
-            Self::CheckExpect(lhs, rhs, contents) => NativeTopLevel::CheckExpect(
-                defgen::defgen_anonymous(lhs, compiler)?,
-                defgen::defgen_anonymous(rhs, compiler)?,
-                contents,
-            ),
-            Self::CheckError(..) => todo!(),
-            Self::Global(name, value, var_type) => NativeTopLevel::TopLevelExpr(
-                defgen::defgen_global(name, value, *var_type, compiler)?,
-            ),
-            Self::DeclareGlobal(name) => {
-                defgen::declare_global(name, compiler);
-                NativeTopLevel::Noop
-            }
-            Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_cleanup(compiler)?),
-            Self::ImportLib("stdin") => {
-                NativeTopLevel::TopLevelExpr(defgen::defgen_stdin(compiler)?)
-            }
-            Self::ImportLib(name) => {
-                return Err(format!("Unbound library {}, got {:?}", name, self))
-            }
-            _ => unreachable!("unreacheable defgen {:?}", self),
-        };
-        Ok(native)
-    }
-}
-
-impl<'a> AstExpr<'a> {
-    pub fn parse(expr: Pair<Rule>) -> AstExpr {
-        match expr.as_rule() {
-            Rule::literal => expr_parse::parse_literal(expr),
-            Rule::variable => expr_parse::parse_variable(expr),
-            Rule::binary => expr_parse::parse_binary(expr),
-            Rule::unary => expr_parse::parse_unary(expr),
-            Rule::print => expr_parse::parse_unary(expr),
-            Rule::user => expr_parse::parse_call(expr),
-            Rule::fgetc => AstExpr::Call(expr.as_str(), vec![]),
-            Rule::ifx => expr_parse::parse_if(expr),
-            Rule::whilex => expr_parse::parse_while(expr),
-            Rule::begin => expr_parse::parse_begin(expr),
-            Rule::set => expr_parse::parse_set(expr),
-            Rule::array_value => expr_parse::parse_indexer(expr),
-            Rule::pointer => expr_parse::parse_pointer(expr),
-            Rule::error => AstExpr::Error,
-            Rule::macroval => macro_parse::parse_macroval(expr),
-            Rule::parameter => expr_parse::parse_variable(expr),
-            _ => unreachable!("got unreachable expr rule {:?}", expr.as_rule()),
-        }
-    }
-
-    pub fn codegen(&self, compiler: &mut Compiler<'a>) -> Result<IntValue<'a>, String> {
-        match self {
-            Self::Binary(op, lhs, rhs) => codegen::codegen_binary(op, lhs, rhs, compiler),
-            Self::Unary(op, body) => codegen::codegen_unary(op, body, compiler),
-            Self::If(cond, t, f) => codegen::codegen_if(cond, t, f, compiler),
-            Self::While(cond, body) => codegen::codegen_while(cond, body, compiler),
-            Self::Call(name, args) => codegen::codegen_call(name, args, compiler),
-            Self::Literal(value) => codegen::codegen_literal(*value, compiler),
-            Self::Variable(name, index) => {
-                codegen::codegen_variable(name, index.as_deref(), compiler)
-            }
-            Self::Assign(name, body, index) => {
-                codegen::codegen_assign(name, index.as_deref(), body, compiler)
-            }
-            Self::Error => codegen::codegen_literal(1, compiler),
-            Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
-            _ => unreachable!("cannot codegen from {:?}", self),
-        }
+impl<'a> Ast<'a> {
+    pub fn from(contents: &str) -> Result<Ast, String> {
+        Ok(ImpcoreParser::generate_ast(contents)?
+            .preprocess()
+            .prepare())
     }
 }
 
