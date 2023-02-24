@@ -21,7 +21,7 @@ PTR = _{ pointer ~ RBRACK }
 parameter = ${ PTR | variable }
 variable = @{ NAMED }
 array_value = { pointer ~ exp ~ RBRACK }
-macroval = { "'" ~ NAMED }
+macroval = { "'" ~ ( ASCII_ALPHA_UPPER | "_" )+ }
 ACCESSOR = _{ macroval | literal | array_value | variable }
 
 ARG = _{ (PTR ~ WSP* | exp) }
@@ -47,8 +47,9 @@ unary = { unary_operator ~ WSP+ ~ exp }
 print = { print_operator ~ WSP+ ~ exp }
 binary = { binary_operator ~ WSP+ ~ exp{2} }
 user = { function_name ~ WSP* ~ ARG* }
+inline = { macroval ~ WSP* ~ ARG* }
 fgetc = { "fgetc" }
-FUNCTION_CALL = _{ unary | binary | print | fgetc | user }
+FUNCTION_CALL = _{ unary | binary | print | fgetc | inline | user }
 
 ifx = { "if" ~ WSP+ ~ exp{3} }
 whilex = { "while" ~ WSP+ ~ exp{2} }

@@ -2,7 +2,7 @@
 #(import "hello.imp")
 #(import "hello.imp")
 
-(define char (x) (& x 0xff))
+#(replace ('CHAR x) (& x 0xff))
 
 #(replace 'HI (+ (- 97 1) 1))
 #(replace 'EOF (+ -1 1))
@@ -10,10 +10,10 @@
 #(replace ('NOT x) (if x 0 1))
 
 (define word (a b c d)
-  (| (char a)
-     (| (<< (char b) 8)
-        (| (<< (char c) 16)
-           (<< (char d) 24)))))
+  (| ('CHAR a)
+     (| (<< ('CHAR b) 8)
+        (| (<< ('CHAR c) 16)
+           (<< ('CHAR d) 24)))))
 
 'EOF 
 (val bufsize 81)

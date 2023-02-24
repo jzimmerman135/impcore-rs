@@ -12,7 +12,7 @@ use crate::ast::{Ast, AstDef, AstExpr, AstMacro};
 #[derive(Debug)]
 struct MacroEnv<'a> {
     pub replacers: HashMap<AstExpr<'a>, AstExpr<'a>>,
-    pub functions: Vec<AstMacro<'a>>,
+    pub functions: HashMap<&'a str, (Vec<AstExpr<'a>>, AstExpr<'a>)>,
     pub included: HashSet<&'a str>,
     pub depth: u32,
 }
@@ -21,7 +21,7 @@ impl<'a> MacroEnv<'a> {
     pub fn new() -> Self {
         Self {
             replacers: HashMap::new(),
-            functions: vec![],
+            functions: HashMap::new(),
             included: HashSet::new(),
             depth: 0,
         }
@@ -34,6 +34,21 @@ impl<'a> MacroEnv<'a> {
                 .get(&exp)
                 .ok_or(format!("Macro: {} not found", name))
                 .cloned(),
+            AstExpr::Call(name, args) if name.starts_with('\'') => {
+                let (formals, body) = self
+                    .functions
+                    .get(name)
+                    .ok_or(format!("Inline Function: {} not found", name))?;
+                let argmap = formals
+                    .iter()
+                    .zip(args)
+                    .collect::<HashMap<&AstExpr, &AstExpr>>();
+                let newbody = body.clone().reconstruct(&|e| match &argmap.get(&e) {
+                    Some(&v) => Ok(v.clone()),
+                    None => Ok(e),
+                })?;
+                Ok(newbody)
+            }
             _ => Ok(exp),
         }
     }
@@ -44,7 +59,9 @@ impl<'a> MacroEnv<'a> {
             match def {
                 AstDef::MacroDef(m) => {
                     match m {
-                        AstMacro::Inliner(..) => self.functions.push(m),
+                        AstMacro::Inliner(name, args, body) => {
+                            self.functions.insert(name, (args, body));
+                        }
                         AstMacro::Replacer(macroval, expr) => {
                             self.replacers.insert(macroval, expr);
                         }

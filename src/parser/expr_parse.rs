@@ -20,6 +20,7 @@ impl<'a> AstExpr<'a> {
             Rule::error => AstExpr::Error,
             Rule::macroval => macro_parse::parse_macroval(expr),
             Rule::parameter => expr_parse::parse_variable(expr),
+            Rule::inline => expr_parse::parse_call(expr),
             _ => unreachable!("got unreachable expr rule {:?}", expr.as_rule()),
         }
     }
