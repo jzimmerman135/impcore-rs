@@ -161,8 +161,6 @@ fn join_trees<'a>(
         .remove(&entrypoint)
         .ok_or(format!("Missing import {:?}", &entrypoint))?;
 
-    println!("{:?}", asts.keys());
-
     let defs = base
         .defs
         .into_iter()
@@ -172,10 +170,7 @@ fn join_trees<'a>(
                     .unwrap_or(Ast { defs: vec![] })
                     .defs
             }
-            AstDef::MacroDef(import) => {
-                println!("got macro {:?}", import);
-                vec![]
-            }
+            AstDef::MacroDef(_) => vec![],
             _ => vec![d],
         })
         .collect();

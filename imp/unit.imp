@@ -1,6 +1,5 @@
 #(import stdin)
 #(import "hello.imp")
-#(import "hello.imp")
 
 #(replace ('CHAR x) (& x 0xff))
 
