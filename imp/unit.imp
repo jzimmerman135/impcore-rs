@@ -1,25 +1,19 @@
 #(import stdin)
 #(import "stdlib/chars.imp")
-
-#(replace ('CHAR x) (& x 0xff))
+#(import "stdlib/word.imp")
 
 #(replace 'HI (+ (- 97 1) 1))
 #(replace 'EOF (+ -1 1))
 #(replace ('SQ x) (* x x))
 #(replace ('NOT x) (if x 0 1))
 
-(define word (a b c d)
-  (| ('CHAR a)
-     (| (<< ('CHAR b) 8)
-        (| (<< ('CHAR c) 16)
-           (<< ('CHAR d) 24)))))
 
 'EOF 
 (val bufsize 81)
 (val buffer[] bufsize)
 (set buffer[0] (word 'a 'b 'c 'd))
 (set buffer[1] (word 'A 'B 'C 'D))
-(set buffer[2] (word 97 98 99 100))
+(set buffer[2] (word 'C 'U 'N 'T))
 (set buffer[3] (word 'HI 98 99 10))
 (set buffer[4] (word 'EOF 'EOF 0 0))
 'EOF 

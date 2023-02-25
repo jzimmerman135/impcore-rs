@@ -154,7 +154,7 @@ define i32 @"#anon.4"() {
 entry:
   %load = load i32*, i32** @"buffer[", align 8
   %index = getelementptr i32, i32* %load, i32 2
-  %userfn = call i32 @word(i32 97, i32 98, i32 99, i32 100)
+  %userfn = call i32 @word(i32 67, i32 85, i32 78, i32 84)
   store i32 %userfn, i32* %index, align 4
   %printres = call i32 @println(i32 %userfn)
   ret i32 %userfn

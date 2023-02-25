@@ -96,6 +96,7 @@ impl CodeBase {
         let mut asts = self.parse_asts()?;
         let entry_import =
             AstMacro::ImportFile(entry_filepath.file_name().unwrap().to_str().unwrap());
+        println!("original ast: {:?}", asts.get(&entry_import).unwrap().defs);
         let ast = join_trees(&mut asts, entry_import)?;
         Ok(ast.expand_macros().prepare())
     }
@@ -113,14 +114,16 @@ impl CodeBase {
 
 fn collect_code_recurse(
     filename: &str,
-    basedir: &mut PathBuf,
+    basedir: &PathBuf,
     mut included_files: HashMap<String, String>,
     import_pattern: &Regex,
 ) -> Result<HashMap<String, String>, String> {
-    basedir.push(filename);
-    let pathstring = basedir.to_str().unwrap().to_string();
+    let mut dirclone = basedir.clone();
+    dirclone.push(filename);
+    let pathstring = dirclone.to_str().unwrap().to_string();
     let filename = filename.to_string();
-    basedir.pop();
+
+    println!("filename {}, basedir {:?}", filename, basedir);
 
     if included_files.contains_key(&filename) {
         return Ok(included_files);
@@ -128,6 +131,7 @@ fn collect_code_recurse(
 
     let contents = fs::read_to_string(&pathstring)
         .map_err(|_| format!("Failed to open filename {:?} {}", basedir, pathstring))?;
+
     included_files.insert(filename.clone(), String::new());
 
     for capture in import_pattern.captures_iter(&contents) {
