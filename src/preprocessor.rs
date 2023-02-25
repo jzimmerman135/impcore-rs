@@ -96,7 +96,6 @@ impl CodeBase {
         let mut asts = self.parse_asts()?;
         let entry_import =
             AstMacro::ImportFile(entry_filepath.file_name().unwrap().to_str().unwrap());
-        println!("original ast: {:?}", asts.get(&entry_import).unwrap().defs);
         let ast = join_trees(&mut asts, entry_import)?;
         Ok(ast.expand_macros().prepare())
     }
@@ -122,8 +121,6 @@ fn collect_code_recurse(
     dirclone.push(filename);
     let pathstring = dirclone.to_str().unwrap().to_string();
     let filename = filename.to_string();
-
-    println!("filename {}, basedir {:?}", filename, basedir);
 
     if included_files.contains_key(&filename) {
         return Ok(included_files);
