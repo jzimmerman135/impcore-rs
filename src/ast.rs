@@ -54,7 +54,7 @@ pub enum AstMacro<'a> {
 
 impl<'a> Ast<'a> {
     pub fn from(contents: &str) -> Result<Ast, String> {
-        Ok(ImpcoreParser::generate_ast(contents)?.expand_macros())
+        Ok(ImpcoreParser::generate_ast(contents)?)
     }
 }
 
@@ -222,6 +222,7 @@ impl<'a> Default for AstExpr<'a> {
         AstExpr::Error
     }
 }
+
 impl<'a> Default for AstMacro<'a> {
     fn default() -> Self {
         AstMacro::Replacer(AstExpr::Error, AstExpr::Error)

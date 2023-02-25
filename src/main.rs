@@ -18,13 +18,11 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let entry_filepath = cli.filename.as_deref().unwrap_or("./imp/basic.imp");
-    let codebase = CodeBase::collect(entry_filepath).unwrap_or_else(|s| rip(s));
-    let entry_filename = PathBuf::from(entry_filepath);
+    let entry_filepath = PathBuf::from(cli.filename.as_deref().unwrap_or("./imp/basic.imp"));
+    let codebase = CodeBase::collect(&entry_filepath).unwrap_or_else(|s| rip(s));
     let ast = codebase
-        .build_ast(&entry_filename)
-        .unwrap_or_else(|s| rip(s))
-        .prepare();
+        .build_ast(&entry_filepath)
+        .unwrap_or_else(|s| rip(s));
 
     if cli.debug {
         print_ast(&ast);

@@ -1,5 +1,5 @@
 #(import stdin)
-#(import "hello.imp")
+#(import "stdlib/chars.imp")
 
 #(replace ('CHAR x) (& x 0xff))
 
@@ -17,8 +17,8 @@
 'EOF 
 (val bufsize 81)
 (val buffer[] bufsize)
-(set buffer[0] (word 97 98 99 100))
-(set buffer[1] (word 97 98 99 100))
+(set buffer[0] (word 'a 'b 'c 'd))
+(set buffer[1] (word 'A 'B 'C 'D))
 (set buffer[2] (word 97 98 99 100))
 (set buffer[3] (word 'HI 98 99 10))
 (set buffer[4] (word 'EOF 'EOF 0 0))

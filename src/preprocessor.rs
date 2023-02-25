@@ -97,10 +97,10 @@ impl CodeBase {
         let entry_import =
             AstMacro::ImportFile(entry_filepath.file_name().unwrap().to_str().unwrap());
         let ast = join_trees(&mut asts, entry_import)?;
-        Ok(ast)
+        Ok(ast.expand_macros().prepare())
     }
 
-    pub fn collect(entry_filepath: &str) -> Result<Self, String> {
+    pub fn collect(entry_filepath: &PathBuf) -> Result<Self, String> {
         let mut path = PathBuf::from(entry_filepath);
         let filename = path.file_name().unwrap().to_str().unwrap().to_string();
         path.pop();
@@ -165,12 +165,14 @@ fn join_trees<'a>(
         .defs
         .into_iter()
         .flat_map(|d| match d {
-            AstDef::MacroDef(mut import) if asts.contains_key(&import) => {
+            AstDef::MacroDef(mut import @ AstMacro::ImportFile(..))
+                if asts.contains_key(&import) =>
+            {
                 join_trees(asts, mem::take(&mut import))
                     .unwrap_or(Ast { defs: vec![] })
                     .defs
             }
-            AstDef::MacroDef(_) => vec![],
+            AstDef::MacroDef(AstMacro::ImportFile(..)) => vec![],
             _ => vec![d],
         })
         .collect();

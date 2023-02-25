@@ -27,7 +27,7 @@ ACCESSOR = _{ (macroval | literal | array_value | variable) ~ &(WSP | RPAREN | R
 ARG = _{ (PTR ~ WSP* | exp) }
 
 lib = @{ LETTER* }
-file = @{ LETTER* ~ ".imp" }
+file = @{ ( LETTER | "/" | ".." | "./" )* ~ ".imp" }
 libimport = _{ "import" ~ WSP+ ~ lib }
 fileimport = _{ "import" ~ WSP+ ~ "\"" ~ file  ~ "\"" }
 

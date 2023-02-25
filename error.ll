@@ -9,7 +9,6 @@ target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 @fmt_u = private unnamed_addr constant [3 x i8] c"%u\00", align 1
 @fmt_c = private unnamed_addr constant [3 x i8] c"%c\00", align 1
 @fmt_str = private unnamed_addr constant [3 x i8] c"%s\00", align 1
-@"message[" = global i32* null
 @bufsize = global i32* null
 @"buffer[" = global i32* null
 @__stdin = global i8* null
@@ -73,97 +72,7 @@ entry:
   ret i32 %call
 }
 
-define i32 @char(i32 %x) {
-char:
-  %bitand = and i32 %x, 255
-  ret i32 %bitand
-}
-
 define i32 @word(i32 %a, i32 %b, i32 %c, i32 %d) {
-word:
-  %userfn = tail call i32 @char(i32 %a)
-  %userfn5 = tail call i32 @char(i32 %b)
-  %shiftl = shl i32 %userfn5, 8
-  %userfn7 = tail call i32 @char(i32 %c)
-  %shiftl8 = shl i32 %userfn7, 16
-  %userfn10 = tail call i32 @char(i32 %d)
-  %shiftl11 = shl i32 %userfn10, 24
-  %bitor = or i32 %shiftl, %userfn
-  %bitor12 = or i32 %bitor, %shiftl8
-  %bitor13 = or i32 %bitor12, %shiftl11
-  ret i32 %bitor13
-}
-
-define i32 @val() {
-entry:
-  %load = load i32*, i32** @"message[", align 8
-  %0 = bitcast i32* %load to i8*
-  tail call void @free(i8* %0)
-  %malloccall = tail call i8* @malloc(i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 4))
-  %array = bitcast i8* %malloccall to i32*
-  %1 = bitcast i32* %array to i8*
-  call void @llvm.memset.p0i8.i32(i8* align 4 %1, i8 0, i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 4), i1 false)
-  store i32* %array, i32** @"message[", align 8
-  %printres = call i32 @println(i32 4)
-  ret i32 4
-}
-
-declare void @free(i8*)
-
-declare noalias i8* @malloc(i32)
-
-; Function Attrs: argmemonly nofree nounwind willreturn writeonly
-declare void @llvm.memset.p0i8.i32(i8* nocapture writeonly, i8, i32, i1 immarg) #1
-
-define i32 @"#anon"() {
-entry:
-  %load = load i32*, i32** @"message[", align 8
-  %index = getelementptr i32, i32* %load, i32 0
-  %userfn = call i32 @word(i32 72, i32 101, i32 108, i32 108)
-  store i32 %userfn, i32* %index, align 4
-  %printres = call i32 @println(i32 %userfn)
-  ret i32 %userfn
-}
-
-define i32 @"#anon.1"() {
-entry:
-  %load = load i32*, i32** @"message[", align 8
-  %index = getelementptr i32, i32* %load, i32 1
-  %userfn = call i32 @word(i32 111, i32 32, i32 87, i32 111)
-  store i32 %userfn, i32* %index, align 4
-  %printres = call i32 @println(i32 %userfn)
-  ret i32 %userfn
-}
-
-define i32 @"#anon.2"() {
-entry:
-  %load = load i32*, i32** @"message[", align 8
-  %index = getelementptr i32, i32* %load, i32 2
-  %userfn = call i32 @word(i32 114, i32 108, i32 100, i32 33)
-  store i32 %userfn, i32* %index, align 4
-  %printres = call i32 @println(i32 %userfn)
-  ret i32 %userfn
-}
-
-define i32 @"#anon.3"() {
-entry:
-  %load = load i32*, i32** @"message[", align 8
-  %index = getelementptr i32, i32* %load, i32 3
-  %userfn = call i32 @word(i32 92, i32 110, i32 10, i32 0)
-  store i32 %userfn, i32* %index, align 4
-  %printres = call i32 @println(i32 %userfn)
-  ret i32 %userfn
-}
-
-define i32 @"#anon.4"() {
-entry:
-  %load = load i32*, i32** @"message[", align 8
-  %userfn = call i32 @printstr(i32* %load)
-  %printres = call i32 @println(i32 %userfn)
-  ret i32 %userfn
-}
-
-define i32 @word.5(i32 %a, i32 %b, i32 %c, i32 %d) {
 word:
   %bitand = and i32 %a, 255
   %bitand5 = shl i32 %b, 8
@@ -177,13 +86,13 @@ word:
   ret i32 %bitor13
 }
 
-define i32 @"#anon.6"() {
+define i32 @"#anon"() {
 entry:
   %printres = call i32 @println(i32 0)
   ret i32 0
 }
 
-define i32 @val.7() {
+define i32 @val() {
 entry:
   %load = load i32*, i32** @bufsize, align 8
   %0 = bitcast i32* %load to i8*
@@ -196,7 +105,11 @@ entry:
   ret i32 81
 }
 
-define i32 @val.8() {
+declare void @free(i8*)
+
+declare noalias i8* @malloc(i32)
+
+define i32 @val.1() {
 entry:
   %load = load i32*, i32** @bufsize, align 8
   %load1 = load i32, i32* %load, align 4
@@ -214,7 +127,10 @@ entry:
   ret i32 %load1
 }
 
-define i32 @"#anon.9"() {
+; Function Attrs: argmemonly nofree nounwind willreturn writeonly
+declare void @llvm.memset.p0i8.i32(i8* nocapture writeonly, i8, i32, i1 immarg) #1
+
+define i32 @"#anon.2"() {
 entry:
   %load = load i32*, i32** @"buffer[", align 8
   %index = getelementptr i32, i32* %load, i32 0
@@ -224,17 +140,17 @@ entry:
   ret i32 %userfn
 }
 
-define i32 @"#anon.10"() {
+define i32 @"#anon.3"() {
 entry:
   %load = load i32*, i32** @"buffer[", align 8
   %index = getelementptr i32, i32* %load, i32 1
-  %userfn = call i32 @word(i32 97, i32 98, i32 99, i32 100)
+  %userfn = call i32 @word(i32 65, i32 66, i32 67, i32 68)
   store i32 %userfn, i32* %index, align 4
   %printres = call i32 @println(i32 %userfn)
   ret i32 %userfn
 }
 
-define i32 @"#anon.11"() {
+define i32 @"#anon.4"() {
 entry:
   %load = load i32*, i32** @"buffer[", align 8
   %index = getelementptr i32, i32* %load, i32 2
@@ -244,7 +160,7 @@ entry:
   ret i32 %userfn
 }
 
-define i32 @"#anon.12"() {
+define i32 @"#anon.5"() {
 entry:
   %load = load i32*, i32** @"buffer[", align 8
   %index = getelementptr i32, i32* %load, i32 3
@@ -254,7 +170,7 @@ entry:
   ret i32 %userfn
 }
 
-define i32 @"#anon.13"() {
+define i32 @"#anon.6"() {
 entry:
   %load = load i32*, i32** @"buffer[", align 8
   %index = getelementptr i32, i32* %load, i32 4
@@ -264,13 +180,13 @@ entry:
   ret i32 %userfn
 }
 
-define i32 @"#anon.14"() {
+define i32 @"#anon.7"() {
 entry:
   %printres = call i32 @println(i32 0)
   ret i32 0
 }
 
-define i32 @"#anon.15"() {
+define i32 @"#anon.8"() {
 entry:
   %load = load i32*, i32** @"buffer[", align 8
   %userfn = call i32 @printstr(i32* %load)
