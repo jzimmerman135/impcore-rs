@@ -30,9 +30,9 @@ fn handle_library(capture: &Captures, libs: &[&str]) {
 fn handle_file_import(capture: &Captures, info: &mut IncludeInfo, output: &mut String) {
     info.depth += 1;
     let filename = &capture[1]
-        .strip_prefix(r#"""#)
+        .strip_prefix('"')
         .unwrap()
-        .strip_suffix(r#"""#)
+        .strip_suffix('"')
         .unwrap();
     let mut path = PathBuf::from(&info.dir);
     path.push(filename);

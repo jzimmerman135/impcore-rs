@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fs, mem,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use regex::Regex;
@@ -84,7 +84,7 @@ impl CodeBase {
             .ok_or(format!("Could not locate file {}", filepath))
     }
 
-    fn parse_asts<'a>(&'a self) -> Result<HashMap<AstMacro<'a>, Ast<'a>>, String> {
+    fn parse_asts(&self) -> Result<HashMap<AstMacro, Ast>, String> {
         let mut map = HashMap::new();
         for (name, contents) in self.0.iter() {
             map.insert(AstMacro::ImportFile(name.as_str()), Ast::from(contents)?);
@@ -92,7 +92,7 @@ impl CodeBase {
         Ok(map)
     }
 
-    pub fn build_ast<'a>(&'a self, entry_filepath: &'a PathBuf) -> Result<Ast<'a>, String> {
+    pub fn build_ast<'a>(&'a self, entry_filepath: &'a Path) -> Result<Ast<'a>, String> {
         let mut asts = self.parse_asts()?;
         let entry_import =
             AstMacro::ImportFile(entry_filepath.file_name().unwrap().to_str().unwrap());
