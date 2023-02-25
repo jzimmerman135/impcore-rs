@@ -54,7 +54,7 @@ pub enum AstMacro<'a> {
 
 impl<'a> Ast<'a> {
     pub fn from(contents: &str) -> Result<Ast, String> {
-        Ok(ImpcoreParser::generate_ast(contents)?)
+        ImpcoreParser::generate_ast(contents)
     }
 }
 
@@ -132,14 +132,16 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
 }
 
 impl<'a> AstDef<'a> {
-    pub fn apply_to_children<F>(&mut self, apply: &mut F) -> Result<(), String>
+    pub fn contains<F>(&self, predicate: &mut F) -> bool
     where
-        F: FnMut(&mut AstExpr<'a>) -> Result<(), String>,
+        F: FnMut(&AstExpr<'a>) -> bool,
     {
-        for child in self.children_mut() {
-            child.apply_mut(apply)?;
+        for child in self.children() {
+            if child.contains(predicate) {
+                return true;
+            }
         }
-        Ok(())
+        false
     }
 
     pub fn for_each_child<F>(&self, apply: &mut F) -> Result<(), String>
@@ -230,14 +232,19 @@ impl<'a> Default for AstMacro<'a> {
 }
 
 impl<'a> AstExpr<'a> {
-    pub fn apply_mut<F>(&mut self, apply: &mut F) -> Result<(), String>
+    pub fn contains<F>(&self, predicate: &mut F) -> bool
     where
-        F: FnMut(&mut AstExpr<'a>) -> Result<(), String>,
+        F: FnMut(&AstExpr<'a>) -> bool,
     {
-        for child in self.children_mut() {
-            child.apply_mut(apply)?;
+        if predicate(self) {
+            return true;
         }
-        apply(self)
+        for child in self.children() {
+            if child.contains(predicate) {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn for_each<F>(&self, apply: &mut F) -> Result<(), String>

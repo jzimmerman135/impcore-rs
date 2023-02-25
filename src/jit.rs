@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-pub mod codegen;
-pub mod defgen;
-pub mod implib;
-pub use inkwell::{
+mod codegen;
+mod defgen;
+mod implib;
+use inkwell::{
     builder::Builder,
     context::Context,
     execution_engine::ExecutionEngine,
@@ -11,10 +11,7 @@ pub use inkwell::{
     support::LLVMString,
     targets::{InitializationConfig, Target},
     types::BasicMetadataTypeEnum,
-    values::{
-        AsValueRef, BasicMetadataValueEnum, BasicValueEnum, FunctionValue, GlobalValue, IntValue,
-        PointerValue,
-    },
+    values::{BasicMetadataValueEnum, FunctionValue, GlobalValue, IntValue, PointerValue},
     AddressSpace, OptimizationLevel,
 };
 

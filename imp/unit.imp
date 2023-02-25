@@ -7,14 +7,17 @@
 #(replace ('SQ x) (* x x))
 #(replace ('NOT x) (if x 0 1))
 
+(define addhello (buffer[] i)
+    (begin
+        (set buffer[(+ i 0)] (word 'H 'e 'l 'l))
+        (set buffer[(+ i 1)] (word 'o 'SPACE 'w 'o))
+        (set buffer[(+ i 2)] (word 'r 'l 'd 'EXCLAMATION))
+        (set buffer[(+ i 3)] (word 'NEWLINE 'NULL 'NULL 'NULL))))
 
-'EOF 
 (val bufsize 81)
 (val buffer[] bufsize)
-(set buffer[0] (word 'a 'b 'c 'd))
-(set buffer[1] (word 'A 'B 'C 'D))
-(set buffer[2] (word 'C 'U 'N 'T))
-(set buffer[3] (word 'HI 98 99 10))
-(set buffer[4] (word 'EOF 'EOF 0 0))
-'EOF 
+(addhello buffer[] 0)
 (printstr buffer[])
+
+;; #(undef 'HI)
+;; #(undef ('SQ))

@@ -3,7 +3,7 @@ pub mod expr_parse;
 pub mod macro_parse;
 
 use crate::ast::{Ast, AstDef, AstExpr};
-pub use pest::iterators::Pair;
+use pest::iterators::Pair;
 use pest::Parser;
 
 #[derive(Parser)]

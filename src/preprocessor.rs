@@ -1,20 +1,17 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs, mem,
     path::{Path, PathBuf},
 };
 
+use crate::ast::{Ast, AstDef, AstExpr, AstMacro};
+use rayon::prelude::*;
 use regex::Regex;
 
-use crate::ast::{Ast, AstDef, AstExpr, AstMacro};
-
-#[allow(unused)]
 #[derive(Debug)]
 struct MacroEnv<'a> {
     pub replacers: HashMap<AstExpr<'a>, AstExpr<'a>>,
     pub functions: HashMap<&'a str, (Vec<AstExpr<'a>>, AstExpr<'a>)>,
-    pub included: HashSet<&'a str>,
-    pub depth: u32,
 }
 
 impl<'a> MacroEnv<'a> {
@@ -22,8 +19,6 @@ impl<'a> MacroEnv<'a> {
         Self {
             replacers: HashMap::new(),
             functions: HashMap::new(),
-            included: HashSet::new(),
-            depth: 0,
         }
     }
 
@@ -53,7 +48,7 @@ impl<'a> MacroEnv<'a> {
         }
     }
 
-    pub fn take(&mut self, ast: Ast<'a>) -> Ast<'a> {
+    pub fn take(&mut self, ast: Ast<'a>) -> Result<Ast<'a>, String> {
         let mut defs = vec![];
         for def in ast.defs.into_iter() {
             match def {
@@ -63,16 +58,24 @@ impl<'a> MacroEnv<'a> {
                         AstMacro::Inliner(name, args, body) => {
                             self.functions.insert(name, (args, body));
                         }
-                        AstMacro::Replacer(macroval, expr) => {
+                        AstMacro::Replacer(macroval, expr)
+                            if !expr.contains(&mut |e| matches!(e, AstExpr::MacroVal(..))) =>
+                        {
                             self.replacers.insert(macroval, expr);
                         }
-                        _ => unreachable!(),
+                        AstMacro::Replacer(AstExpr::MacroVal(name), expr) => {
+                            return Err(format!(
+                                "Recursive macro #(replace {} ({:?})) not allowed",
+                                name, expr
+                            ))
+                        }
+                        _ => return Err("Something wrong in getting macros".to_string()),
                     };
                 }
                 _ => defs.push(def),
             }
         }
-        Ast { defs }
+        Ok(Ast { defs })
     }
 }
 
@@ -85,10 +88,11 @@ impl CodeBase {
     }
 
     fn parse_asts(&self) -> Result<HashMap<AstMacro, Ast>, String> {
-        let mut map = HashMap::new();
-        for (name, contents) in self.0.iter() {
-            map.insert(AstMacro::ImportFile(name.as_str()), Ast::from(contents)?);
-        }
+        let map = self
+            .0
+            .par_iter()
+            .map(|(name, contents)| Ok((AstMacro::ImportFile(name.as_str()), Ast::from(contents)?)))
+            .collect::<Result<HashMap<AstMacro, Ast>, String>>()?;
         Ok(map)
     }
 
@@ -97,7 +101,7 @@ impl CodeBase {
         let entry_import =
             AstMacro::ImportFile(entry_filepath.file_name().unwrap().to_str().unwrap());
         let ast = join_trees(&mut asts, entry_import)?;
-        Ok(ast.expand_macros().prepare())
+        Ok(ast.expand_macros()?.prepare())
     }
 
     pub fn collect(entry_filepath: &PathBuf) -> Result<Self, String> {
@@ -106,7 +110,7 @@ impl CodeBase {
         path.pop();
         let import_pattern =
             Regex::new(r#"#\(import\s+"(?P<filename>\S*)"\s*\)"#).expect("Failed regex build");
-        let map = collect_code_recurse(&filename, &mut path, HashMap::new(), &import_pattern)?;
+        let map = collect_code_recurse(&filename, &path, HashMap::new(), &import_pattern)?;
         Ok(CodeBase(map))
     }
 }
@@ -127,7 +131,7 @@ fn collect_code_recurse(
     }
 
     let contents = fs::read_to_string(&pathstring)
-        .map_err(|_| format!("Failed to open filename {:?} {}", basedir, pathstring))?;
+        .map_err(|_| format!("Failed to open file '{}'", pathstring))?;
 
     included_files.insert(filename.clone(), String::new());
 
@@ -138,20 +142,6 @@ fn collect_code_recurse(
 
     included_files.insert(filename, contents);
     Ok(included_files)
-}
-
-impl<'a> Ast<'a> {
-    pub fn expand_macros(mut self) -> Self {
-        let mut macro_env = MacroEnv::new();
-        self = macro_env.take(self);
-        self.defs = self
-            .defs
-            .into_iter()
-            .map(|def| def.reconstruct(&|e| macro_env.try_replace(e)))
-            .collect::<Result<_, _>>()
-            .unwrap();
-        self
-    }
 }
 
 fn join_trees<'a>(
@@ -178,4 +168,18 @@ fn join_trees<'a>(
         })
         .collect();
     Ok(Ast { defs })
+}
+
+impl<'a> Ast<'a> {
+    pub fn expand_macros(mut self) -> Result<Self, String> {
+        let mut macro_env = MacroEnv::new();
+        self = macro_env.take(self)?;
+        self.defs = self
+            .defs
+            .into_iter()
+            .map(|def| def.reconstruct(&|e| macro_env.try_replace(e)))
+            .collect::<Result<_, _>>()
+            .unwrap();
+        Ok(self)
+    }
 }

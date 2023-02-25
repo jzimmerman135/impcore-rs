@@ -1,3 +1,9 @@
+#(replace 'EOF -1)
+#(replace 'NEWLINE 10)
+#(replace 'NULL 0)
+#(replace 'SPACE 32)
+#(replace 'EXCLAMATION 33)
+
 #(replace 'A (+ 65 0))
 #(replace 'B (+ 65 1))
 #(replace 'C (+ 65 2))

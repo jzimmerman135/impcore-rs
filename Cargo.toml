@@ -10,6 +10,7 @@ clap = { version = "4.1.6", features = ["derive"] }
 inkwell = { version = "0.1.0", features = ["llvm13-0"] }
 pest = "2.5.4"
 pest_derive = "2.5.4"
+rayon = "1.6.1"
 regex = "1.7.1"
 
 [dev-dependencies]
