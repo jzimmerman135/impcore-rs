@@ -45,7 +45,7 @@ pub enum AstDef<'a> {
     FreeAll,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Hash, Eq, Clone)]
 pub enum AstMacro<'a> {
     ImportFile(&'a str),
     Replacer(AstExpr<'a>, AstExpr<'a>),
@@ -54,9 +54,7 @@ pub enum AstMacro<'a> {
 
 impl<'a> Ast<'a> {
     pub fn from(contents: &str) -> Result<Ast, String> {
-        Ok(ImpcoreParser::generate_ast(contents)?
-            .expand_macros()
-            .prepare())
+        Ok(ImpcoreParser::generate_ast(contents)?.expand_macros())
     }
 }
 
@@ -222,6 +220,11 @@ impl<'a> AstExpr<'a> {
 impl<'a> Default for AstExpr<'a> {
     fn default() -> Self {
         AstExpr::Error
+    }
+}
+impl<'a> Default for AstMacro<'a> {
+    fn default() -> Self {
+        AstMacro::Replacer(AstExpr::Error, AstExpr::Error)
     }
 }
 

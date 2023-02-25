@@ -53,10 +53,11 @@ impl<'a> MacroEnv<'a> {
         }
     }
 
-    pub fn take(&mut self, mut ast: Ast<'a>) -> Ast<'a> {
+    pub fn take(&mut self, ast: Ast<'a>) -> Ast<'a> {
         let mut defs = vec![];
         for def in ast.defs.into_iter() {
             match def {
+                AstDef::MacroDef(AstMacro::ImportFile(_)) => defs.push(def),
                 AstDef::MacroDef(m) => {
                     match m {
                         AstMacro::Inliner(name, args, body) => {
@@ -65,35 +66,13 @@ impl<'a> MacroEnv<'a> {
                         AstMacro::Replacer(macroval, expr) => {
                             self.replacers.insert(macroval, expr);
                         }
-                        AstMacro::ImportFile(filename) => {
-                            self.included.insert(filename);
-                            defs.push(AstDef::MacroDef(AstMacro::ImportFile(filename)));
-                        }
+                        _ => unreachable!(),
                     };
                 }
                 _ => defs.push(def),
             }
         }
-        ast.defs = defs;
-        ast
-    }
-
-    #[allow(dead_code)]
-    pub fn place_files(&'a mut self, ast: &mut Ast<'a>) {
-        let defs_with_imports = mem::take(&mut ast.defs)
-            .into_iter()
-            .flat_map(|def| match &def {
-                AstDef::MacroDef(AstMacro::ImportFile(filename))
-                    if !self.included.insert(filename) =>
-                {
-                    vec![def]
-                }
-                AstDef::MacroDef(AstMacro::ImportFile(_)) => vec![],
-                _ => vec![def],
-            })
-            .collect::<Vec<_>>();
-
-        ast.defs = defs_with_imports;
+        Ast { defs }
     }
 }
 
@@ -105,19 +84,19 @@ impl CodeBase {
             .ok_or(format!("Could not locate file {}", filepath))
     }
 
-    fn parse_asts<'a>(&'a self) -> Result<HashMap<&'a str, Ast<'a>>, String> {
+    fn parse_asts<'a>(&'a self) -> Result<HashMap<AstMacro<'a>, Ast<'a>>, String> {
         let mut map = HashMap::new();
         for (name, contents) in self.0.iter() {
-            map.insert(name.as_str(), Ast::from(contents)?);
+            map.insert(AstMacro::ImportFile(name.as_str()), Ast::from(contents)?);
         }
         Ok(map)
     }
 
-    pub fn build_ast<'a>(&'a self, entry_filepath: &str) -> Result<Ast<'a>, String> {
+    pub fn build_ast<'a>(&'a self, entry_filepath: &'a PathBuf) -> Result<Ast<'a>, String> {
         let mut asts = self.parse_asts()?;
-        let ast = asts
-            .remove(entry_filepath)
-            .ok_or(format!("Couldn't find ast for {}", entry_filepath))?;
+        let entry_import =
+            AstMacro::ImportFile(entry_filepath.file_name().unwrap().to_str().unwrap());
+        let ast = join_trees(&mut asts, entry_import)?;
         Ok(ast)
     }
 
@@ -125,7 +104,8 @@ impl CodeBase {
         let mut path = PathBuf::from(entry_filepath);
         let filename = path.file_name().unwrap().to_str().unwrap().to_string();
         path.pop();
-        let import_pattern = Regex::new(r#"#\(import\s+"(?P<filename>\S*)"\s*\)"#).unwrap();
+        let import_pattern =
+            Regex::new(r#"#\(import\s+"(?P<filename>\S*)"\s*\)"#).expect("Failed regex build");
         let map = collect_code_recurse(&filename, &mut path, HashMap::new(), &import_pattern)?;
         Ok(CodeBase(map))
     }
@@ -139,23 +119,23 @@ fn collect_code_recurse(
 ) -> Result<HashMap<String, String>, String> {
     basedir.push(filename);
     let pathstring = basedir.to_str().unwrap().to_string();
+    let filename = filename.to_string();
     basedir.pop();
 
-    if included_files.contains_key(&pathstring) {
+    if included_files.contains_key(&filename) {
         return Ok(included_files);
     }
 
     let contents = fs::read_to_string(&pathstring)
         .map_err(|_| format!("Failed to open filename {:?} {}", basedir, pathstring))?;
-
-    included_files.insert(pathstring.clone(), String::new());
+    included_files.insert(filename.clone(), String::new());
 
     for capture in import_pattern.captures_iter(&contents) {
         let filename = &capture["filename"];
         included_files = collect_code_recurse(filename, basedir, included_files, import_pattern)?;
     }
 
-    included_files.insert(pathstring, contents);
+    included_files.insert(filename, contents);
     Ok(included_files)
 }
 
@@ -171,4 +151,33 @@ impl<'a> Ast<'a> {
             .unwrap();
         self
     }
+}
+
+fn join_trees<'a>(
+    asts: &mut HashMap<AstMacro<'a>, Ast<'a>>,
+    entrypoint: AstMacro<'a>,
+) -> Result<Ast<'a>, String> {
+    let base = asts
+        .remove(&entrypoint)
+        .ok_or(format!("Missing import {:?}", &entrypoint))?;
+
+    println!("{:?}", asts.keys());
+
+    let defs = base
+        .defs
+        .into_iter()
+        .flat_map(|d| match d {
+            AstDef::MacroDef(mut import) if asts.contains_key(&import) => {
+                join_trees(asts, mem::take(&mut import))
+                    .unwrap_or(Ast { defs: vec![] })
+                    .defs
+            }
+            AstDef::MacroDef(import) => {
+                println!("got macro {:?}", import);
+                vec![]
+            }
+            _ => vec![d],
+        })
+        .collect();
+    Ok(Ast { defs })
 }

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::Parser as ArgParser;
 use impcore_rs::jit;
 use impcore_rs::preprocessor::CodeBase;
@@ -16,11 +18,13 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let entry_filename = cli.filename.as_deref().unwrap_or("./imp/basic.imp");
-    let codebase = CodeBase::collect(entry_filename).unwrap_or_else(|s| rip(s));
+    let entry_filepath = cli.filename.as_deref().unwrap_or("./imp/basic.imp");
+    let codebase = CodeBase::collect(entry_filepath).unwrap_or_else(|s| rip(s));
+    let entry_filename = PathBuf::from(entry_filepath);
     let ast = codebase
-        .build_ast(entry_filename)
-        .unwrap_or_else(|s| rip(s));
+        .build_ast(&entry_filename)
+        .unwrap_or_else(|s| rip(s))
+        .prepare();
 
     if cli.debug {
         print_ast(&ast);
