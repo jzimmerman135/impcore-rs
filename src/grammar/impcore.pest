@@ -1,4 +1,4 @@
-impcore = { SOI ~ ( def | tle | WSP )* ~ EOI }
+impcore = { SOI ~ ( macrodef | def | tle | WSP )* ~ EOI }
 
 WSP = _{ " " | NEWLINE }
 COMMENT = _{ ";;" ~ ( !NEWLINE ~ ANY )* }
@@ -7,7 +7,7 @@ RPAREN = _{ WSP* ~ ")" }
 LBRACK = _{ "[" ~ WSP* }
 RBRACK = _{ WSP* ~ "]" }
 
-keyword = _{ "define" | "import" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
+keyword = _{ "define" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
 RESERVED = _{ keyword ~ WSP+ }
 
 NUMBER = _{ ( "-" )?  ~ ASCII_DIGIT+ }
@@ -21,9 +21,20 @@ PTR = _{ pointer ~ RBRACK }
 parameter = ${ PTR | variable }
 variable = @{ NAMED }
 array_value = { pointer ~ exp ~ RBRACK }
-ACCESSOR = _{ literal | array_value | variable }
+macroval = { "'" ~ ( NAMED )+ }
+ACCESSOR = _{ (macroval | literal | array_value | variable) ~ &(WSP | RPAREN | RBRACK) }
 
 ARG = _{ (PTR ~ WSP* | exp) }
+
+lib = @{ LETTER* }
+file = @{ ( LETTER | "/" | ".." | "./" )* ~ ".imp" }
+libimport = _{ "import" ~ WSP+ ~ lib }
+fileimport = _{ "import" ~ WSP+ ~ "\"" ~ file  ~ "\"" }
+
+replacer = { "replace" ~ WSP+ ~ macroval ~ WSP+ ~ exp }
+inliner = { "replace" ~ WSP+ ~ LPAREN ~ macroval ~ WSP+ ~ (WSP* ~ parameter)+ ~ RPAREN ~ WSP+ ~ exp }
+
+macrodef = _{ "#" ~ LPAREN ~ ( fileimport | libimport | inliner | replacer ) ~ RPAREN ~ NEWLINE }
 
 arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
 bitwise_operator = { ">>>" | ">>" | "<<" | "^" | "&&" | "||" | "&" | "|" }
@@ -36,8 +47,9 @@ unary = { unary_operator ~ WSP+ ~ exp }
 print = { print_operator ~ WSP+ ~ exp }
 binary = { binary_operator ~ WSP+ ~ exp{2} }
 user = { function_name ~ WSP* ~ ARG* }
+inline = { macroval ~ WSP* ~ ARG* }
 fgetc = { "fgetc" }
-FUNCTION_CALL = _{ unary | binary | print | fgetc | user }
+FUNCTION_CALL = _{ unary | binary | print | fgetc | inline | user }
 
 ifx = { "if" ~ WSP+ ~ exp{3} }
 whilex = { "while" ~ WSP+ ~ exp{2} }
@@ -52,8 +64,7 @@ PARAMS = _{ LPAREN ~ ( WSP* ~ parameter )* ~ RPAREN }
 define = { "define" ~ WSP+ ~ function_name ~ WSP* ~ PARAMS ~ WSP* ~ exp }
 val =  { "val" ~ WSP+ ~ variable ~ WSP+ ~ exp }
 alloc = { "val" ~ WSP+ ~ PTR ~ WSP+ ~ exp }
-import = { "import" ~ WSP+ ~ variable }
-GLOBAL = _{ define | alloc | import | val }
+GLOBAL = _{ define | alloc | val }
 
 check_expect = { "check-expect" ~ WSP+ ~ exp{2} }
 check_assert = { "check-assert" ~ WSP+ ~ exp }

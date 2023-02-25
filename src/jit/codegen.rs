@@ -18,6 +18,7 @@ impl<'a> AstExpr<'a> {
                 codegen::codegen_assign(name, index.as_deref(), body, compiler)
             }
             Self::Error => codegen::codegen_literal(1, compiler),
+            Self::Match(scrut, arms) => codegen::codegen_match(scrut, arms.as_slice(), compiler),
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
             _ => unreachable!("cannot codegen from {:?}", self),
         }
@@ -292,5 +293,57 @@ pub fn codegen_begin<'a>(
     for expr in exprs {
         v = expr.codegen(compiler)?;
     }
+    Ok(v)
+}
+
+fn codegen_match<'a>(
+    scrut_expr: &AstExpr<'a>,
+    arms_exprs: &[(AstExpr<'a>, AstExpr<'a>)],
+    compiler: &mut Compiler<'a>,
+) -> Result<IntValue<'a>, String> {
+    let parent_fn = compiler
+        .curr_function
+        .ok_or_else(|| "No curr function in the match block".to_string())?;
+    let int_type = compiler.context.i32_type();
+
+    let scrut = scrut_expr.codegen(compiler)?;
+    let default_block = compiler.context.append_basic_block(parent_fn, "default");
+    let case_blocks = arms_exprs
+        .iter()
+        .map(|(lhs, _)| {
+            if lhs.contains(&mut |e| matches!(e, AstExpr::Variable(..) | AstExpr::Pointer(..))) {
+                return Err(
+                    "Left side of match cannot contain references to variables or pointers"
+                        .to_string(),
+                );
+            }
+            let case_block = compiler.context.append_basic_block(parent_fn, "case");
+            Ok((lhs.codegen(compiler)?, case_block))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    let res_alloca = compiler.builder.build_alloca(int_type, "alloca");
+    compiler
+        .builder
+        .build_switch(scrut, default_block, case_blocks.as_slice());
+    let merge_block = compiler.context.append_basic_block(parent_fn, "merge");
+
+    compiler.builder.position_at_end(default_block);
+    compiler.builder.build_store(res_alloca, scrut);
+    compiler.builder.build_unconditional_branch(merge_block);
+
+    for ((_, block), (_, rhs)) in case_blocks.iter().zip(arms_exprs) {
+        compiler.builder.position_at_end(*block);
+        let armval = rhs.codegen(compiler)?;
+        compiler.builder.build_store(res_alloca, armval);
+        compiler.builder.build_unconditional_branch(merge_block);
+    }
+
+    compiler.builder.position_at_end(merge_block);
+    let v = compiler
+        .builder
+        .build_load(res_alloca, "load")
+        .into_int_value();
+
     Ok(v)
 }

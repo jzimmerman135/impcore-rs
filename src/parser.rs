@@ -7,7 +7,7 @@ use pest::iterators::Pair;
 use pest::Parser;
 
 #[derive(Parser)]
-#[grammar = "grammar/macros.pest"]
+#[grammar = "grammar/match.pest"]
 pub struct ImpcoreParser;
 
 impl ImpcoreParser {

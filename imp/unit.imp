@@ -1,23 +1,14 @@
 #(import stdin)
-#(import "stdlib/chars.imp")
-#(import "stdlib/word.imp")
 
-#(replace 'HI (+ (- 97 1) 1))
-#(replace 'EOF (+ -1 1))
-#(replace ('SQ x) (* x x))
-#(replace ('NOT x) (if x 0 1))
+(val res -1)
+(val a 97)
+(val x (getc))
 
-(define addhello (buffer[] i)
-    (begin
-        (set buffer[(+ i 0)] (word 'H 'e 'l 'l))
-        (set buffer[(+ i 1)] (word 'o 'SPACE 'w 'o))
-        (set buffer[(+ i 2)] (word 'r 'l 'd 'EXCLAMATION))
-        (set buffer[(+ i 3)] (word 'NEWLINE 'NULL 'NULL 'NULL))))
+(set res (match x 
+  (97 => 0)
+  (98 => 1)))
 
-(val bufsize 81)
-(val buffer[] bufsize)
-(addhello buffer[] 0)
-(printstr buffer[])
+(print res)
 
-;; #(undef 'HI)
-;; #(undef ('SQ))
+;; (if (= x 97) (printc x) (print x))
+
