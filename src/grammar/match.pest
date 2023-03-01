@@ -51,12 +51,13 @@ inline = { macroval ~ WSP* ~ ARG* }
 fgetc = { "fgetc" }
 FUNCTION_CALL = _{ unary | binary | print | fgetc | inline | user }
 
-matchcase = { LPAREN ~ exp ~ WSP* ~ "=>" ~ WSP* ~ exp ~ RPAREN }
+matchcase = { LPAREN ~ !"_" ~ exp ~ WSP* ~ "=>" ~ WSP* ~ exp ~ RPAREN }
+defaultcase = { LPAREN ~ "_" ~ WSP* ~ "=>" ~ WSP* ~ exp ~ RPAREN }
 
 ifx = { "if" ~ WSP+ ~ exp{3} }
 whilex = { "while" ~ WSP+ ~ exp{2} }
 begin = { "begin" ~ WSP+ ~ exp+ }
-matchx = { "match" ~ WSP+ ~ exp ~ ( matchcase ~ WSP* )+ }
+matchx = { "match" ~ WSP+ ~ exp ~ ( matchcase ~ WSP* )+ ~ defaultcase }
 set = { "set" ~ WSP+ ~ ( array_value | variable ) ~ WSP* ~ exp }
 error = { "error" }
 CONTROL_FLOW = _{ ifx | whilex | matchx | begin | set | error }

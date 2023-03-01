@@ -22,7 +22,11 @@ pub enum AstExpr<'a> {
     Begin(Vec<AstExpr<'a>>),
     Assign(&'a str, Box<AstExpr<'a>>, Option<Box<AstExpr<'a>>>),
     MacroVal(&'a str),
-    Match(Box<AstExpr<'a>>, Vec<(AstExpr<'a>, AstExpr<'a>)>),
+    Match(
+        Box<AstExpr<'a>>,
+        Vec<(AstExpr<'a>, AstExpr<'a>)>,
+        Box<AstExpr<'a>>,
+    ),
     Error,
 }
 
@@ -95,8 +99,9 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
 fn matchx_children_mut<'a, 'b>(
     scrut: &'b mut AstExpr<'a>,
     arms: &'b mut [(AstExpr<'a>, AstExpr<'a>)],
+    default: &'b mut AstExpr<'a>,
 ) -> Vec<&'b mut AstExpr<'a>> {
-    let mut children = vec![scrut];
+    let mut children = vec![scrut, default];
     children.append(
         &mut arms
             .iter_mut()
@@ -108,8 +113,9 @@ fn matchx_children_mut<'a, 'b>(
 fn matchx_children<'a, 'b>(
     scrut: &'b AstExpr<'a>,
     arms: &'b [(AstExpr<'a>, AstExpr<'a>)],
+    default: &'b AstExpr<'a>,
 ) -> Vec<&'b AstExpr<'a>> {
-    let mut children = vec![scrut];
+    let mut children = vec![scrut, default];
     children.append(
         &mut arms
             .iter()
@@ -126,7 +132,7 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
             Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
             Self::While(cond, body) => vec![cond, body],
-            Self::Match(scrut, arms) => matchx_children_mut(scrut, arms),
+            Self::Match(scrut, arms, default) => matchx_children_mut(scrut, arms, default),
             Self::Assign(_, body, Some(index)) => vec![body, index],
             Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter_mut().collect(),
             Self::If(c, t, f) => {
@@ -148,7 +154,7 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
             Self::While(cond, body) => vec![cond, body],
             Self::Assign(_, body, Some(index)) => vec![body, index],
             Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter().collect::<Vec<_>>(),
-            Self::Match(scrut, arms) => matchx_children(scrut, arms),
+            Self::Match(scrut, arms, default) => matchx_children(scrut, arms, default),
             Self::If(c, t, f) => {
                 vec![c, t, f]
             }
@@ -239,12 +245,13 @@ impl<'a> AstExpr<'a> {
                 *truecase = Box::new(mem::take(truecase).reconstruct(construct)?);
                 *falsecase = Box::new(mem::take(falsecase).reconstruct(construct)?);
             }
-            Self::Match(cond, arms) => {
+            Self::Match(cond, arms, default) => {
                 *cond = Box::new(mem::take(cond).reconstruct(construct)?);
                 *arms = mem::take(arms)
                     .into_iter()
                     .map(|(e1, e2)| Ok((e1.reconstruct(construct)?, e2.reconstruct(construct)?)))
                     .collect::<Result<Vec<_>, String>>()?;
+                *default = Box::new(mem::take(default).reconstruct(construct)?);
             }
             Self::MacroVal(_)
             | Self::Error

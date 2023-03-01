@@ -125,16 +125,34 @@ pub fn parse_set(expr: Pair<Rule>) -> AstExpr {
     AstExpr::Assign(name, Box::new(newval), None)
 }
 
+enum MatchArm<'a> {
+    Case((AstExpr<'a>, AstExpr<'a>)),
+    Default(AstExpr<'a>),
+}
+
 pub fn parse_match(expr: Pair<Rule>) -> AstExpr {
     let mut inner_expr = expr.into_inner();
     let scrutinee = AstExpr::parse(inner_expr.next().unwrap());
-    let arms = inner_expr.map(parse_match_arm).collect();
-    AstExpr::Match(Box::new(scrutinee), arms)
+    let mut default = AstExpr::default();
+    let arms = inner_expr
+        .filter_map(|expr| match parse_match_arm(expr) {
+            MatchArm::Case(arm) => Some(arm),
+            MatchArm::Default(then) => {
+                default = then;
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    AstExpr::Match(Box::new(scrutinee), arms, Box::new(default))
 }
 
-fn parse_match_arm(expr: Pair<Rule>) -> (AstExpr, AstExpr) {
+fn parse_match_arm(expr: Pair<Rule>) -> MatchArm {
     let mut inner_expr = expr.into_inner();
     let case = AstExpr::parse(inner_expr.next().unwrap());
-    let then = AstExpr::parse(inner_expr.next().unwrap());
-    (case, then)
+    if let Some(expr) = inner_expr.next() {
+        let then = AstExpr::parse(expr);
+        MatchArm::Case((case, then))
+    } else {
+        MatchArm::Default(case)
+    }
 }

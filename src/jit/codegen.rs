@@ -1,5 +1,5 @@
 use super::*;
-use crate::ast::{AstExpr, AstType};
+use crate::ast::AstExpr;
 use inkwell::{values::BasicValue, IntPredicate};
 
 impl<'a> AstExpr<'a> {
@@ -18,7 +18,9 @@ impl<'a> AstExpr<'a> {
                 codegen::codegen_assign(name, index.as_deref(), body, compiler)
             }
             Self::Error => codegen::codegen_literal(-1, compiler),
-            Self::Match(scrut, arms) => codegen::codegen_match(scrut, arms.as_slice(), compiler),
+            Self::Match(scrut, arms, default) => {
+                codegen::codegen_match(scrut, arms.as_slice(), default, compiler)
+            }
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
             _ => unreachable!("cannot codegen from {:?}", self),
         }
@@ -309,6 +311,7 @@ pub fn codegen_begin<'a>(
 fn codegen_match<'a>(
     scrut_expr: &AstExpr<'a>,
     arms_exprs: &[(AstExpr<'a>, AstExpr<'a>)],
+    default_expr: &AstExpr<'a>,
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
     let parent_fn = compiler
@@ -339,7 +342,8 @@ fn codegen_match<'a>(
     let merge_block = compiler.context.append_basic_block(parent_fn, "merge");
 
     compiler.builder.position_at_end(default_block);
-    compiler.builder.build_store(res_alloca, scrut);
+    let default = default_expr.codegen(compiler)?;
+    compiler.builder.build_store(res_alloca, default);
     compiler.builder.build_unconditional_branch(merge_block);
 
     for ((_, block), (_, rhs)) in case_blocks.iter().zip(arms_exprs) {
