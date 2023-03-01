@@ -55,6 +55,7 @@ pub enum AstMacro<'a> {
     ImportFile(&'a str),
     Replacer(AstExpr<'a>, AstExpr<'a>),
     Inliner(&'a str, Vec<AstExpr<'a>>, AstExpr<'a>),
+    Undef(&'a str),
 }
 
 impl<'a> Ast<'a> {

@@ -266,7 +266,7 @@ pub fn defgen_cleanup<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'
     compiler.curr_function = Some(fn_value);
 
     for (name, global_ptr) in compiler.global_table.iter() {
-        if name.starts_with('#') || !name.ends_with("[") {
+        if name.starts_with('#') || !name.ends_with('[') {
             continue;
         }
         let array = compiler

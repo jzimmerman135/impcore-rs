@@ -33,8 +33,9 @@ fileimport = _{ "import" ~ WSP+ ~ "\"" ~ file  ~ "\"" }
 
 replacer = { "replace" ~ WSP+ ~ macroval ~ WSP+ ~ exp }
 inliner = { "replace" ~ WSP+ ~ LPAREN ~ macroval ~ WSP+ ~ (WSP* ~ parameter)+ ~ RPAREN ~ WSP+ ~ exp }
+undef = { "undef" ~ WSP+ ~ macroval ~ WSP* }
 
-macrodef = _{ "#" ~ LPAREN ~ ( fileimport | libimport | inliner | replacer ) ~ RPAREN ~ NEWLINE }
+macrodef = _{ "#" ~ LPAREN ~ ( fileimport | libimport | replacer | undef | inliner ) ~ RPAREN ~ NEWLINE }
 
 arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
 bitwise_operator = { ">>>" | ">>" | "<<" | "^" | "&&" | "||" | "&" | "|" }

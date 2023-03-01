@@ -1,7 +1,6 @@
 lazy function loading?
 undef macros
 
-
 LINKING:
     termios
     

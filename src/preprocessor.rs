@@ -145,6 +145,12 @@ impl<'a> MacroEnv<'a> {
                     self.replacers.insert(macroval, expr);
                     Ok(())
                 }
+                AstMacro::Undef(macroval) => {
+                    let replacer_macro = AstExpr::MacroVal(macroval);
+                    self.replacers.remove(&replacer_macro);
+                    self.functions.remove(&macroval);
+                    Ok(())
+                }
             },
             _ => Err(def),
         }
@@ -153,15 +159,14 @@ impl<'a> MacroEnv<'a> {
 
 impl<'a> AstExpr<'a> {
     fn try_expand_macros(self, macro_env: &MacroEnv<'a>) -> Result<AstExpr<'a>, String> {
-        let macroname;
-        match self {
-            AstExpr::MacroVal(name, ..) => macroname = *&name,
-            AstExpr::Call(name, ..) if name.starts_with("'") => macroname = *&name,
+        let macroname = match self {
+            AstExpr::MacroVal(name, ..) => name,
+            AstExpr::Call(name, ..) if name.starts_with('\'') => name,
             _ => return Ok(self),
-        }
+        };
         self.try_expand_macros_recursive(macro_env, 0)
             .map_err(|mut s| {
-                s.push_str(&mut format!(" on {}", &macroname));
+                s.push_str(&format!(" on {}", &macroname));
                 s
             })
     }
