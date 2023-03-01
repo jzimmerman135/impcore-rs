@@ -7,11 +7,11 @@ target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 @fmt_u = private unnamed_addr constant [3 x i8] c"%u\00", align 1
 @fmt_c = private unnamed_addr constant [3 x i8] c"%c\00", align 1
 @fmt_str = private unnamed_addr constant [3 x i8] c"%s\00", align 1
-@n = global i32* null
-@t = global i32* null
+@n = global i32 0
+@t = global i32 0
 @"arr[" = global i32* null
 @"swaparr[" = global i32* null
-@bits = global i32* null
+@bits = global i32 0
 @"nums[" = global i32* null
 
 declare i32 @printf(i8*, ...)
@@ -65,19 +65,14 @@ locals:
 
 define i32 @set-global-with-loop(i32 %x) {
 set-global-with-loop:
-  %load1.pre = load i32*, i32** @t, align 8
-  %load3.pre = load i32, i32* %load1.pre, align 4
+  %load1.pre = load i32, i32* @t, align 4
   br label %loop
 
 loop:                                             ; preds = %loop, %set-global-with-loop
-  %load3 = phi i32 [ %load5, %loop ], [ %load3.pre, %set-global-with-loop ]
-  %load1 = phi i32* [ %load4, %loop ], [ %load1.pre, %set-global-with-loop ]
-  %mul = add i32 %load3, 1
-  store i32 %mul, i32* %load1, align 4
-  %load4 = load i32*, i32** @t, align 8
-  %load5 = load i32, i32* %load4, align 4
-  %sub = add i32 %load5, -1
-  %lt = icmp slt i32 %sub, %x
+  %load1 = phi i32 [ %mul, %loop ], [ %load1.pre, %set-global-with-loop ]
+  %mul = add i32 %load1, 1
+  store i32 %mul, i32* @t, align 4
+  %lt = icmp slt i32 %load1, %x
   br i1 %lt, label %loop, label %afterwhile
 
 afterwhile:                                       ; preds = %loop
@@ -161,20 +156,10 @@ entry:
 
 define i32 @val() {
 entry:
-  %load = load i32*, i32** @n, align 8
-  %0 = bitcast i32* %load to i8*
-  tail call void @free(i8* %0)
-  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %single = bitcast i8* %malloccall to i32*
-  store i32 2, i32* %single, align 4
-  store i32* %single, i32** @n, align 8
+  store i32 2, i32* @n, align 4
   %printres = call i32 @println(i32 2)
   ret i32 2
 }
-
-declare void @free(i8*)
-
-declare noalias i8* @malloc(i32)
 
 define i32 @"#anon.2"() {
 entry:
@@ -199,24 +184,16 @@ entry:
 
 define i32 @"#anon.5"() {
 entry:
-  %load = load i32*, i32** @n, align 8
-  %load1 = load i32, i32* %load, align 4
-  %mul = add i32 %load1, 4
+  %load = load i32, i32* @n, align 4
+  %mul = add i32 %load, 4
   %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
 define i32 @val.6() {
 entry:
-  %load = load i32*, i32** @n, align 8
-  store i32 7, i32* %load, align 4
-  %load1 = load i32*, i32** @t, align 8
-  %0 = bitcast i32* %load1 to i8*
-  tail call void @free(i8* %0)
-  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %single = bitcast i8* %malloccall to i32*
-  store i32 7, i32* %single, align 4
-  store i32* %single, i32** @t, align 8
+  store i32 7, i32* @n, align 4
+  store i32 7, i32* @t, align 4
   %printres = call i32 @println(i32 7)
   ret i32 7
 }
@@ -230,39 +207,30 @@ entry:
 
 define i32 @"#anon.8"() {
 entry:
-  %load = load i32*, i32** @t, align 8
-  %load1 = load i32, i32* %load, align 4
-  %printres = call i32 @println(i32 %load1)
-  ret i32 %load1
+  %load = load i32, i32* @t, align 4
+  %printres = call i32 @println(i32 %load)
+  ret i32 %load
 }
 
 define i32 @"#anon.9"() {
 entry:
-  %load = load i32*, i32** @n, align 8
-  %load1 = load i32, i32* %load, align 4
-  %mul = add i32 %load1, 3
+  %load = load i32, i32* @n, align 4
+  %mul = add i32 %load, 3
   %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
 
 define i32 @val.10() {
 entry:
-  %load = load i32*, i32** @t, align 8
-  %0 = bitcast i32* %load to i8*
-  tail call void @free(i8* %0)
-  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %single = bitcast i8* %malloccall to i32*
-  store i32 11, i32* %single, align 4
-  store i32* %single, i32** @t, align 8
+  store i32 11, i32* @t, align 4
   %printres = call i32 @println(i32 11)
   ret i32 11
 }
 
 define i32 @"#anon.11"() {
 entry:
-  %load = load i32*, i32** @t, align 8
-  %load1 = load i32, i32* %load, align 4
-  %mul = add i32 %load1, 1
+  %load = load i32, i32* @t, align 4
+  %mul = add i32 %load, 1
   %printres = call i32 @println(i32 %mul)
   ret i32 %mul
 }
@@ -280,6 +248,10 @@ entry:
   %printres = call i32 @println(i32 13)
   ret i32 13
 }
+
+declare void @free(i8*)
+
+declare noalias i8* @malloc(i32)
 
 ; Function Attrs: argmemonly nofree nounwind willreturn writeonly
 declare void @llvm.memset.p0i8.i32(i8* nocapture writeonly, i8, i32, i1 immarg) #1
@@ -412,22 +384,15 @@ entry:
 
 define i32 @val.26() {
 entry:
-  %load = load i32*, i32** @bits, align 8
-  %0 = bitcast i32* %load to i8*
-  tail call void @free(i8* %0)
-  %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-  %single = bitcast i8* %malloccall to i32*
-  store i32 27, i32* %single, align 4
-  store i32* %single, i32** @bits, align 8
+  store i32 27, i32* @bits, align 4
   %printres = call i32 @println(i32 27)
   ret i32 27
 }
 
 define i32 @"#anon.27"() {
 entry:
-  %load = load i32*, i32** @bits, align 8
-  %load1 = load i32, i32* %load, align 4
-  %bitand = and i32 %load1, 24
+  %load = load i32, i32* @bits, align 4
+  %bitand = and i32 %load, 24
   %bitor = or i32 %bitand, 4
   %printres = call i32 @println(i32 %bitor)
   ret i32 %bitor

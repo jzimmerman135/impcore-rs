@@ -18,8 +18,8 @@ fn predefine_globals(ast: &mut Ast) {
     let mut defs = std::mem::take(&mut ast.defs)
         .into_iter()
         .map(|e| match e {
-            AstDef::Global(n, ..) if global_names.insert(n) => {
-                declarations.push(AstDef::DeclareGlobal(n));
+            AstDef::Global(n, _, var_type) if global_names.insert(n) => {
+                declarations.push(AstDef::DeclareGlobal(n, var_type));
                 e
             }
             _ => e,

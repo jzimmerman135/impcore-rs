@@ -41,7 +41,7 @@ pub enum AstDef<'a> {
     CheckExpect(AstExpr<'a>, AstExpr<'a>, &'a str),
     CheckAssert(AstExpr<'a>, &'a str),
     CheckError(AstExpr<'a>, &'a str),
-    DeclareGlobal(&'a str),
+    DeclareGlobal(&'a str, AstType),
     MacroDef(AstMacro<'a>),
     FreeAll,
 }

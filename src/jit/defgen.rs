@@ -26,8 +26,8 @@ impl<'a> AstDef<'a> {
             Self::Global(name, value, var_type) => NativeTopLevel::TopLevelExpr(
                 defgen::defgen_global(name, value, *var_type, compiler)?,
             ),
-            Self::DeclareGlobal(name) => {
-                defgen::declare_global(name, compiler);
+            Self::DeclareGlobal(name, var_type) => {
+                defgen::declare_global(name, *var_type, compiler);
                 NativeTopLevel::Noop
             }
             Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_cleanup(compiler)?),
@@ -43,12 +43,20 @@ impl<'a> AstDef<'a> {
     }
 }
 
-pub fn declare_global<'a>(name: &'a str, compiler: &mut Compiler<'a>) {
+pub fn declare_global<'a>(name: &'a str, var_type: AstType, compiler: &mut Compiler<'a>) {
     let addr_space = AddressSpace::default();
-    let ptr_type = compiler.context.i32_type().ptr_type(addr_space);
-    let global_ptr = compiler.module.add_global(ptr_type, Some(addr_space), name);
-    global_ptr.set_initializer(&ptr_type.const_null());
-    compiler.global_table.insert(name, global_ptr);
+    let global = if var_type == AstType::Integer {
+        let int_type = compiler.context.i32_type();
+        let global = compiler.module.add_global(int_type, Some(addr_space), name);
+        global.set_initializer(&int_type.const_zero());
+        global
+    } else {
+        let ptr_type = compiler.context.i32_type().ptr_type(addr_space);
+        let global_ptr = compiler.module.add_global(ptr_type, Some(addr_space), name);
+        global_ptr.set_initializer(&ptr_type.const_null());
+        global_ptr
+    };
+    compiler.global_table.insert(name, global);
 }
 
 fn printres<'a>(value: &IntValue<'a>, compiler: &Compiler<'a>) {
@@ -171,12 +179,14 @@ pub fn defgen_global<'a>(
     let int_type = compiler.context.i32_type();
     let fn_type = int_type.fn_type(&[], false);
     let fn_value = compiler.module.add_function("val", fn_type, None);
+
     let basic_block = compiler.context.append_basic_block(fn_value, "entry");
     compiler.builder.position_at_end(basic_block);
     compiler.curr_function = Some(fn_value);
+
     let body_value = body.codegen(compiler)?;
 
-    let global_ptr = match compiler.global_table.get(name) {
+    let global_value = match compiler.global_table.get(name) {
         Some(&global_ptr) => global_ptr,
         None => compiler
             .module
@@ -188,37 +198,41 @@ pub fn defgen_global<'a>(
             .ok_or(format!("Unbound global variable {}", name))?,
     };
 
-    let array = compiler
-        .builder
-        .build_load(global_ptr.as_pointer_value(), "load");
-    compiler.builder.build_free(array.into_pointer_value());
+    let retval = if AstType::Pointer == var_type {
+        let old_array = compiler
+            .builder
+            .build_load(global_value.as_pointer_value(), "load")
+            .into_pointer_value();
+        compiler.builder.build_free(old_array);
 
-    let (array, retval) = if let AstType::Pointer = var_type {
         let size = body_value;
         let sizeof_int =
             compiler
                 .builder
                 .build_int_cast(size.get_type().size_of(), int_type, "cast");
         let n_bytes = compiler.builder.build_int_mul(size, sizeof_int, "bytes");
-        let array = compiler
+
+        let new_array = compiler
             .builder
             .build_array_malloc(int_type, size, "array")?;
+
         compiler.builder.build_memset(
-            array,
+            new_array,
             4,
             compiler.context.i8_type().const_zero(),
             n_bytes,
         )?;
-        (array, size)
+        compiler
+            .builder
+            .build_store(global_value.as_pointer_value(), new_array);
+        size
     } else {
-        let array = compiler.builder.build_malloc(int_type, "single")?;
-        compiler.builder.build_store(array, body_value);
-        (array, body_value)
+        compiler
+            .builder
+            .build_store(global_value.as_pointer_value(), body_value);
+        body_value
     };
 
-    compiler
-        .builder
-        .build_store(global_ptr.as_pointer_value(), array);
     printres(&retval, compiler);
     compiler.builder.build_return(Some(&retval));
 
@@ -252,7 +266,7 @@ pub fn defgen_cleanup<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'
     compiler.curr_function = Some(fn_value);
 
     for (name, global_ptr) in compiler.global_table.iter() {
-        if name.starts_with('#') {
+        if name.starts_with('#') || !name.ends_with("[") {
             continue;
         }
         let array = compiler

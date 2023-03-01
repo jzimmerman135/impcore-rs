@@ -1,7 +1,9 @@
+set up github repo
+
 mandatory default case in match statements
 lazy function loading?
--- active global ints instead of global ptrs
 undef macros
+
 
 LINKING:
     termios

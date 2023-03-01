@@ -1,11 +1,13 @@
-#(replace 'TRUE 1)
-#(replace 'ONE 'TRUE)
-#(replace ('ADD-ONE x) (+ x 'ONE))
+(val x 10)
+(set x 11)
+x
 
-(define myfunc (y) ('ADD-ONE y))
+(val y[] 15)
 
-(myfunc 10)
+y[8]
 
-#(replace 'RECURSIVE 'RECURSIVE)
-
-'RECURSIVE
+;; 
+;; (set y[8] 12)
+;; 
+;; y[8]
+;; y[6]

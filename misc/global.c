@@ -5,19 +5,19 @@
 int global_number;
 int *global_array = NULL;
 
-void set_global(int i) { global_number = i; }
+void set_global() { global_number = 15; }
 
-void val_array(int size) {
+void val_array() {
   free(global_array);
-  int bytes = size * sizeof(int);
-  global_array = malloc(bytes);
-  memset(global_array, 0, bytes);
+  global_array = malloc(16);
+  memset(global_array, 0, 16);
 }
 
 int main() {
-  set_global(15);
+  set_global();
   printf("number is: %i\n", global_number);
-  val_array(10);
+  val_array();
+  printf("number is: %i\n", global_array[2]);
 
   return 0;
 }

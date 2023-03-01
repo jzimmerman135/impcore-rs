@@ -1,6 +1,6 @@
 use super::*;
-use crate::ast::AstExpr;
-use inkwell::IntPredicate;
+use crate::ast::{AstExpr, AstType};
+use inkwell::{values::BasicValue, IntPredicate};
 
 impl<'a> AstExpr<'a> {
     pub fn codegen(&self, compiler: &mut Compiler<'a>) -> Result<IntValue<'a>, String> {
@@ -17,7 +17,7 @@ impl<'a> AstExpr<'a> {
             Self::Assign(name, body, index) => {
                 codegen::codegen_assign(name, index.as_deref(), body, compiler)
             }
-            Self::Error => codegen::codegen_literal(1, compiler),
+            Self::Error => codegen::codegen_literal(-1, compiler),
             Self::Match(scrut, arms) => codegen::codegen_match(scrut, arms.as_slice(), compiler),
             Self::Begin(exprs) => codegen::codegen_begin(exprs, compiler),
             _ => unreachable!("cannot codegen from {:?}", self),
@@ -38,7 +38,8 @@ pub fn codegen_variable<'a>(
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
     let addr = index_address(get_address(name, compiler)?, maybe_index, compiler)?;
-    Ok(compiler.builder.build_load(addr, "load").into_int_value())
+    let value = compiler.builder.build_load(addr, "load");
+    Ok(value.into_int_value())
 }
 
 pub fn codegen_assign<'a>(
@@ -69,16 +70,25 @@ fn index_address<'a>(
 fn get_address<'a>(name: &str, compiler: &Compiler<'a>) -> Result<PointerValue<'a>, String> {
     let local_variable = compiler.param_table.get(name);
     match local_variable {
-        Some(&e) => match compiler.is_pointer(name) {
-            true => Some(compiler.builder.build_load(e, "load").into_pointer_value()),
-            false => Some(e),
+        Some(&local) => match compiler.is_pointer(name) {
+            true => Some(
+                compiler
+                    .builder
+                    .build_load(local, "load")
+                    .into_pointer_value(),
+            ),
+            false => Some(local),
         },
-        None => compiler.global_table.get(name).map(|e| {
-            compiler
-                .builder
-                .build_load(e.as_pointer_value(), "load")
-                .into_pointer_value()
-        }),
+        None => compiler
+            .global_table
+            .get(name)
+            .map(|g| match compiler.is_pointer(name) {
+                true => compiler
+                    .builder
+                    .build_load(g.as_basic_value_enum().into_pointer_value(), "load")
+                    .into_pointer_value(),
+                false => g.as_pointer_value(),
+            }),
     }
     .ok_or(format!("Unbound variable {}", name))
 }

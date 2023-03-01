@@ -13,6 +13,8 @@ struct Cli {
     quiet: bool,
     #[arg(short, long)]
     filename: Option<String>,
+    #[arg(short, long)]
+    emit_llvm: bool,
 }
 
 fn main() {
@@ -39,6 +41,10 @@ fn main() {
         .map(|e| e.defgen(&mut compiler))
         .collect::<Result<Vec<_>, String>>()
         .unwrap_or_else(|e| rip(e));
+
+    if cli.emit_llvm {
+        compiler.module.print_to_file("error.ll").unwrap();
+    }
 
     if cli.debug {
         print_ir(&compiler);
