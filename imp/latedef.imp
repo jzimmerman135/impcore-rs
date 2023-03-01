@@ -1,0 +1,15 @@
+(define add-three (x) (+ 1 (add-two x)))
+(define add-two (x) (add-one (add-one x)))
+(define add-one (x) (+ x 1))
+
+
+(val u 0)
+(define add-one (x) (+ x 3))
+(add-three u)
+
+
+(define lazy-var (x) (set v x))
+(val v 100)
+(lazy-var 103)
+v
+

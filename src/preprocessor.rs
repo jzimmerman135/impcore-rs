@@ -4,80 +4,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::ast::{Ast, AstDef, AstExpr, AstMacro};
+use crate::{
+    ast::{Ast, AstDef, AstExpr, AstMacro},
+    MAX_MACRO_DEPTH,
+};
 use rayon::prelude::*;
 use regex::Regex;
-
-#[derive(Debug)]
-struct MacroEnv<'a> {
-    pub replacers: HashMap<AstExpr<'a>, AstExpr<'a>>,
-    pub functions: HashMap<&'a str, (Vec<AstExpr<'a>>, AstExpr<'a>)>,
-}
-
-impl<'a> MacroEnv<'a> {
-    pub fn new() -> Self {
-        Self {
-            replacers: HashMap::new(),
-            functions: HashMap::new(),
-        }
-    }
-
-    pub fn try_replace(&self, exp: AstExpr<'a>) -> Result<AstExpr<'a>, String> {
-        match &exp {
-            AstExpr::MacroVal(name) => self
-                .replacers
-                .get(&exp)
-                .ok_or(format!("Macro not found: {}", name))
-                .cloned(),
-            AstExpr::Call(name, args) if name.starts_with('\'') => {
-                let (formals, body) = self
-                    .functions
-                    .get(name)
-                    .ok_or(format!("Inline Function: {} not found", name))?;
-                let argmap = formals
-                    .iter()
-                    .zip(args)
-                    .collect::<HashMap<&AstExpr, &AstExpr>>();
-                let newbody = body.clone().reconstruct(&|e| match &argmap.get(&e) {
-                    Some(&v) => Ok(v.clone()),
-                    None => Ok(e),
-                })?;
-                Ok(newbody)
-            }
-            _ => Ok(exp),
-        }
-    }
-
-    pub fn take(&mut self, ast: Ast<'a>) -> Result<Ast<'a>, String> {
-        let mut defs = vec![];
-        for def in ast.defs.into_iter() {
-            match def {
-                AstDef::MacroDef(AstMacro::ImportFile(_)) => defs.push(def),
-                AstDef::MacroDef(m) => {
-                    match m {
-                        AstMacro::Inliner(name, args, body) => {
-                            self.functions.insert(name, (args, body));
-                        }
-                        AstMacro::Replacer(macroval, expr)
-                            if !expr.contains(&mut |e| matches!(e, AstExpr::MacroVal(..))) =>
-                        {
-                            self.replacers.insert(macroval, expr);
-                        }
-                        AstMacro::Replacer(AstExpr::MacroVal(name), expr) => {
-                            return Err(format!(
-                                "Recursive macro #(replace {} ({:?})) not allowed",
-                                name, expr
-                            ))
-                        }
-                        _ => return Err("Something wrong in getting macros".to_string()),
-                    };
-                }
-                _ => defs.push(def),
-            }
-        }
-        Ok(Ast { defs })
-    }
-}
 
 pub struct CodeBase(HashMap<String, String>);
 impl CodeBase {
@@ -173,13 +105,102 @@ fn join_trees<'a>(
 impl<'a> Ast<'a> {
     pub fn expand_macros(mut self) -> Result<Self, String> {
         let mut macro_env = MacroEnv::new();
-        self = macro_env.take(self)?;
         self.defs = self
             .defs
             .into_iter()
-            .map(|def| def.reconstruct(&|e| macro_env.try_replace(e)))
-            .collect::<Result<_, _>>()
-            .unwrap();
+            .filter_map(|def| match macro_env.try_push(def) {
+                Ok(_) => None,
+                Err(def) => Some(def.reconstruct(&|e| e.try_expand_macros(&macro_env))),
+            })
+            .collect::<Result<_, _>>()?;
         Ok(self)
+    }
+}
+
+#[derive(Debug)]
+struct MacroEnv<'a> {
+    pub replacers: HashMap<AstExpr<'a>, AstExpr<'a>>,
+    pub functions: HashMap<&'a str, (Vec<AstExpr<'a>>, AstExpr<'a>)>,
+}
+
+impl<'a> MacroEnv<'a> {
+    pub fn new() -> Self {
+        Self {
+            replacers: HashMap::new(),
+            functions: HashMap::new(),
+        }
+    }
+
+    // Will either add a macrodef to the environment, pop a macrodef from the environment.
+    // If def isn't a macro then it will be returned as in the error
+    pub fn try_push(&mut self, def: AstDef<'a>) -> Result<(), AstDef<'a>> {
+        match def {
+            AstDef::MacroDef(m) => match m {
+                AstMacro::ImportFile(_) => Ok(()),
+                AstMacro::Inliner(name, args, body) => {
+                    self.functions.insert(name, (args, body));
+                    Ok(())
+                }
+                AstMacro::Replacer(macroval, expr) => {
+                    self.replacers.insert(macroval, expr);
+                    Ok(())
+                }
+            },
+            _ => Err(def),
+        }
+    }
+}
+
+impl<'a> AstExpr<'a> {
+    fn try_expand_macros(self, macro_env: &MacroEnv<'a>) -> Result<AstExpr<'a>, String> {
+        let macroname;
+        match self {
+            AstExpr::MacroVal(name, ..) => macroname = *&name,
+            AstExpr::Call(name, ..) if name.starts_with("'") => macroname = *&name,
+            _ => return Ok(self),
+        }
+        self.try_expand_macros_recursive(macro_env, 0)
+            .map_err(|mut s| {
+                s.push_str(&mut format!(" on {}", &macroname));
+                s
+            })
+    }
+
+    fn try_expand_macros_recursive(
+        self,
+        macro_env: &MacroEnv<'a>,
+        depth: u32,
+    ) -> Result<AstExpr<'a>, String> {
+        if depth > MAX_MACRO_DEPTH {
+            return Err(format!(
+                "Preprocessor failure, macro depth {} exceeded",
+                MAX_MACRO_DEPTH
+            ));
+        }
+
+        match &self {
+            AstExpr::MacroVal(name) => macro_env
+                .replacers
+                .get(&self)
+                .ok_or(format!("Macro not found: {}", name))
+                .cloned()?
+                .try_expand_macros_recursive(macro_env, depth + 1),
+            AstExpr::Call(name, args) if name.starts_with('\'') => {
+                let (formals, body) = macro_env
+                    .functions
+                    .get(name)
+                    .ok_or(format!("Inline Function: {} not found", name))?;
+                let argmap = formals
+                    .iter()
+                    .zip(args)
+                    .collect::<HashMap<&AstExpr, &AstExpr>>();
+                let newbody = body.clone().reconstruct(&|e| match &argmap.get(&e) {
+                    Some(&v) => Ok(v.clone()),
+                    None => Ok(e),
+                })?;
+                newbody.try_expand_macros_recursive(macro_env, depth + 1)
+            }
+            _ => Ok(self),
+        }
     }
 }

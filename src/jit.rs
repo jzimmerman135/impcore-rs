@@ -15,6 +15,8 @@ use inkwell::{
     AddressSpace, OptimizationLevel,
 };
 
+use crate::ast::AstDef;
+
 #[derive(Debug)]
 pub struct Compiler<'ctx> {
     pub context: &'ctx Context,
@@ -23,6 +25,7 @@ pub struct Compiler<'ctx> {
     pub fpm: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
     pub quiet_mode: bool,
+    lazydef_table: HashMap<&'ctx str, &'ctx AstDef<'ctx>>,
     param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
     global_table: HashMap<&'ctx str, GlobalValue<'ctx>>,
     exec_mode: ExecutionMode,
@@ -78,6 +81,7 @@ impl<'ctx> Compiler<'ctx> {
             execution_engine,
             quiet_mode: false,
             exec_mode,
+            lazydef_table: HashMap::new(),
             param_table: HashMap::new(),
             global_table: HashMap::new(),
             curr_function: None,
@@ -92,10 +96,6 @@ impl<'ctx> Compiler<'ctx> {
         let addr_space = AddressSpace::default();
         let int_type = self.context.i32_type();
         let str_type = self.context.i8_type().ptr_type(addr_space);
-
-        // let main_fn_type = int_type.fn_type(&[], false);
-        // let main_fn = self.module.add_function("main", main_fn_type, None);
-        // self.lib.insert("main", main_fn);
 
         let printf_type = int_type.fn_type(&[str_type.into()], true);
         let printf_fn = self

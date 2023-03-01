@@ -12,6 +12,8 @@ pub mod parser;
 pub mod preprocessor;
 pub mod static_analysis;
 
+pub const MAX_MACRO_DEPTH: u32 = 15;
+
 #[allow(unused)]
 pub fn print_ast(ast: &Ast) {
     eprintln!("\nPRINTING AST\n------------");

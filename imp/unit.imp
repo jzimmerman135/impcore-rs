@@ -1,14 +1,11 @@
-#(import stdin)
+#(replace 'TRUE 1)
+#(replace 'ONE 'TRUE)
+#(replace ('ADD-ONE x) (+ x 'ONE))
 
-(val res -1)
-(val a 97)
-(val x (getc))
+(define myfunc (y) ('ADD-ONE y))
 
-(set res (match x 
-  (97 => 0)
-  (98 => 1)))
+(myfunc 10)
 
-(print res)
+#(replace 'RECURSIVE 'RECURSIVE)
 
-;; (if (= x 97) (printc x) (print x))
-
+'RECURSIVE
