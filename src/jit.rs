@@ -27,10 +27,10 @@ pub struct Compiler<'ctx> {
     pub quiet_mode: bool,
     _lazydef_table: HashMap<&'ctx str, &'ctx AstDef<'ctx>>,
     param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
-    global_table: HashMap<&'ctx str, GlobalValue<'ctx>>,
+    pub global_table: HashMap<&'ctx str, GlobalValue<'ctx>>,
     exec_mode: ExecutionMode,
     curr_function: Option<FunctionValue<'ctx>>,
-    lib: HashMap<&'ctx str, FunctionValue<'ctx>>,
+    pub lib: HashMap<&'ctx str, FunctionValue<'ctx>>,
 }
 
 #[derive(Debug)]

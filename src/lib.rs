@@ -8,6 +8,7 @@ extern crate pest_derive;
 
 pub mod ast;
 pub mod jit;
+pub mod lazygraph;
 pub mod parser;
 pub mod preprocessor;
 pub mod static_analysis;

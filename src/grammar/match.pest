@@ -27,9 +27,9 @@ ACCESSOR = _{ (macroval | literal | array_value | variable) ~ &(WSP | RPAREN | R
 ARG = _{ (PTR ~ WSP* | exp) }
 
 lib = @{ LETTER* }
-file = @{ ( LETTER | "/" | ".." | "./" )* ~ ".imp" }
+impcore_file = @{ ( LETTER | "/" | ".." | "./" )* ~ ".imp" }
 libimport = _{ "import" ~ WSP+ ~ lib }
-fileimport = _{ "import" ~ WSP+ ~ "\"" ~ file  ~ "\"" }
+fileimport = _{ "import" ~ WSP+ ~ "\"" ~ impcore_file  ~ "\"" }
 
 replacer = { "replace" ~ WSP+ ~ macroval ~ WSP+ ~ exp }
 inliner = { "replace" ~ WSP+ ~ LPAREN ~ macroval ~ WSP+ ~ (WSP* ~ parameter)+ ~ RPAREN ~ WSP+ ~ exp }
