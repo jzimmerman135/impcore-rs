@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 mod codegen;
 mod defgen;
 mod implib;
+use crate::{ast::Ast, lazygraph::LazyGraph};
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -15,9 +16,6 @@ use inkwell::{
     AddressSpace, OptimizationLevel,
 };
 
-use crate::ast::AstDef;
-
-#[derive(Debug)]
 pub struct Compiler<'ctx> {
     pub context: &'ctx Context,
     pub module: Module<'ctx>,
@@ -25,7 +23,7 @@ pub struct Compiler<'ctx> {
     pub fpm: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
     pub quiet_mode: bool,
-    _lazydef_table: HashMap<&'ctx str, &'ctx AstDef<'ctx>>,
+    lazy_table: LazyGraph<'ctx>,
     param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
     pub global_table: HashMap<&'ctx str, GlobalValue<'ctx>>,
     exec_mode: ExecutionMode,
@@ -81,7 +79,7 @@ impl<'ctx> Compiler<'ctx> {
             execution_engine,
             quiet_mode: false,
             exec_mode,
-            _lazydef_table: HashMap::new(),
+            lazy_table: LazyGraph::new(),
             param_table: HashMap::new(),
             global_table: HashMap::new(),
             curr_function: None,
@@ -90,6 +88,20 @@ impl<'ctx> Compiler<'ctx> {
 
         compiler.build_lib();
         Ok(compiler)
+    }
+
+    pub fn codegen(&mut self, ast: &'ctx Ast) -> Result<Vec<NativeTopLevel<'ctx>>, String> {
+        let mut native_functions = Vec::with_capacity(ast.defs.len());
+        let mut lazy_table = mem::take(&mut self.lazy_table);
+        for def in ast.defs.iter() {
+            let ready_defs = lazy_table.eval(def, self);
+            for def in ready_defs {
+                let native_top_level = def.defgen(self)?;
+                native_functions.push(native_top_level);
+            }
+        }
+        self.lazy_table = lazy_table;
+        Ok(native_functions)
     }
 
     fn build_lib(&mut self) {
@@ -107,6 +119,7 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     /// Does not check if name is actually bound
+    /// This should be a band aid for a more sophisticated type system
     fn is_pointer(&self, name: &str) -> bool {
         name.ends_with('[')
     }
@@ -126,7 +139,7 @@ impl<'ctx> Compiler<'ctx> {
         fpm
     }
 
-    pub fn clear_curr_function(&mut self) {
+    fn clear_curr_function(&mut self) {
         self.param_table.clear();
         self.curr_function = None;
     }
@@ -143,7 +156,8 @@ impl<'ctx> Compiler<'ctx> {
         };
     }
 
-    fn run_native_unverified(&mut self, top_level_def: &NativeTopLevel<'ctx>) {
+    /// disregards execution engine type
+    unsafe fn run_native_unverified(&mut self, top_level_def: &NativeTopLevel<'ctx>) {
         match *top_level_def {
             NativeTopLevel::FunctionDef(..) if self.quiet_mode => (),
             NativeTopLevel::FunctionDef(_, name) => println!("{}", name),
@@ -164,7 +178,8 @@ impl<'ctx> Compiler<'ctx> {
         }
     }
 
-    fn run_test_unverified(&mut self, test: &NativeTopLevel<'ctx>) -> bool {
+    /// disregards execution_engine type
+    unsafe fn run_test_unverified(&mut self, test: &NativeTopLevel<'ctx>) -> bool {
         match *test {
             NativeTopLevel::CheckAssert(assert_fn, contents) => {
                 let res =
@@ -190,12 +205,13 @@ impl<'ctx> Compiler<'ctx> {
             _ => unreachable!("not a test expression {:?}", test),
         }
     }
-    pub fn top_level_run_one(&mut self, def: &NativeTopLevel<'ctx>) {
+
+    pub fn native_run_one(&mut self, def: &NativeTopLevel<'ctx>) {
         self.verify_engine();
-        self.run_native_unverified(def);
+        unsafe { self.run_native_unverified(def) };
     }
 
-    pub fn top_level_run_all(&mut self, native_top_level_exprs: &[NativeTopLevel<'ctx>]) {
+    pub fn native_run_all(&mut self, native_top_level_exprs: &[NativeTopLevel<'ctx>]) {
         self.verify_engine();
         let mut defs = vec![];
         let mut tests = vec![];
@@ -209,7 +225,7 @@ impl<'ctx> Compiler<'ctx> {
         }
 
         for def in defs {
-            self.run_native_unverified(def);
+            unsafe { self.run_native_unverified(def) };
         }
 
         self.run_tests(&tests);
@@ -222,7 +238,7 @@ impl<'ctx> Compiler<'ctx> {
 
         let mut successful = 0;
         for test in tests {
-            if self.run_test_unverified(test) {
+            if unsafe { self.run_test_unverified(test) } {
                 successful += 1
             }
         }
@@ -232,10 +248,5 @@ impl<'ctx> Compiler<'ctx> {
         } else {
             eprintln!("Passed {} of {} tests", successful, tests.len())
         }
-    }
-
-    pub fn run_one_test(&mut self, test: &NativeTopLevel<'ctx>) {
-        self.verify_engine();
-        self.run_test_unverified(test);
     }
 }

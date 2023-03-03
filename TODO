@@ -1,3 +1,5 @@
+test undef
+
 lazy function loading? attempt 1 do it without llvm
 
 - when given a function definition F
@@ -22,8 +24,6 @@ lazy function loading? attempt 1 do it without llvm
 - when calling a function
     - check the function table
         if unbound ask the lazy table why
-    
-
 
 LINKING:
     termios

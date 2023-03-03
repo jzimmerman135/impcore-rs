@@ -51,5 +51,5 @@ fn main() {
         eprintln!("\nEXECUTION OUTPUT\n--------------------------------------------------");
     }
 
-    compiler.top_level_run_all(&native_top_level_defs);
+    compiler.native_run_all(&native_top_level_defs);
 }
