@@ -1,5 +1,9 @@
 (define add-two (x) (add-one (add-one x)))
-(define add-one (x) (+ x one))
-(val one 1)
+(define add-one (x) (+ x one[0]))
+(define add-three (x) (add-one (add-two x)))
+(define fill-arr (r[] i v) (set r[i] v))
 
-(add-two 8)
+(val one[] 6)
+(fill-arr one[] 0 1)
+(add-three 8)
+

@@ -2,7 +2,7 @@ use crate::{
     ast::{AstDef, AstExpr},
     jit::Compiler,
 };
-use petgraph::graph::NodeIndex;
+use petgraph::{graph::NodeIndex, visit::IntoNodeIdentifiers};
 use petgraph::{Direction::Outgoing, Graph};
 use std::collections::HashMap;
 
@@ -10,6 +10,31 @@ use std::collections::HashMap;
 enum LazyDep<'a> {
     Function(&'a str),
     Global(&'a str),
+}
+
+impl<'a> LazyDep<'a> {
+    #[allow(unused)]
+    fn from_expr(expr: &AstExpr<'a>) -> Self {
+        match expr {
+            AstExpr::Call(name, ..) => LazyDep::Function(name),
+            AstExpr::Variable(name, ..) => LazyDep::Global(name),
+            _ => panic!("Cannot generate LazyDep from AstExpr {:?}", expr),
+        }
+    }
+
+    fn from_errstr(err: &'a str) -> Result<Self, ()> {
+        if let Some(message) = err.strip_prefix("__UBF:") {
+            return Ok(LazyDep::Function(message));
+        }
+        Err(())
+    }
+
+    fn name(&self) -> &'a str {
+        match self {
+            LazyDep::Global(name) => name,
+            LazyDep::Function(name) => name,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -26,29 +51,65 @@ impl<'a> LazyGraph<'a> {
         }
     }
 
-    pub fn why(&self, name: &str) -> String {
-        format!("TODO! Unbound function {}", name)
+    /// Trace unresolved dependencies and return an appropriate error message
+    pub fn why_cant(&self, errstring: String) -> String {
+        let dependee = match LazyDep::from_errstr(&errstring) {
+            Ok(x) => x,
+            Err(_) => return errstring,
+        };
+
+        println!("Looking for {:?} in graph {:?}", dependee, self.graph);
+
+        let node = match self.find(dependee) {
+            Some(node) => node,
+            None => return format!("Unbound hohoho function {}", dependee.name()),
+        };
+        let mut needs = self.graph.neighbors_directed(node, Outgoing);
+        format!(
+            "Unbound hehehe function {}",
+            self.graph[needs.next().unwrap()].name()
+        )
     }
 
     pub fn eval(&mut self, def: &'a AstDef<'a>, compiler: &Compiler<'a>) -> Vec<&'a AstDef<'a>> {
         let dependencies = def.get_unmet_dependencies(compiler);
-        match &def {
+        println!("");
+        let res = match &def {
             AstDef::Global(name, ..) => {
+                println!(
+                    "EVAL {:?}, AWAITING {:?}",
+                    LazyDep::Global(name),
+                    dependencies,
+                );
                 let mut ready_defs = vec![def];
                 ready_defs.append(&mut self.resolve(LazyDep::Global(name)));
                 ready_defs
             }
             AstDef::Function(name, ..) if dependencies.is_empty() => {
+                println!(
+                    "EVAL {:?}, AWAITING {:?}",
+                    LazyDep::Function(name),
+                    dependencies,
+                );
                 let mut ready_defs = vec![def];
                 ready_defs.append(&mut self.resolve(LazyDep::Function(name)));
                 ready_defs
             }
             AstDef::Function(name, ..) => {
-                self.add((LazyDep::Function(name), def), dependencies);
+                println!(
+                    "EVAL {:?}, AWAITING {:?}",
+                    LazyDep::Function(name),
+                    dependencies,
+                );
+                self.add((LazyDep::Function(name), def), dependencies.clone());
                 vec![]
             }
-            _ => vec![def],
+            _ => return vec![def],
+        };
+        for def in &res {
+            println!("READY {:?}", def);
         }
+        res
     }
 
     /// Adds function to the dependency graph with edges to all needs, also stores the def in the lazy table
@@ -56,9 +117,14 @@ impl<'a> LazyGraph<'a> {
         let (dependee, def) = function;
         if let LazyDep::Function(..) = dependee {
             let dependee_node = self.graph.add_node(dependee);
+            println!("ADDING {:?}", dependee);
             self.def_table.insert(dependee, def);
-            for depenency in needs {
-                let dependency_node = self.graph.add_node(depenency);
+            for dependency in needs {
+                println!(
+                    "ADDING {:?}, {:?} -> {:?}",
+                    dependency, dependee, dependency
+                );
+                let dependency_node = self.graph.add_node(dependency);
                 self.graph.add_edge(dependee_node, dependency_node, 1);
             }
         }
@@ -72,14 +138,19 @@ impl<'a> LazyGraph<'a> {
         };
         let mut resolved_defs = vec![];
         loop {
+            println!("REMOVING NODE {:?}", self.graph[resolved_dependency]);
             let resolved_lazydep = self.graph[resolved_dependency];
             self.graph.remove_node(resolved_dependency);
             if let Some(def) = self.def_table.remove(&resolved_lazydep) {
                 resolved_defs.push(def);
             }
             resolved_dependency = match self.find_next_resolved() {
-                Some(next_resolved) => next_resolved,
-                None => break,
+                Some(next_resolved)
+                    if matches!(self.graph[next_resolved], LazyDep::Function(..)) =>
+                {
+                    next_resolved
+                }
+                _ => break,
             };
         }
         resolved_defs
@@ -101,12 +172,14 @@ impl<'a> LazyGraph<'a> {
 
 impl<'a> AstDef<'a> {
     fn get_unmet_dependencies(&self, compiler: &Compiler<'a>) -> Vec<LazyDep<'a>> {
-        if let Self::Function(_, args, _) = self {
+        if let Self::Function(parent_fname, args, _) = self {
             let mut dependencies = vec![];
             let params = args.iter().map(|a| a.0).collect::<Vec<_>>();
             self.for_each_child(&mut |e| {
                 Ok(match e {
-                    AstExpr::Call(name, ..) if !compiler.has_function(name) => {
+                    AstExpr::Call(name, ..)
+                        if !compiler.has_function(name) && name != parent_fname =>
+                    {
                         dependencies.push(LazyDep::Function(name));
                     }
                     AstExpr::Variable(name, ..)

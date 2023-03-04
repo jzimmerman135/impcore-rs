@@ -23,7 +23,6 @@ pub struct Compiler<'ctx> {
     pub fpm: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
     pub quiet_mode: bool,
-    lazy_table: LazyGraph<'ctx>,
     param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
     pub global_table: HashMap<&'ctx str, GlobalValue<'ctx>>,
     exec_mode: ExecutionMode,
@@ -79,7 +78,6 @@ impl<'ctx> Compiler<'ctx> {
             execution_engine,
             quiet_mode: false,
             exec_mode,
-            lazy_table: LazyGraph::new(),
             param_table: HashMap::new(),
             global_table: HashMap::new(),
             curr_function: None,
@@ -92,15 +90,15 @@ impl<'ctx> Compiler<'ctx> {
 
     pub fn codegen(&mut self, ast: &'ctx Ast) -> Result<Vec<NativeTopLevel<'ctx>>, String> {
         let mut native_functions = Vec::with_capacity(ast.defs.len());
-        let mut lazy_table = mem::take(&mut self.lazy_table);
+        let mut lazy_table = LazyGraph::new();
         for def in ast.defs.iter() {
             let ready_defs = lazy_table.eval(def, self);
             for def in ready_defs {
-                let native_top_level = def.defgen(self)?;
+                let native_top_level = def.defgen(self).map_err(|s| lazy_table.why_cant(s))?;
                 native_functions.push(native_top_level);
             }
         }
-        self.lazy_table = lazy_table;
+        // self.lazy_table = lazy_table;
         Ok(native_functions)
     }
 

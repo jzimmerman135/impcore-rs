@@ -191,7 +191,7 @@ pub fn codegen_call<'a>(
     let function = compiler
         .module
         .get_function(name)
-        .ok_or(format!("Unbound function {}", name))?;
+        .ok_or(format!("__UBF:{}", name))?;
 
     let expected_argcount = function.get_params().len();
     let received_argcount = args.len();

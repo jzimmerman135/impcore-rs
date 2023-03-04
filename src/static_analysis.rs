@@ -1,3 +1,7 @@
+/**
+ * STATIC_ANALYSIS
+ * This module doesn't do much yet, it only really adds a cleanup instruction at the bottom of ast
+ * */
 use crate::ast::*;
 use std::collections::{HashMap, HashSet};
 impl<'a> Ast<'a> {
