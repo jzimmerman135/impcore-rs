@@ -64,11 +64,10 @@ fn printres<'a>(value: &IntValue<'a>, compiler: &Compiler<'a>) {
     if compiler.quiet_mode {
         return;
     }
-    let v = *value;
-    let println = *compiler.lib.get("println").unwrap();
+    let println = compiler.lib.get("println").unwrap();
     compiler
         .builder
-        .build_call(println, &[v.into()], "printres");
+        .build_call(*println, &[(*value).into()], "printres");
 }
 
 pub fn defgen_anonymous<'a>(

@@ -2,7 +2,8 @@ use crate::{
     ast::{AstDef, AstExpr},
     jit::Compiler,
 };
-use petgraph::Graph;
+use petgraph::graph::NodeIndex;
+use petgraph::{Direction::Outgoing, Graph};
 use std::collections::HashMap;
 
 #[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
@@ -13,14 +14,14 @@ enum LazyDep<'a> {
 
 #[derive(Default)]
 pub struct LazyGraph<'a> {
-    defs: HashMap<LazyDep<'a>, &'a AstDef<'a>>,
+    def_table: HashMap<LazyDep<'a>, &'a AstDef<'a>>,
     graph: Graph<LazyDep<'a>, i32>,
 }
 
 impl<'a> LazyGraph<'a> {
     pub fn new() -> Self {
         Self {
-            defs: HashMap::new(),
+            def_table: HashMap::new(),
             graph: Graph::new(),
         }
     }
@@ -30,32 +31,32 @@ impl<'a> LazyGraph<'a> {
     }
 
     pub fn eval(&mut self, def: &'a AstDef<'a>, compiler: &Compiler<'a>) -> Vec<&'a AstDef<'a>> {
-        let res = match &def {
+        let dependencies = def.get_unmet_dependencies(compiler);
+        match &def {
             AstDef::Global(name, ..) => {
                 let mut ready_defs = vec![def];
                 ready_defs.append(&mut self.resolve(LazyDep::Global(name)));
                 ready_defs
             }
-            AstDef::Function(name, ..) => {
-                let needs = def.get_unmet_dependencies(compiler);
-                self.add((LazyDep::Function(name), def), needs);
-                self.resolve(LazyDep::Function(name))
+            AstDef::Function(name, ..) if dependencies.is_empty() => {
+                let mut ready_defs = vec![def];
+                ready_defs.append(&mut self.resolve(LazyDep::Function(name)));
+                ready_defs
             }
-            _ => return vec![def],
-        };
-
-        // println!("evaluating {:?} needs {:?}", dependee, needs);
-        for def in &res {
-            println!("ready to define {:?}", def);
+            AstDef::Function(name, ..) => {
+                self.add((LazyDep::Function(name), def), dependencies);
+                vec![]
+            }
+            _ => vec![def],
         }
-        res
     }
 
+    /// Adds function to the dependency graph with edges to all needs, also stores the def in the lazy table
     fn add(&mut self, function: (LazyDep<'a>, &'a AstDef), needs: Vec<LazyDep<'a>>) {
         let (dependee, def) = function;
         if let LazyDep::Function(..) = dependee {
             let dependee_node = self.graph.add_node(dependee);
-            self.defs.insert(dependee, def);
+            self.def_table.insert(dependee, def);
             for depenency in needs {
                 let dependency_node = self.graph.add_node(depenency);
                 self.graph.add_edge(dependee_node, dependency_node, 1);
@@ -63,34 +64,38 @@ impl<'a> LazyGraph<'a> {
         }
     }
 
+    /// Removes dependee from the graph and all other functions that are ready to be defined  
     fn resolve(&mut self, dependee: LazyDep<'a>) -> Vec<&'a AstDef<'a>> {
-        // println!("graph is {:?} ", self.graph);
-        let mut resolved_defs = vec![];
-        let mut resolved_dependency = match self
-            .graph
-            .node_indices()
-            .find(|&i| self.graph[i] == dependee)
-        {
-            Some(dep) => dep,
+        let mut resolved_dependency = match self.find(dependee) {
+            Some(found_dependee) => found_dependee,
             None => return vec![],
         };
+        let mut resolved_defs = vec![];
         loop {
-            let node_def = self.graph[resolved_dependency];
+            let resolved_lazydep = self.graph[resolved_dependency];
             self.graph.remove_node(resolved_dependency);
-            if let Some(def) = self.defs.remove(&node_def) {
+            if let Some(def) = self.def_table.remove(&resolved_lazydep) {
                 resolved_defs.push(def);
             }
-            resolved_dependency = match self.graph.node_indices().find_map(|n| {
-                match self.graph.neighbors_undirected(n).count() {
-                    0 => Some(n),
-                    _ => None,
-                }
-            }) {
+            resolved_dependency = match self.find_next_resolved() {
                 Some(next_resolved) => next_resolved,
                 None => break,
             };
         }
         resolved_defs
+    }
+
+    fn find_next_resolved(&self) -> Option<NodeIndex> {
+        self.graph.node_indices().find_map(|n| {
+            match self.graph.neighbors_directed(n, Outgoing).count() {
+                0 => Some(n),
+                _ => None,
+            }
+        })
+    }
+
+    fn find(&self, dep: LazyDep) -> Option<NodeIndex> {
+        self.graph.node_indices().find(|&i| self.graph[i] == dep)
     }
 }
 

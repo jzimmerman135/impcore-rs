@@ -1,5 +1,5 @@
-(val one 1)
 (define add-two (x) (add-one (add-one x)))
 (define add-one (x) (+ x one))
+(val one 1)
 
 (add-two 8)
