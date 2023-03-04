@@ -2,7 +2,10 @@ use std::collections::HashMap;
 mod codegen;
 mod defgen;
 mod implib;
-use crate::{ast::Ast, lazygraph::LazyGraph};
+use crate::{
+    ast::{Ast, AstDef},
+    lazygraph::LazyGraph,
+};
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -42,7 +45,7 @@ pub enum NativeTopLevel<'ctx> {
     CheckAssert(FunctionValue<'ctx>, &'ctx str),
     CheckExpect(FunctionValue<'ctx>, FunctionValue<'ctx>, &'ctx str),
     TopLevelExpr(FunctionValue<'ctx>),
-    FunctionDef(FunctionValue<'ctx>, &'ctx str),
+    FunctionDef(&'ctx str),
     FreeAll(FunctionValue<'ctx>),
     Noop,
 }
@@ -92,6 +95,9 @@ impl<'ctx> Compiler<'ctx> {
         let mut native_functions = Vec::with_capacity(ast.defs.len());
         let mut lazy_table = LazyGraph::new();
         for def in ast.defs.iter() {
+            if let AstDef::Function(name, ..) = &def {
+                native_functions.push(NativeTopLevel::FunctionDef(name));
+            }
             let ready_defs = lazy_table.eval(def, self);
             for def in ready_defs {
                 let native_top_level = def.defgen(self).map_err(|s| lazy_table.why_cant(s))?;
@@ -158,7 +164,7 @@ impl<'ctx> Compiler<'ctx> {
     unsafe fn run_native_unverified(&mut self, top_level_def: &NativeTopLevel<'ctx>) {
         match *top_level_def {
             NativeTopLevel::FunctionDef(..) if self.quiet_mode => (),
-            NativeTopLevel::FunctionDef(_, name) => println!("{}", name),
+            NativeTopLevel::FunctionDef(name) => println!("{}", name),
             NativeTopLevel::TopLevelExpr(fn_value) => unsafe {
                 self.execution_engine.run_function(fn_value, &[]);
             },

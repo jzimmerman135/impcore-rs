@@ -7,10 +7,10 @@ impl<'a> AstDef<'a> {
     pub fn defgen(&self, compiler: &mut Compiler<'a>) -> Result<NativeTopLevel<'a>, String> {
         compiler.clear_curr_function();
         let native = match self {
-            Self::Function(name, params, body) => NativeTopLevel::FunctionDef(
-                defgen::defgen_function(name, params, body, compiler)?,
-                name,
-            ),
+            Self::Function(name, params, body) => {
+                defgen::defgen_function(name, params, body, compiler)?;
+                NativeTopLevel::Noop
+        }
             Self::TopLevelExpr(body) => {
                 NativeTopLevel::TopLevelExpr(defgen::defgen_anonymous(body, compiler)?)
             }
