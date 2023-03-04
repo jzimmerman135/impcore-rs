@@ -2,7 +2,7 @@ use crate::ast::*;
 use std::collections::{HashMap, HashSet};
 impl<'a> Ast<'a> {
     pub fn prepare(mut self) -> Self {
-        predefine_globals(&mut self);
+        // predefine_globals(&mut self);
         append_garbage_collector(&mut self);
         self
     }
@@ -12,6 +12,7 @@ fn append_garbage_collector(ast: &mut Ast) {
     ast.defs.push(AstDef::FreeAll);
 }
 
+#[allow(unused)]
 fn predefine_globals(ast: &mut Ast) {
     let mut global_names = HashSet::new();
     let mut declarations = vec![];

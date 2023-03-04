@@ -26,8 +26,8 @@ impl<'a> AstDef<'a> {
             Self::Global(name, value, var_type) => NativeTopLevel::TopLevelExpr(
                 defgen::defgen_global(name, value, *var_type, compiler)?,
             ),
-            Self::DeclareGlobal(name, var_type) => {
-                defgen::declare_global(name, *var_type, compiler);
+            Self::DeclareGlobal(..) => {
+                // defgen::declare_global(name, *var_type, compiler);
                 NativeTopLevel::Noop
             }
             Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_cleanup(compiler)?),
@@ -43,7 +43,7 @@ impl<'a> AstDef<'a> {
     }
 }
 
-pub fn declare_global<'a>(name: &'a str, var_type: AstType, compiler: &mut Compiler<'a>) {
+pub fn declare_global<'a>(name: &'a str, var_type: AstType, compiler: &mut Compiler<'a>) -> GlobalValue<'a> {
     let addr_space = AddressSpace::default();
     let global = if var_type == AstType::Integer {
         let int_type = compiler.context.i32_type();
@@ -57,6 +57,7 @@ pub fn declare_global<'a>(name: &'a str, var_type: AstType, compiler: &mut Compi
         global_ptr
     };
     compiler.global_table.insert(name, global);
+    global
 }
 
 fn printres<'a>(value: &IntValue<'a>, compiler: &Compiler<'a>) {
@@ -188,14 +189,15 @@ pub fn defgen_global<'a>(
 
     let global_value = match compiler.global_table.get(name) {
         Some(&global_ptr) => global_ptr,
-        None => compiler
-            .module
-            .get_global(name)
-            .map(|g| {
-                compiler.global_table.insert(name, g);
-                g
-            })
-            .ok_or(format!("Unbound global variable {}", name))?,
+        None => declare_global(name, var_type, compiler) 
+        // None => compiler
+        //     .module
+        //     .get_global(name)
+        //     .map(|g| {
+        //         compiler.global_table.insert(name, g);
+        //         g
+        //     })
+        //     .ok_or(format!("Unbound global variable {}", name))?,
     };
 
     let retval = if AstType::Pointer == var_type {

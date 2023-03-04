@@ -36,11 +36,12 @@ fn main() {
 
     compiler.quiet_mode = cli.quiet;
 
-    let native_top_level_defs = ast
-        .iter()
-        .map(|e| e.defgen(&mut compiler))
-        .collect::<Result<Vec<_>, String>>()
-        .unwrap_or_else(|e| rip(e));
+    // let native_top_level_defs = ast
+    //     .iter()
+    //     .map(|e| e.defgen(&mut compiler))
+    //     .collect::<Result<Vec<_>, String>>()
+    //     .unwrap_or_else(|e| rip(e));
+    let native_top_level_functions = compiler.codegen(&ast).unwrap_or_else(|e| rip(e));
 
     if cli.emit_llvm {
         compiler.module.print_to_file("error.ll").unwrap();
@@ -51,5 +52,5 @@ fn main() {
         eprintln!("\nEXECUTION OUTPUT\n--------------------------------------------------");
     }
 
-    compiler.native_run_all(&native_top_level_defs);
+    compiler.native_run_all(&native_top_level_functions);
 }

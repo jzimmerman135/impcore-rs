@@ -1,7 +1,5 @@
-#(replace 'TODO 5)
-(val x 9)
+(val one 1)
+(define add-two (x) (add-one (add-one x)))
+(define add-one (x) (+ x one))
 
-(match x 
-  (10 => 11)
-  (11 => 12)
-  (_ => (+ x 100)))
+(add-two 8)
