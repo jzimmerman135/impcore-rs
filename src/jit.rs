@@ -1,4 +1,4 @@
-use std::{collections::HashMap, mem};
+use std::collections::HashMap;
 mod codegen;
 mod defgen;
 mod implib;
