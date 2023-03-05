@@ -15,6 +15,7 @@ impl<'a> AstDef<'a> {
             Rule::impcore_file => macro_parse::parse_importfile(def),
             Rule::replacer => macro_parse::parse_replacer(def),
             Rule::inliner => macro_parse::parse_inliner(def),
+            Rule::undef => macro_parse::parse_undef(def),
             _ => unreachable!("got unreachable def rule {:?}", def.as_rule()),
         }
     }

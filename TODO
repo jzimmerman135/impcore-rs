@@ -1,30 +1,15 @@
-test undef
-
-lazy function loading? attempt 1 do it without llvm
-
-- when given a function definition F
-    - which has no unmet dependencies
-      - remove F from the lazy graph (if possible)
-      - compile all other vertices in lazy table that have no edges 
-        and add them to the function table 
-      - compile F and add to function table
-    - which has unmet dependencies A, B
-      - add A, B to the lazy graph
-      - if it already exists in the lazy graph make sure it is still connected
-        - update add edges to A, B
-      - if it does not exist in lazy graph
-        - add F and connect it to A, B
-      - don't try to compile it
-
-- when given a global G
-    - try remove G from the lazy table
-    - compile all other vertices in lazy table that have no edges 
-        and add them to the function table 
-
-- when calling a function
-    - check the function table
-        if unbound ask the lazy table why
+Add more tests to basic.imp
+------------------------
+    match
+    macro values
+    macro expressions
+    deep macros
+    undef macros
+    import other files
+    lazy functions
+    redefined globals
 
 LINKING:
     termios
-    
+
+REPL mode?

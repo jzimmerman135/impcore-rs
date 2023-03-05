@@ -15,6 +15,11 @@ pub mod static_analysis;
 
 pub const MAX_MACRO_DEPTH: u32 = 15;
 
+pub mod errors {
+    pub static UNBOUND_FUNCTION: &str = "#$@UBF";
+    pub static MACRO_LOOP: &str = "#$@RCM";
+}
+
 #[allow(unused)]
 pub fn print_ast(ast: &Ast) {
     eprintln!("\nPRINTING AST\n------------");

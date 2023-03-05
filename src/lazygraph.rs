@@ -1,5 +1,6 @@
 use crate::{
     ast::{AstDef, AstExpr},
+    errors::UNBOUND_FUNCTION,
     jit::Compiler,
 };
 use petgraph::graph::NodeIndex;
@@ -13,17 +14,9 @@ enum LazyDep<'a> {
 }
 
 impl<'a> LazyDep<'a> {
-    #[allow(unused)]
-    fn from_expr(expr: &AstExpr<'a>) -> Self {
-        match expr {
-            AstExpr::Call(name, ..) => LazyDep::Function(name),
-            AstExpr::Variable(name, ..) => LazyDep::Global(name),
-            _ => panic!("Cannot generate LazyDep from AstExpr {:?}", expr),
-        }
-    }
-
+    /// This is really dangerous
     fn from_errstr(err: &'a str) -> Result<Self, ()> {
-        if let Some(message) = err.strip_prefix("__UBF:") {
+        if let Some(message) = err.strip_prefix(UNBOUND_FUNCTION) {
             return Ok(LazyDep::Function(message));
         }
         Err(())

@@ -91,6 +91,7 @@ impl<'ctx> Compiler<'ctx> {
         Ok(compiler)
     }
 
+    /// performs lazy compilation of ast into native functions
     pub fn codegen(&mut self, ast: &'ctx Ast) -> Result<Vec<NativeTopLevel<'ctx>>, String> {
         let mut native_functions = Vec::with_capacity(ast.defs.len());
         let mut lazy_table = LazyGraph::new();
@@ -104,7 +105,6 @@ impl<'ctx> Compiler<'ctx> {
                 native_functions.push(native_top_level);
             }
         }
-        // self.lazy_table = lazy_table;
         Ok(native_functions)
     }
 

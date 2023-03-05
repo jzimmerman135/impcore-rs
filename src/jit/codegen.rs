@@ -1,5 +1,5 @@
 use super::*;
-use crate::ast::AstExpr;
+use crate::{ast::AstExpr, errors::UNBOUND_FUNCTION};
 use inkwell::{values::BasicValue, IntPredicate};
 
 impl<'a> AstExpr<'a> {
@@ -191,7 +191,8 @@ pub fn codegen_call<'a>(
     let function = compiler
         .module
         .get_function(name)
-        .ok_or(format!("__UBF:{}", name))?;
+        // this part is really hacky and risky/slow but not worth changing
+        .ok_or(format!("{}:{}", UNBOUND_FUNCTION, name))?;
 
     let expected_argcount = function.get_params().len();
     let received_argcount = args.len();

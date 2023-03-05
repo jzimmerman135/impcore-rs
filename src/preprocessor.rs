@@ -6,6 +6,7 @@ use std::{
 
 use crate::{
     ast::{Ast, AstDef, AstExpr, AstMacro},
+    errors::MACRO_LOOP,
     MAX_MACRO_DEPTH,
 };
 use rayon::prelude::*;
@@ -166,7 +167,12 @@ impl<'a> AstExpr<'a> {
         };
         self.try_expand_macros_recursive(macro_env, 0)
             .map_err(|mut s| {
-                s.push_str(&format!(" on {}", &macroname));
+                if s.starts_with(MACRO_LOOP) {
+                    s = format!(
+                        "Recursive macro, depth {} exceeded on {}",
+                        MAX_MACRO_DEPTH, &macroname
+                    );
+                }
                 s
             })
     }
@@ -177,24 +183,21 @@ impl<'a> AstExpr<'a> {
         depth: u32,
     ) -> Result<AstExpr<'a>, String> {
         if depth > MAX_MACRO_DEPTH {
-            return Err(format!(
-                "Preprocessor failure, macro depth {} exceeded",
-                MAX_MACRO_DEPTH
-            ));
+            return Err(MACRO_LOOP.to_string());
         }
 
         match &self {
             AstExpr::MacroVal(name) => macro_env
                 .replacers
                 .get(&self)
-                .ok_or(format!("Macro not found: {}", name))
+                .ok_or(format!("Macro {} not found", name))
                 .cloned()?
                 .try_expand_macros_recursive(macro_env, depth + 1),
             AstExpr::Call(name, args) if name.starts_with('\'') => {
                 let (formals, body) = macro_env
                     .functions
                     .get(name)
-                    .ok_or(format!("Inline Function: {} not found", name))?;
+                    .ok_or(format!("Inline Function {} not found", name))?;
                 let argmap = formals
                     .iter()
                     .zip(args)
