@@ -1,15 +1,14 @@
-#(replace 'ONE 1)
 #(replace ('ADDFOUR x y) (add-one (add-three (+ x y))))
 (define add-two (x) (add-one (add-one x)))
 (define add-one (x) (+ x one[0]))
 (define add-three (x) (add-one (add-two x)))
 (define fill-arr (r[] i v) (set r[i] v))
 
-#(replace 'TEN 'TEN)
-
-'TEN
-
 (val one[] 6)
-(fill-arr one[] 0 'ONE)
+
+#(replace ('ONE x) (+ 0 1))
+(fill-arr one[] 0 ('ONE 10))
+#(undef 'ONE)
+
 (add-three 2)
 ('ADDFOUR 4 5)
