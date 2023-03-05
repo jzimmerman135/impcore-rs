@@ -15,8 +15,7 @@ fn append_garbage_collector(ast: &mut Ast) {
     ast.defs.push(AstDef::FreeAll);
 }
 
-#[allow(dead_code)]
-fn predefine_globals(ast: &mut Ast) {
+fn _predefine_globals(ast: &mut Ast) {
     let mut global_names = HashSet::new();
     let mut declarations = vec![];
     let mut defs = std::mem::take(&mut ast.defs)
@@ -29,7 +28,6 @@ fn predefine_globals(ast: &mut Ast) {
             _ => e,
         })
         .collect();
-
     declarations.append(&mut defs);
     ast.defs = declarations;
 }

@@ -1,3 +1,7 @@
+/**
+ * PREPROCESSOR
+ * This module contains all the macro expansion and tracking
+ * */
 use std::{
     collections::HashMap,
     fs, mem,
@@ -12,6 +16,7 @@ use crate::{
 use rayon::prelude::*;
 use regex::Regex;
 
+/// Stores translation units and their path names
 pub struct CodeBase(HashMap<String, String>);
 impl CodeBase {
     pub fn get(&self, filepath: &str) -> Result<&String, String> {
@@ -33,7 +38,7 @@ impl CodeBase {
         let mut asts = self.parse_asts()?;
         let entry_import =
             AstMacro::ImportFile(entry_filepath.file_name().unwrap().to_str().unwrap());
-        let ast = join_trees(&mut asts, entry_import)?;
+        let ast = join_ast_trees(&mut asts, entry_import)?;
         Ok(ast.expand_macros()?.prepare())
     }
 
@@ -77,7 +82,7 @@ fn collect_code_recurse(
     Ok(included_files)
 }
 
-fn join_trees<'a>(
+fn join_ast_trees<'a>(
     asts: &mut HashMap<AstMacro<'a>, Ast<'a>>,
     entrypoint: AstMacro<'a>,
 ) -> Result<Ast<'a>, String> {
@@ -92,7 +97,7 @@ fn join_trees<'a>(
             AstDef::MacroDef(mut import @ AstMacro::ImportFile(..))
                 if asts.contains_key(&import) =>
             {
-                join_trees(asts, mem::take(&mut import))
+                join_ast_trees(asts, mem::take(&mut import))
                     .unwrap_or(Ast { defs: vec![] })
                     .defs
             }
@@ -137,24 +142,22 @@ impl<'a> MacroEnv<'a> {
     pub fn try_push(&mut self, def: AstDef<'a>) -> Result<(), AstDef<'a>> {
         match def {
             AstDef::MacroDef(m) => match m {
-                AstMacro::ImportFile(_) => Ok(()),
+                AstMacro::ImportFile(_) => {}
                 AstMacro::Inliner(name, args, body) => {
                     self.functions.insert(name, (args, body));
-                    Ok(())
                 }
                 AstMacro::Replacer(macroval, expr) => {
                     self.replacers.insert(macroval, expr);
-                    Ok(())
                 }
                 AstMacro::Undef(macroval) => {
                     let replacer_macro = AstExpr::MacroVal(macroval);
                     self.replacers.remove(&replacer_macro);
                     self.functions.remove(&macroval);
-                    Ok(())
                 }
             },
-            _ => Err(def),
-        }
+            _ => return Err(def),
+        };
+        Ok(())
     }
 }
 
@@ -165,16 +168,15 @@ impl<'a> AstExpr<'a> {
             AstExpr::Call(name, ..) if name.starts_with('\'') => name,
             _ => return Ok(self),
         };
-        self.try_expand_macros_recursive(macro_env, 0)
-            .map_err(|mut s| {
-                if s.starts_with(MACRO_LOOP) {
-                    s = format!(
-                        "Recursive macro, depth {} exceeded on {}",
-                        MAX_MACRO_DEPTH, &macroname
-                    );
-                }
-                s
-            })
+        self.try_expand_macros_recursive(macro_env, 0).map_err(|s| {
+            if s.starts_with(MACRO_LOOP) {
+                return format!(
+                    "Recursive macro, depth {} exceeded on {}",
+                    MAX_MACRO_DEPTH, &macroname
+                );
+            }
+            s
+        })
     }
 
     fn try_expand_macros_recursive(
@@ -185,7 +187,6 @@ impl<'a> AstExpr<'a> {
         if depth > MAX_MACRO_DEPTH {
             return Err(MACRO_LOOP.to_string());
         }
-
         match &self {
             AstExpr::MacroVal(name) => macro_env
                 .replacers

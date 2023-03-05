@@ -1,3 +1,4 @@
+#(import stdin)
 #(replace ('ADDFOUR x y) (add-one (add-three (+ x y))))
 (define add-two (x) (add-one (add-one x)))
 (define add-one (x) (+ x one[0]))
@@ -12,3 +13,9 @@
 
 (add-three 2)
 ('ADDFOUR 4 5)
+
+(val c (getc))
+
+#(import "stdlib/chars.imp")
+
+(begin (printc c) (printc 'NEWLINE) 0)

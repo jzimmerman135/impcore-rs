@@ -28,9 +28,7 @@ impl ImpcoreParser {
                 _ => Some(AstDef::parse(tldef)),
             })
             .collect::<Vec<AstDef>>();
-
         defs.append(&mut tests);
-
         parser_output.defs = defs;
         Ok(parser_output)
     }

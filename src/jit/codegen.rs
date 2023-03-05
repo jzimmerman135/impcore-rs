@@ -192,7 +192,7 @@ pub fn codegen_call<'a>(
         .module
         .get_function(name)
         // this part is really hacky and risky/slow but not worth changing
-        .ok_or(format!("{}:{}", UNBOUND_FUNCTION, name))?;
+        .ok_or(format!("{}{}", UNBOUND_FUNCTION, name))?;
 
     let expected_argcount = function.get_params().len();
     let received_argcount = args.len();
