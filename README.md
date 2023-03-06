@@ -8,7 +8,10 @@
 
 - **Redefinition of functions**
 
-  Redefining functions is allowed (but not recommended) the impcore code 
+  Redefining functions is allowed (but not recommended). 
+  In impcore-rs function calls refer to the version of the function that was
+  in defined when the call was first declared. For example the following
+  impcore code
 ```
 (define add-one (x) (+ x 1))
 (define add-two (x) (add-one (add-one x)))
@@ -17,7 +20,7 @@
 (add-one 0)
 ```
 
-Will differ in output in the following way 
+will differ in output in the following way 
 ```
 ;; standard impcore 
 200
