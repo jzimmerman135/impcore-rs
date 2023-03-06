@@ -1,0 +1,7 @@
+(define add-one (x) (+ x 1))
+(define add-two (x) (add-one (add-one x)))
+(add-two 0)
+(define add-one (x) (+ x 100))
+(add-two 0)
+(add-one 0)
+

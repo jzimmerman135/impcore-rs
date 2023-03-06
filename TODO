@@ -1,3 +1,7 @@
+URGENT:
+-------
+Fix unit test ordering
+
 Add more tests to basic.imp
 ------------------------
     match
@@ -24,7 +28,6 @@ Runtime checked error handling
 ------------------------------
     Add llvm landing pad
 
- 
     
 REPL mode? Single pass modification
 -----------------------------------
