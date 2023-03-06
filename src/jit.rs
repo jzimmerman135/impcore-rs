@@ -105,8 +105,7 @@ impl<'ctx> Compiler<'ctx> {
                 native_functions.push(native_top_level);
             }
         }
-
-        let garbage_collector = NativeTopLevel::FreeAll(defgen::defgen_cleanup(self)?);
+        let garbage_collector = NativeTopLevel::FreeAll(implib::build_cleanup(self)?);
         native_functions.push(garbage_collector);
         Ok(native_functions)
     }

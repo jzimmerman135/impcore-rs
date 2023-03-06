@@ -257,31 +257,3 @@ pub fn defgen_stdin<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a>
         .copied()
 }
 
-pub fn defgen_cleanup<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a>, String> {
-    let itype = compiler.context.i32_type();
-    let fn_type = itype.fn_type(&[], false);
-    let fn_value = compiler.module.add_function("cleanup", fn_type, None);
-    let basic_block = compiler.context.append_basic_block(fn_value, "entry");
-    compiler.builder.position_at_end(basic_block);
-    compiler.curr_function = Some(fn_value);
-
-    for (name, global_ptr) in compiler.global_table.iter() {
-        if name.starts_with('#') || !name.ends_with('[') {
-            continue;
-        }
-        let array = compiler
-            .builder
-            .build_load(global_ptr.as_pointer_value(), "load");
-        compiler.builder.build_free(array.into_pointer_value());
-    }
-
-    let v = itype.const_zero();
-    compiler.builder.build_return(Some(&v));
-
-    if !fn_value.verify(true) {
-        compiler.module.print_to_stderr();
-        return Err("broken free".into());
-    }
-
-    Ok(fn_value)
-}

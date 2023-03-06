@@ -10,7 +10,6 @@
 (val one[] 6)
 (val one[] 4)
 
-(val one 8)
 
 #(replace ('ONE x) (+ 0 1))
 (fill-arr one[] 0 ('ONE 10))
