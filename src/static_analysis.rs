@@ -1,18 +1,15 @@
+#[allow(dead_code)]
 /**
  * STATIC_ANALYSIS
- * This module doesn't do much yet, it only really adds a cleanup instruction at the bottom of ast
+ * This module is deprecated for now
  * */
 use crate::ast::*;
 use std::collections::HashSet;
 impl<'a> Ast<'a> {
+    #[allow(unused_mut)]
     pub fn prepare(mut self) -> Self {
-        append_garbage_collector(&mut self);
         self
     }
-}
-
-fn append_garbage_collector(ast: &mut Ast) {
-    ast.defs.push(AstDef::FreeAll);
 }
 
 fn _predefine_globals(ast: &mut Ast) {

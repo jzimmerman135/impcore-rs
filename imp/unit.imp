@@ -1,11 +1,16 @@
 #(import stdin)
 #(replace ('ADDFOUR x y) (add-one (add-three (+ x y))))
+
 (define add-two (x) (add-one (add-one x)))
 (define add-one (x) (+ x one[0]))
 (define add-three (x) (add-one (add-two x)))
 (define fill-arr (r[] i v) (set r[i] v))
+(define get-three (x) three)
 
 (val one[] 6)
+(val one[] 4)
+
+(val one 8)
 
 #(replace ('ONE x) (+ 0 1))
 (fill-arr one[] 0 ('ONE 10))
@@ -19,3 +24,7 @@
 #(import "stdlib/chars.imp")
 
 (begin (printc c) (printc 'NEWLINE) 0)
+
+
+(val three 3)
+(get-three 8)

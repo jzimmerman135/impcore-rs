@@ -25,6 +25,7 @@ impl CodeBase {
             .ok_or(format!("Could not locate file {}", filepath))
     }
 
+    // Opens multiple files and parses their asts in parallel
     fn parse_asts(&self) -> Result<HashMap<AstMacro, Ast>, String> {
         let map = self
             .0
@@ -44,6 +45,7 @@ impl CodeBase {
 
     pub fn collect(entry_filepath: &PathBuf) -> Result<Self, String> {
         let mut path = PathBuf::from(entry_filepath);
+        // Get filename as a String (hack to extract the filename from stem)
         let filename = path.file_name().unwrap().to_str().unwrap().to_string();
         path.pop();
         let import_pattern =
@@ -187,18 +189,19 @@ impl<'a> AstExpr<'a> {
         if depth > MAX_MACRO_DEPTH {
             return Err(MACRO_LOOP.to_string());
         }
+
         match &self {
             AstExpr::MacroVal(name) => macro_env
                 .replacers
                 .get(&self)
-                .ok_or(format!("Macro {} not found", name))
+                .ok_or(format!("Macro {} not defined", name))
                 .cloned()?
                 .try_expand_macros_recursive(macro_env, depth + 1),
             AstExpr::Call(name, args) if name.starts_with('\'') => {
                 let (formals, body) = macro_env
                     .functions
                     .get(name)
-                    .ok_or(format!("Inline Function {} not found", name))?;
+                    .ok_or(format!("Inline function macro {} not defined", name))?;
                 let argmap = formals
                     .iter()
                     .zip(args)

@@ -9,6 +9,8 @@ pub struct Ast<'a> {
     pub defs: Vec<AstDef<'a>>,
 }
 
+pub struct AstDefWrap<'a>(AstDef<'a>, (u32, u32));
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum AstExpr<'a> {
     Literal(i32),
@@ -47,7 +49,6 @@ pub enum AstDef<'a> {
     CheckError(AstExpr<'a>, &'a str),
     DeclareGlobal(&'a str, AstType),
     MacroDef(AstMacro<'a>),
-    FreeAll,
 }
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone)]
@@ -77,7 +78,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             Self::Global(_, body, _) => vec![body],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) | Self::FreeAll => {
+            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) => {
                 vec![]
             }
         }
@@ -90,7 +91,7 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             Self::Global(_, body, _) => vec![body],
             Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
             Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) | Self::FreeAll => {
+            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) => {
                 vec![]
             }
         }
@@ -205,9 +206,7 @@ impl<'a> AstDef<'a> {
                 *lhs = mem::take(lhs).reconstruct(construct)?;
                 *rhs = mem::take(rhs).reconstruct(construct)?;
             }
-            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) | Self::FreeAll => {
-                return Ok(self)
-            }
+            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) => return Ok(self),
         };
         Ok(self)
     }

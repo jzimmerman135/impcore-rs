@@ -30,7 +30,6 @@ impl<'a> AstDef<'a> {
                 // defgen::declare_global(name, *var_type, compiler);
                 NativeTopLevel::Noop
             }
-            Self::FreeAll => NativeTopLevel::FreeAll(defgen::defgen_cleanup(compiler)?),
             Self::ImportLib("stdin") => {
                 NativeTopLevel::TopLevelExpr(defgen::defgen_stdin(compiler)?)
             }

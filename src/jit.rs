@@ -45,7 +45,7 @@ pub enum NativeTopLevel<'ctx> {
     CheckAssert(FunctionValue<'ctx>, &'ctx str),
     CheckExpect(FunctionValue<'ctx>, FunctionValue<'ctx>, &'ctx str),
     TopLevelExpr(FunctionValue<'ctx>),
-    FunctionDef(&'ctx str),
+    PrintFunctionName(&'ctx str),
     FreeAll(FunctionValue<'ctx>),
     Noop,
 }
@@ -92,12 +92,12 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     /// performs lazy compilation of ast into native functions
-    pub fn codegen(&mut self, ast: &'ctx Ast) -> Result<Vec<NativeTopLevel<'ctx>>, String> {
+    pub fn compile(&mut self, ast: &'ctx Ast) -> Result<Vec<NativeTopLevel<'ctx>>, String> {
         let mut native_functions = Vec::with_capacity(ast.defs.len());
         let mut lazy_table = LazyGraph::new();
         for def in ast.defs.iter() {
             if let AstDef::Function(name, ..) = &def {
-                native_functions.push(NativeTopLevel::FunctionDef(name));
+                native_functions.push(NativeTopLevel::PrintFunctionName(name));
             }
             let ready_defs = lazy_table.eval(def, self);
             for def in ready_defs {
@@ -105,6 +105,9 @@ impl<'ctx> Compiler<'ctx> {
                 native_functions.push(native_top_level);
             }
         }
+
+        let garbage_collector = NativeTopLevel::FreeAll(defgen::defgen_cleanup(self)?);
+        native_functions.push(garbage_collector);
         Ok(native_functions)
     }
 
@@ -160,11 +163,10 @@ impl<'ctx> Compiler<'ctx> {
         };
     }
 
-    /// disregards execution engine type
+    /// unsafe because will segfault if in Jit exec mode and the module has been modified since running.
     unsafe fn run_native_unverified(&mut self, top_level_def: &NativeTopLevel<'ctx>) {
         match *top_level_def {
-            NativeTopLevel::FunctionDef(..) if self.quiet_mode => (),
-            NativeTopLevel::FunctionDef(name) => println!("{}", name),
+            NativeTopLevel::PrintFunctionName(name) if !self.quiet_mode => println!("{}", name),
             NativeTopLevel::TopLevelExpr(fn_value) => unsafe {
                 self.execution_engine.run_function(fn_value, &[]);
             },
@@ -174,15 +176,11 @@ impl<'ctx> Compiler<'ctx> {
                     eprintln!("ERROR: failed to free memory exiting with code 1",)
                 }
             }
-            NativeTopLevel::Noop => {}
-            _ => unreachable!(
-                "not a top level expression or definition {:?}",
-                top_level_def
-            ),
+            _ => {}
         }
     }
 
-    /// disregards execution_engine type
+    /// unsafe because will segfault if in Jit exec mode and the module has been modified since running.
     unsafe fn run_test_unverified(&mut self, test: &NativeTopLevel<'ctx>) -> bool {
         match *test {
             NativeTopLevel::CheckAssert(assert_fn, contents) => {

@@ -1,9 +1,15 @@
-use std::path::PathBuf;
-
+/**
+ * IMPCORE RUNTIME
+ * CodeBase collect, opens all translation units
+ * CodeBase build ast, assembles all code into an ast
+ * Compiler codegen, converts and ast into NativeTopLevels
+ * Compiler run all, runs the top level expressions
+ * */
 use clap::Parser as ArgParser;
 use impcore_rs::jit;
-use impcore_rs::preprocessor::CodeBase;
+use impcore_rs::preprocessor;
 use impcore_rs::{print_ast, print_ir, rip};
+use std::path::PathBuf;
 
 #[derive(ArgParser, Debug)]
 struct Cli {
@@ -21,7 +27,7 @@ fn main() {
     let cli = Cli::parse();
 
     let entry_filepath = PathBuf::from(cli.filename.as_deref().unwrap_or("./imp/basic.imp"));
-    let codebase = CodeBase::collect(&entry_filepath).unwrap_or_else(|s| rip(s));
+    let codebase = preprocessor::CodeBase::collect(&entry_filepath).unwrap_or_else(|s| rip(s));
     let ast = codebase
         .build_ast(&entry_filepath)
         .unwrap_or_else(|s| rip(s));
@@ -41,7 +47,7 @@ fn main() {
     //     .map(|e| e.defgen(&mut compiler))
     //     .collect::<Result<Vec<_>, String>>()
     //     .unwrap_or_else(|e| rip(e));
-    let native_top_level_functions = compiler.codegen(&ast).unwrap_or_else(|e| rip(e));
+    let native_top_level_functions = compiler.compile(&ast).unwrap_or_else(|e| rip(e));
 
     if cli.emit_llvm {
         compiler.module.print_to_file("error.ll").unwrap();

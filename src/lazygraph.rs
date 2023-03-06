@@ -14,18 +14,27 @@ enum LazyDep<'a> {
 }
 
 impl<'a> LazyDep<'a> {
-    /// This is really dangerous
-    fn from_errstr(err: &'a str) -> Result<Self, ()> {
+    /// given an error message, check if it starts with the global UNBOUND_FUNCTION error prefix
+    /// and if it does, make it into a lazy dep, otherwise fail with no messsage
+    /// This is really dangerous and stupid way to handle errors
+    fn from_errstr(err: &'a str) -> Option<Self> {
         if let Some(message) = err.strip_prefix(UNBOUND_FUNCTION) {
-            return Ok(LazyDep::Function(message));
+            return Some(LazyDep::Function(message));
         }
-        Err(())
+        None
     }
 
     fn name(&self) -> &'a str {
         match self {
             LazyDep::Global(name) => name,
             LazyDep::Function(name) => name,
+        }
+    }
+
+    fn typename(&self) -> &str {
+        match self {
+            LazyDep::Global(..) => "Global",
+            LazyDep::Function(..) => "Function",
         }
     }
 }
@@ -45,23 +54,34 @@ impl<'a> LazyGraph<'a> {
     }
 
     /// Trace unresolved dependencies and return an appropriate error message
+    /// Errstring should be given from a failed call to codegen::codegen_call
     pub fn why_cant(&self, errstring: String) -> String {
         let dependee = match LazyDep::from_errstr(&errstring) {
-            Ok(x) => x,
-            Err(_) => return errstring,
+            Some(x) => x,
+            None => return errstring,
         };
 
         let node = match self.find(dependee) {
             Some(node) => node,
-            None => return format!("Unbound function {}", dependee.name()),
+            None => {
+                return format!(
+                    "Unbound {} {}",
+                    dependee.typename().to_lowercase(),
+                    dependee.name()
+                )
+            }
         };
+
         let mut needs = self.graph.neighbors_directed(node, Outgoing);
+        let unmet_dependency = self.graph[needs.next().unwrap()];
         format!(
-            "Unbound function {}",
-            self.graph[needs.next().unwrap()].name()
+            "Unbound {} {}",
+            unmet_dependency.typename().to_lowercase(),
+            unmet_dependency.name()
         )
     }
 
+    // Given a definition, return all other definitions that are ready to be compiled
     pub fn eval(&mut self, def: &'a AstDef<'a>, compiler: &Compiler<'a>) -> Vec<&'a AstDef<'a>> {
         let dependencies = def.get_unmet_dependencies(compiler);
         let res = match &def {

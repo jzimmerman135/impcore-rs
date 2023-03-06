@@ -9,7 +9,28 @@ Add more tests to basic.imp
     lazy functions
     redefined globals
 
+Add readme
+----------
+Describe original and new syntax
+
 LINKING:
     termios
 
-REPL mode?
+Error handling with linecol info
+--------------------------------
+    Info struct attached to every AstExpr or AstDef
+
+Runtime checked error handling
+------------------------------
+    Add llvm landing pad
+
+ 
+    
+REPL mode? Single pass modification
+-----------------------------------
+    -> Get input
+    -> parse def 
+    -> ignore tests/macros
+    -> add to lazy table 
+    -> defgen all 
+    -> run native def function 
