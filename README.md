@@ -20,7 +20,7 @@
 (add-one 0)
 ```
 
-will differ in output in the following way 
+  will differ in output in the following way 
 ```
 ;; standard impcore 
 200
