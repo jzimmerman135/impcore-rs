@@ -1,11 +1,13 @@
 # Impcore-rs 
 
 ### Warning: Unsafe differences from impcore
-- Error handling
+- **Error handling**
+
   Currently impcore-rs only supports a file reading mode, so errors are 
   handled at compile time rather than at runtime  
 
-- Redefinition of functions
+- **Redefinition of functions**
+
   Redefining functions is allowed (but not recommended) the impcore code 
 ```
 (define add-one (x) (+ x 1))
