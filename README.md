@@ -13,7 +13,7 @@
   - `-d`, debug mode, print full ast and llvm ir to stderr. 
 
 ## Impcore Language Extensions:
-###**Arrays**:
+### Arrays:
 To make an array use the declaration `(val <array-name>[] <exp>)`.
 This allocates and binds an array of size `<exp>` to 
 `<name>`. The declaration `(val <array-name>[] <exp>)` evaluates to `<exp>`. Array values are always initialized to zero.
@@ -42,17 +42,17 @@ Functions can take and operate on arrays. For instance
 ```
 Note: Arrays can only be passed to a function via an empty indexer, `(foo <array-name>[])`, rather than `(foo <array-name>)` like in C.
 
-###**Bitwise Operators**:
+### Bitwise Operators:
 Although these are possible in standard impcore, they are native machine instructions in impcore-rs. Use `~`, `&`, `|`, `!`, `^`, `<<`, `>>` (signed), and `>>>` (unsigned).
 
-###**Printing**:
+### Printing:
 Along with standard impcore print functions `print`,`println`,`printu`, there is also `(printc <exp>)` which will print the expression as a char, as well as `(printstr <array-name>[])` which is equivalent to the C code `printf("%s", *(char *)array_name);`. This means that there must be a null-terminator somewhere inside `<array-name>[]`.
 
-###**User Input**:
+### User Input:
 If you add `#(import stdin)` somewhere at the top of your file, you will get access 
 to the function `(getc)` which takes no arguments but is equivalent to the C code `fgetc(stdin);`
 
-###**Import Files**:
+### Import Files:
 Import files via the definition `#(import "<filename>.imp")`. Imported files must end in `.imp`, files will only be imported once on the occurent of their first definition. Files are imported recursively.
 
 Paths are relative to the entry filename so if entry file
@@ -60,7 +60,7 @@ Paths are relative to the entry filename so if entry file
 
 Note: if in the example above `imp/stdlib/chars.imp` called `#(import "word.imp")` instead, then `imp/word.imp` would be imported. Helpful preprocessor errors will be raised for recursive imports and failure to open files.
 
-###**Macros**:
+### Macros:
 Macros in impcore must start with `'` to differentiate them from variables. It is recommended that macros are in all caps.
 
 Define a simple replacement macro via
