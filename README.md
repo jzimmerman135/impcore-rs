@@ -78,7 +78,7 @@ You can unbind a macro with
 ## Warning: Unsafe differences from impcore
 - **Unit testing**
 
-  This one's on me, unit tests should only be used at the end for now.
+  Check-error unit tests are not run, since this is resolved at compile time
 
 - **Error handling**
 
