@@ -14,10 +14,6 @@ LINKING:
     figure out how to link with other llvm ir?
     or manually make termios
 
-Add readme
-----------
-    Describe original and new syntax
-
 Error handling with linecol info
 --------------------------------
     Info struct attached to every AstExpr or AstDef
@@ -28,6 +24,7 @@ Runtime checked error handling
 
 REPL mode? Single pass modification
 -----------------------------------
+    (requires overhaul of lifetimes and dependencies)
     -> Get input
     -> parse def 
     -> ignore tests/macros
