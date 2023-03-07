@@ -9,12 +9,14 @@ Add more tests to basic.imp
     lazy functions
     redefined globals
 
+LINKING:
+--------
+    figure out how to link with other llvm ir?
+    or manually make termios
+
 Add readme
 ----------
-Describe original and new syntax
-
-LINKING:
-    termios
+    Describe original and new syntax
 
 Error handling with linecol info
 --------------------------------
@@ -24,7 +26,6 @@ Runtime checked error handling
 ------------------------------
     Add llvm landing pad
 
-    
 REPL mode? Single pass modification
 -----------------------------------
     -> Get input

@@ -87,10 +87,8 @@ You can unbind a macro with
 
 - **Redefinition of functions**
 
-  Redefining functions is allowed (for now), but has no effect. 
-  In impcore-rs function calls refer to the version of the function that was
-  in defined when the call was first declared. For example the following
-  impcore code
+  Redefining functions is allowed (for now) in both modes compiler execution modes, 
+  but in JIT mode it will resort to javascript behaviour. In interpreter mode it will resemble standard impcore. 
   
 ```
 (define add-one (x) (+ x 1))
@@ -112,21 +110,19 @@ add-one
 200
 100
 
-;; impcore-rs
+;; impcore-rs (interpreter)
 add-one
 add-two
 2
 add-one
-2
-1
-
-;; python equivalent
-2
 200
 100
 
-;; nodeJS equivalent
+;; impcore-rs (jit)
+add-one
+add-two
 200
+add-one
 200
 100
 ```

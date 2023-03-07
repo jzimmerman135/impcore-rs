@@ -1,4 +1,5 @@
 impcore = { SOI ~ ( macrodef | def | tle | WSP )* ~ EOI }
+interpreted_impcore = { SOI ~ ( def | tle | WSP )* ~ EOI }
 
 WSP = _{ " " | NEWLINE }
 COMMENT = _{ ";;" ~ ( !NEWLINE ~ ANY )* }

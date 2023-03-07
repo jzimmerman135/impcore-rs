@@ -14,7 +14,7 @@ impl<'a> AstDef<'a> {
             Self::Function(name, params, body) => {
                 defgen::defgen_function(name, params, body, compiler)?;
                 NativeTopLevel::Noop
-        }
+            }
             Self::TopLevelExpr(body) => {
                 NativeTopLevel::TopLevelExpr(defgen::defgen_anonymous(body, compiler)?)
             }
@@ -47,7 +47,11 @@ impl<'a> AstDef<'a> {
     }
 }
 
-pub fn declare_global<'a>(name: &'a str, var_type: AstType, compiler: &mut Compiler<'a>) -> GlobalValue<'a> {
+pub fn declare_global<'a>(
+    name: &'a str,
+    var_type: AstType,
+    compiler: &mut Compiler<'a>,
+) -> GlobalValue<'a> {
     let addr_space = AddressSpace::default();
     let global = if var_type == AstType::Integer {
         let int_type = compiler.context.i32_type();
@@ -101,13 +105,26 @@ pub fn defgen_anonymous<'a>(
     Ok(fn_value)
 }
 
+/// Compiles function an returns llvm function value. Error if function is a
+/// redefinition while in compile mode, or function body cannot be compiled
+///
+/// In interpreter mode, will replace all earlier calls to this function with the new function
 pub fn defgen_function<'a>(
     name: &str,
     params: &[(&'a str, AstType)],
     body: &AstExpr<'a>,
     compiler: &mut Compiler<'a>,
 ) -> Result<FunctionValue<'a>, String> {
-    let fn_value = defgen_prototype(name, params, compiler);
+    let prev_definition = compiler.module.get_function(name);
+    let fn_value = if let Some(prev_function) = prev_definition {
+        for bb in prev_function.get_basic_blocks() {
+            bb.remove_from_function().unwrap();
+        }
+        prev_function
+    } else {
+        defgen_prototype(name, params, compiler)
+    };
+
     let int_type = compiler.context.i32_type();
     let ptr_type = int_type.ptr_type(AddressSpace::default());
 
@@ -136,13 +153,14 @@ pub fn defgen_function<'a>(
     let body = body.codegen(compiler)?;
     compiler.builder.build_return(Some(&body));
 
+    compiler.fpm.run_on(&fn_value);
+
     if !fn_value.verify(true) {
         compiler.module.print_to_stderr();
         unsafe { fn_value.delete() };
         return Err(format!("Could not verify function {}", name));
     }
 
-    compiler.fpm.run_on(&fn_value);
     Ok(fn_value)
 }
 
@@ -192,15 +210,7 @@ pub fn defgen_global<'a>(
 
     let global_value = match compiler.global_table.get(name) {
         Some(&global_ptr) => global_ptr,
-        None => declare_global(name, var_type, compiler) 
-        // None => compiler
-        //     .module
-        //     .get_global(name)
-        //     .map(|g| {
-        //         compiler.global_table.insert(name, g);
-        //         g
-        //     })
-        //     .ok_or(format!("Unbound global variable {}", name))?,
+        None => declare_global(name, var_type, compiler),
     };
 
     let retval = if AstType::Pointer == var_type {
@@ -261,4 +271,3 @@ pub fn defgen_stdin<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a>
         .ok_or_else(|| "Couldn't find it".to_string())
         .copied()
 }
-

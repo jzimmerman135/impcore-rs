@@ -7,6 +7,7 @@ extern crate pest;
 extern crate pest_derive;
 
 pub mod ast;
+pub mod compile;
 pub mod jit;
 pub mod lazygraph;
 pub mod parser;

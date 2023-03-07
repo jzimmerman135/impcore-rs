@@ -1,11 +1,7 @@
 use std::{collections::HashMap, process};
 mod codegen;
 mod defgen;
-mod implib;
-use crate::{
-    ast::{Ast, AstDef},
-    lazygraph::LazyGraph,
-};
+pub(crate) mod implib;
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -28,12 +24,12 @@ pub struct Compiler<'ctx> {
     pub quiet_mode: bool,
     param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
     pub global_table: HashMap<&'ctx str, GlobalValue<'ctx>>,
-    exec_mode: ExecutionMode,
+    pub exec_mode: ExecutionMode,
     curr_function: Option<FunctionValue<'ctx>>,
     pub lib: HashMap<&'ctx str, FunctionValue<'ctx>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ExecutionMode {
     Interpreter,
     Jit,
@@ -89,25 +85,6 @@ impl<'ctx> Compiler<'ctx> {
 
         compiler.build_lib();
         Ok(compiler)
-    }
-
-    /// performs lazy compilation of ast into native functions
-    pub fn compile(&mut self, ast: &'ctx Ast) -> Result<Vec<NativeTopLevel<'ctx>>, String> {
-        let mut native_functions = Vec::with_capacity(ast.defs.len());
-        let mut lazy_table = LazyGraph::new();
-        for def in ast.defs.iter() {
-            if let AstDef::Function(name, ..) = &def {
-                native_functions.push(NativeTopLevel::PrintFunctionName(name));
-            }
-            let ready_defs = lazy_table.eval(def, self);
-            for def in ready_defs {
-                let native_top_level = def.defgen(self).map_err(|s| lazy_table.why_cant(s))?;
-                native_functions.push(native_top_level);
-            }
-        }
-        let garbage_collector = NativeTopLevel::FreeAll(implib::build_cleanup(self)?);
-        native_functions.push(garbage_collector);
-        Ok(native_functions)
     }
 
     pub fn native_interpret_one(&mut self, native: &NativeTopLevel<'ctx>) -> Result<(), String> {

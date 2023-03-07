@@ -37,16 +37,11 @@ fn main() {
     }
 
     let context = inkwell::context::Context::create();
-    let mut compiler =
-        jit::Compiler::new(&context, jit::ExecutionMode::Jit).expect("Failed to build compiler");
+    let mut compiler = jit::Compiler::new(&context, jit::ExecutionMode::Interpreter)
+        .expect("Failed to build compiler");
 
     compiler.quiet_mode = cli.quiet;
 
-    // let native_top_level_defs = ast
-    //     .iter()
-    //     .map(|e| e.defgen(&mut compiler))
-    //     .collect::<Result<Vec<_>, String>>()
-    //     .unwrap_or_else(|e| rip(e));
     let native_top_level_functions = compiler.compile(&ast).unwrap_or_else(|e| rip(e));
 
     if cli.emit_llvm {

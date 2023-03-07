@@ -31,4 +31,25 @@ impl ImpcoreParser {
         parser_output.defs = defs;
         Ok(parser_output)
     }
+
+    pub fn interpret_ast(code: &str) -> Result<Ast, String> {
+        let mut parser_output = Ast { defs: vec![] };
+        let mut tests = vec![];
+        let mut defs: Vec<AstDef> = ImpcoreParser::parse(Rule::interpreted_impcore, code)
+            .map_err(|e| format!("Parsing Failed: {}", e))?
+            .next()
+            .unwrap()
+            .into_inner()
+            .filter_map(|p| {
+                if let Rule::EOI = p.as_rule() {
+                    None
+                } else {
+                    Some(AstDef::parse(p))
+                }
+            })
+            .collect();
+        defs.append(&mut tests);
+        parser_output.defs = defs;
+        Ok(parser_output)
+    }
 }

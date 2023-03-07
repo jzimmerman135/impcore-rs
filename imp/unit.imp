@@ -1,6 +1,7 @@
 (val x 10)
 
 (check-expect x 10)
+(check-expect x 12)
 
 (set x 12)
 

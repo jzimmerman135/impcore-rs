@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 /**
  * STATIC_ANALYSIS
- * This module is deprecated for now
+ * This module is deprecated (for now)
  * */
 use crate::ast::*;
 use std::collections::HashSet;
