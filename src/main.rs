@@ -37,8 +37,8 @@ fn main() {
     }
 
     let context = inkwell::context::Context::create();
-    let mut compiler = jit::Compiler::new(&context, jit::ExecutionMode::Interpreter)
-        .expect("Failed to build compiler");
+    let mut compiler =
+        jit::Compiler::new(&context, jit::ExecutionMode::Jit).expect("Failed to build compiler");
 
     compiler.quiet_mode = cli.quiet;
 

@@ -41,11 +41,13 @@ impl ImpcoreParser {
             .unwrap()
             .into_inner()
             .filter_map(|p| {
-                if let Rule::EOI = p.as_rule() {
-                    None
-                } else {
-                    Some(AstDef::parse(p))
+                if Rule::EOI != p.as_rule() {
+                    let def = AstDef::parse(p);
+                    if !def.is_test() {
+                        return Some(def);
+                    }
                 }
+                None
             })
             .collect();
         defs.append(&mut tests);

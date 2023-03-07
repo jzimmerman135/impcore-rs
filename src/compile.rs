@@ -1,8 +1,12 @@
+#[allow(unused_imports)]
 use crate::{
     ast::{Ast, AstDef},
     jit::{self, Compiler, ExecutionMode, NativeTopLevel},
     lazygraph::LazyGraph,
+    parser::ImpcoreParser,
 };
+#[allow(unused_imports)]
+use inkwell::context::{self, Context};
 
 impl<'a> Compiler<'a> {
     /// performs lazy compilation of ast into native functions
@@ -26,7 +30,6 @@ impl<'a> Compiler<'a> {
 
     pub fn interpret(&mut self, ast: &'a Ast) -> Result<(), String> {
         assert!(self.exec_mode == ExecutionMode::Interpreter);
-
         let mut lazy_table = LazyGraph::new();
         for def in ast.defs.iter() {
             let mut native_defs = vec![];
@@ -47,3 +50,16 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 }
+
+// pub fn read_eval_print_loop(contents: &str, context: Context) -> Result<(), String> {
+//     let mut asts = vec![];
+//     let mut compiler = Compiler::new(&context, ExecutionMode::Interpreter).unwrap();
+//     loop {
+//         let ast = ImpcoreParser::interpret_ast(contents)?;
+//         asts.push(ast);
+//         {
+//             let ast = asts.last().unwrap();
+//             compiler.interpret(ast)?;
+//         }
+//     }
+// }
