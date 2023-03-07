@@ -1,4 +1,10 @@
 # Impcore-rs 
+Impcore-rs is a JIT compiled Impcore runtime with some handy language extensions to make impcore easier, but not too easy.
+
+Impcore is a very primitive language created by Norman Ramsey in his textbook "Programming Languages: Build Prove Compare".
+This implementation of impcore is solely for the challenge of making something cool in impcore, to do which requires a faster implementation of impcore.
+
+This implementation uses LLVM for an optimizing backend and benchmarks up to 14000x speedups on the original C implementation. It also guarantees no memory leaks, thanks to Rust and some simple garbage collection.
 
 ## Installation: 
   - `cargo install impcore` (TODO)
