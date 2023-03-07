@@ -11,6 +11,8 @@
   - `-f/--filename <filename>`, use code from file, must have extension `.imp`. 
   - `-q`, quiet mode, doesn't print top level expressions by default. 
   - `-d`, debug mode, print full ast and llvm ir to stderr. 
+  - `-i`, interpreter mode uses true impcore semantics at a performance cost. 
+  - `--emit-llvm`, exports an llvm IR file 
 
 ## Impcore Language Extensions:
 ### Arrays:

@@ -11,15 +11,17 @@ use impcore_rs::preprocessor;
 use impcore_rs::{print_ast, print_ir, rip};
 use std::path::PathBuf;
 
-#[derive(ArgParser, Debug)]
+#[derive(ArgParser)]
 struct Cli {
-    #[arg(short, long)]
-    debug: bool,
-    #[arg(short, long)]
-    quiet: bool,
     #[arg(short, long)]
     filename: Option<String>,
     #[arg(short, long)]
+    quiet: bool,
+    #[arg(short, long)]
+    interpreter: bool,
+    #[arg(short, long)]
+    debug: bool,
+    #[arg(long)]
     emit_llvm: bool,
 }
 
@@ -37,10 +39,18 @@ fn main() {
     }
 
     let context = inkwell::context::Context::create();
-    let mut compiler =
-        jit::Compiler::new(&context, jit::ExecutionMode::Jit).expect("Failed to build compiler");
+    let exec_mode = match cli.interpreter {
+        true => jit::ExecutionMode::Interpreter,
+        false => jit::ExecutionMode::Jit,
+    };
 
+    let mut compiler = jit::Compiler::new(&context, exec_mode).expect("Failed to build compiler");
     compiler.quiet_mode = cli.quiet;
+
+    if cli.interpreter {
+        compiler.interpret(&ast).unwrap_or_else(|e| rip(e));
+        return;
+    }
 
     let native_top_level_functions = compiler.compile(&ast).unwrap_or_else(|e| rip(e));
 
@@ -52,6 +62,5 @@ fn main() {
         print_ir(&compiler);
         eprintln!("\nEXECUTION OUTPUT\n--------------------------------------------------");
     }
-
     compiler.native_run_all(&native_top_level_functions);
 }
