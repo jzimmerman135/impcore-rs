@@ -14,20 +14,19 @@ impl ImpcoreParser {
     pub fn generate_ast(code: &str) -> Result<Ast, String> {
         let mut parser_output = Ast { defs: vec![] };
         let mut tests = vec![];
-        let mut defs = ImpcoreParser::parse(Rule::impcore, code)
+        let mut defs: Vec<AstDef> = ImpcoreParser::parse(Rule::impcore, code)
             .map_err(|e| format!("Parsing Failed: {}", e))?
             .next()
             .unwrap()
             .into_inner()
-            .filter_map(|tldef| match tldef.as_rule() {
-                Rule::EOI => None,
-                Rule::check_assert | Rule::check_error | Rule::check_expect => {
-                    tests.push(AstDef::parse(tldef));
+            .filter_map(|p| {
+                if let Rule::EOI = p.as_rule() {
                     None
+                } else {
+                    Some(AstDef::parse(p))
                 }
-                _ => Some(AstDef::parse(tldef)),
             })
-            .collect::<Vec<AstDef>>();
+            .collect();
         defs.append(&mut tests);
         parser_output.defs = defs;
         Ok(parser_output)

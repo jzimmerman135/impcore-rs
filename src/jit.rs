@@ -163,12 +163,32 @@ impl<'ctx> Compiler<'ctx> {
     }
 
     /// unsafe because will segfault if in Jit exec mode and the module has been modified since running.
-    unsafe fn run_native_unverified(&mut self, top_level_def: &NativeTopLevel<'ctx>) {
+    unsafe fn run_native_unverified(
+        &mut self,
+        top_level_def: &NativeTopLevel<'ctx>,
+    ) -> Result<(), String> {
         match *top_level_def {
             NativeTopLevel::PrintFunctionName(name) if !self.quiet_mode => println!("{}", name),
             NativeTopLevel::TopLevelExpr(fn_value) => unsafe {
                 self.execution_engine.run_function(fn_value, &[]);
             },
+            NativeTopLevel::CheckAssert(assert_fn, contents) => {
+                let res =
+                    unsafe { self.execution_engine.run_function(assert_fn, &[]) }.as_int(true);
+                if res == 0 {
+                    return Err(format!("Failed test ({}) -> assertion false", contents));
+                }
+            }
+            NativeTopLevel::CheckExpect(lhs, rhs, contents) => {
+                let lhs = unsafe { self.execution_engine.run_function(lhs, &[]) }.as_int(true);
+                let rhs = unsafe { self.execution_engine.run_function(rhs, &[]) }.as_int(true);
+                if lhs != rhs {
+                    return Err(format!(
+                        "Failed test ({}) -> got \'{}\' and expected \'{}\'",
+                        contents, lhs, rhs
+                    ));
+                }
+            }
             NativeTopLevel::FreeAll(fn_value) => {
                 let cleanup_code = unsafe { self.execution_engine.run_function(fn_value, &[]) };
                 if cleanup_code.as_int(true) == 1 {
@@ -176,78 +196,38 @@ impl<'ctx> Compiler<'ctx> {
                 }
             }
             _ => {}
-        }
+        };
+        Ok(())
     }
 
-    /// unsafe because will segfault if in Jit exec mode and the module has been modified since running.
-    unsafe fn run_test_unverified(&mut self, test: &NativeTopLevel<'ctx>) -> bool {
-        match *test {
-            NativeTopLevel::CheckAssert(assert_fn, contents) => {
-                let res =
-                    unsafe { self.execution_engine.run_function(assert_fn, &[]) }.as_int(true);
-                if res == 0 {
-                    eprintln!("Failed test ({}) -> assertion false", contents);
-                    return false;
-                }
-                true
-            }
-            NativeTopLevel::CheckExpect(lhs, rhs, contents) => {
-                let lhs = unsafe { self.execution_engine.run_function(lhs, &[]) }.as_int(true);
-                let rhs = unsafe { self.execution_engine.run_function(rhs, &[]) }.as_int(true);
-                if lhs != rhs {
-                    eprintln!(
-                        "Failed test ({}) -> got \'{}\' and expected \'{}\'",
-                        contents, lhs, rhs
-                    );
-                    return false;
-                }
-                true
-            }
-            _ => unreachable!("not a test expression {:?}", test),
-        }
-    }
-
-    pub fn native_run_one(&mut self, def: &NativeTopLevel<'ctx>) {
+    pub fn native_run_one(&mut self, def: &NativeTopLevel<'ctx>) -> Result<(), String> {
         self.verify_engine();
-        unsafe { self.run_native_unverified(def) };
+        unsafe { self.run_native_unverified(def) }
     }
 
     pub fn native_run_all(&mut self, native_top_level_exprs: &[NativeTopLevel<'ctx>]) {
         self.verify_engine();
-        let mut defs = vec![];
-        let mut tests = vec![];
-
-        for native_top_level in native_top_level_exprs {
-            if native_top_level.is_test() {
-                tests.push(native_top_level);
-            } else {
-                defs.push(native_top_level);
-            }
-        }
-
-        for def in defs {
-            unsafe { self.run_native_unverified(def) };
-        }
-
-        self.run_tests(&tests);
-    }
-
-    fn run_tests(&mut self, tests: &[&NativeTopLevel<'ctx>]) {
-        if tests.is_empty() {
-            return;
-        }
-
         let mut successful = 0;
-        for test in tests {
-            if unsafe { self.run_test_unverified(test) } {
-                successful += 1
+        let mut fail_messages = vec![];
+        for native in native_top_level_exprs {
+            let success = unsafe { self.run_native_unverified(native) };
+            if native.is_test() {
+                match success {
+                    Ok(_) => successful += 1,
+                    Err(reason) => fail_messages.push(reason),
+                }
             }
         }
 
-        if successful == tests.len() {
+        for reason in &fail_messages {
+            println!("{}", reason);
+        }
+
+        let n_tests = successful + fail_messages.len();
+        if successful == n_tests && n_tests != 0 {
             eprintln!("All {} tests successful", successful)
         } else {
-            eprintln!("Passed {} of {} tests", successful, tests.len())
+            eprintln!("Passed {} of {} tests", successful, n_tests)
         }
     }
 }

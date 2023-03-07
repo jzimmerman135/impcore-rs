@@ -6,6 +6,10 @@ use crate::ast::{AstDef, AstExpr, AstType};
 impl<'a> AstDef<'a> {
     pub fn defgen(&self, compiler: &mut Compiler<'a>) -> Result<NativeTopLevel<'a>, String> {
         compiler.clear_curr_function();
+        let quiet_mode_cache = compiler.quiet_mode;
+        if self.is_test() {
+            compiler.quiet_mode = true;
+        }
         let native = match self {
             Self::Function(name, params, body) => {
                 defgen::defgen_function(name, params, body, compiler)?;
@@ -38,6 +42,7 @@ impl<'a> AstDef<'a> {
             }
             _ => NativeTopLevel::Noop,
         };
+        compiler.quiet_mode = quiet_mode_cache;
         Ok(native)
     }
 }

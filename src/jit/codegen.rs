@@ -191,7 +191,7 @@ pub fn codegen_call<'a>(
     let function = compiler
         .module
         .get_function(name)
-        // this part is really hacky and risky/slow but not worth changing
+        // error handling is really hacky, risky and slow... but not worth changing
         .ok_or(format!("{}{}", UNBOUND_FUNCTION, name))?;
 
     let expected_argcount = function.get_params().len();

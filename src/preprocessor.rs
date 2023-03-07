@@ -51,37 +51,38 @@ impl CodeBase {
         let import_pattern =
             Regex::new(r#"#\(import\s+"(?P<filename>\S*)"\s*\)"#).expect("Failed regex build");
         let map = collect_code_recurse(&filename, &path, HashMap::new(), &import_pattern)?;
-        Ok(CodeBase(map))
+        return Ok(CodeBase(map));
+
+        fn collect_code_recurse(
+            filename: &str,
+            basedir: &PathBuf,
+            mut included_files: HashMap<String, String>,
+            import_pattern: &Regex,
+        ) -> Result<HashMap<String, String>, String> {
+            let mut dirclone = basedir.clone();
+            dirclone.push(filename);
+            let pathstring = dirclone.to_str().unwrap().to_string();
+            let filename = filename.to_string();
+
+            if included_files.contains_key(&filename) {
+                return Ok(included_files);
+            }
+
+            let contents = fs::read_to_string(&pathstring)
+                .map_err(|_| format!("Failed to open file '{}'", pathstring))?;
+
+            included_files.insert(filename.clone(), String::new());
+
+            for capture in import_pattern.captures_iter(&contents) {
+                let filename = &capture["filename"];
+                included_files =
+                    collect_code_recurse(filename, basedir, included_files, import_pattern)?;
+            }
+
+            included_files.insert(filename, contents);
+            Ok(included_files)
+        }
     }
-}
-
-fn collect_code_recurse(
-    filename: &str,
-    basedir: &PathBuf,
-    mut included_files: HashMap<String, String>,
-    import_pattern: &Regex,
-) -> Result<HashMap<String, String>, String> {
-    let mut dirclone = basedir.clone();
-    dirclone.push(filename);
-    let pathstring = dirclone.to_str().unwrap().to_string();
-    let filename = filename.to_string();
-
-    if included_files.contains_key(&filename) {
-        return Ok(included_files);
-    }
-
-    let contents = fs::read_to_string(&pathstring)
-        .map_err(|_| format!("Failed to open file '{}'", pathstring))?;
-
-    included_files.insert(filename.clone(), String::new());
-
-    for capture in import_pattern.captures_iter(&contents) {
-        let filename = &capture["filename"];
-        included_files = collect_code_recurse(filename, basedir, included_files, import_pattern)?;
-    }
-
-    included_files.insert(filename, contents);
-    Ok(included_files)
 }
 
 fn join_ast_trees<'a>(

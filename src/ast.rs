@@ -170,6 +170,10 @@ impl<'a> AstChildren<'a> for AstExpr<'a> {
 }
 
 impl<'a> AstDef<'a> {
+    pub fn is_test(&self) -> bool {
+        matches!(self, AstDef::CheckAssert(..) | AstDef::CheckExpect(..))
+    }
+
     pub fn contains<F>(&self, predicate: &mut F) -> bool
     where
         F: FnMut(&AstExpr<'a>) -> bool,

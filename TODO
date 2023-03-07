@@ -1,7 +1,3 @@
-URGENT:
--------
-Fix unit test ordering
-
 Add more tests to basic.imp
 ------------------------
     match
