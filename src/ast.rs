@@ -67,7 +67,6 @@ impl<'a> Ast<'a> {
 
 pub trait AstChildren<'a> {
     fn children(&self) -> Vec<&AstExpr<'a>>;
-    fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>>;
 }
 
 impl<'a> AstChildren<'a> for AstDef<'a> {
@@ -83,72 +82,25 @@ impl<'a> AstChildren<'a> for AstDef<'a> {
             }
         }
     }
-
-    fn children_mut(&mut self) -> Vec<&mut AstExpr<'a>> {
-        match self {
-            Self::Function(_, _, body) => vec![body],
-            Self::TopLevelExpr(body) => vec![body],
-            Self::Global(_, body, _) => vec![body],
-            Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
-            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) => {
-                vec![]
-            }
-        }
-    }
-}
-
-fn matchx_children_mut<'a, 'b>(
-    scrut: &'b mut AstExpr<'a>,
-    arms: &'b mut [(AstExpr<'a>, AstExpr<'a>)],
-    default: &'b mut AstExpr<'a>,
-) -> Vec<&'b mut AstExpr<'a>> {
-    let mut children = vec![scrut, default];
-    children.append(
-        &mut arms
-            .iter_mut()
-            .flat_map(|(pred, then)| vec![pred, then])
-            .collect(),
-    );
-    children
-}
-fn matchx_children<'a, 'b>(
-    scrut: &'b AstExpr<'a>,
-    arms: &'b [(AstExpr<'a>, AstExpr<'a>)],
-    default: &'b AstExpr<'a>,
-) -> Vec<&'b AstExpr<'a>> {
-    let mut children = vec![scrut, default];
-    children.append(
-        &mut arms
-            .iter()
-            .flat_map(|(pred, then)| vec![pred, then])
-            .collect(),
-    );
-    children
 }
 
 impl<'a> AstChildren<'a> for AstExpr<'a> {
-    fn children_mut(&mut self) -> Vec<&mut Self> {
-        match self {
-            Self::Variable(_, Some(body)) => vec![body],
-            Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
-            Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
-            Self::While(cond, body) => vec![cond, body],
-            Self::Match(scrut, arms, default) => matchx_children_mut(scrut, arms, default),
-            Self::Assign(_, body, Some(index)) => vec![body, index],
-            Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter_mut().collect(),
-            Self::If(c, t, f) => {
-                vec![c, t, f]
-            }
-            Self::MacroVal(_)
-            | Self::Error
-            | Self::Variable(_, None)
-            | Self::Literal(..)
-            | Self::Pointer(..) => vec![],
-        }
-    }
-
     fn children(&self) -> Vec<&Self> {
+        fn matchx_children<'a, 'b>(
+            scrut: &'b AstExpr<'a>,
+            arms: &'b [(AstExpr<'a>, AstExpr<'a>)],
+            default: &'b AstExpr<'a>,
+        ) -> Vec<&'b AstExpr<'a>> {
+            let mut children = vec![scrut, default];
+            children.append(
+                &mut arms
+                    .iter()
+                    .flat_map(|(pred, then)| vec![pred, then])
+                    .collect(),
+            );
+            children
+        }
+
         match self {
             Self::Variable(_, Some(body)) => vec![body],
             Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
@@ -196,6 +148,7 @@ impl<'a> AstDef<'a> {
         Ok(())
     }
 
+    // use this instead of children mut, very powerful function
     pub fn reconstruct<F>(mut self, construct: &F) -> Result<Self, String>
     where
         F: Fn(AstExpr<'a>) -> Result<AstExpr<'a>, String>,
@@ -210,7 +163,7 @@ impl<'a> AstDef<'a> {
                 *lhs = mem::take(lhs).reconstruct(construct)?;
                 *rhs = mem::take(rhs).reconstruct(construct)?;
             }
-            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) => return Ok(self),
+            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) => {}
         };
         Ok(self)
     }
@@ -261,7 +214,7 @@ impl<'a> AstExpr<'a> {
             | Self::Error
             | Self::Variable(_, None)
             | Self::Literal(..)
-            | Self::Pointer(..) => return Ok(self),
+            | Self::Pointer(..) => {}
         };
         Ok(self)
     }
