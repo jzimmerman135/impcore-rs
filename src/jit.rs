@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, process};
 mod codegen;
 mod defgen;
 mod implib;
@@ -110,6 +110,27 @@ impl<'ctx> Compiler<'ctx> {
         Ok(native_functions)
     }
 
+    pub fn native_interpret_one(&mut self, native: &NativeTopLevel<'ctx>) -> Result<(), String> {
+        self.verify_engine();
+        unsafe { self.run_native_unverified(native) }
+    }
+
+    pub fn native_run_all(&mut self, native_top_level_exprs: &[NativeTopLevel<'ctx>]) {
+        self.verify_engine();
+        let mut successful = 0;
+        let mut fail_messages = vec![];
+        for native in native_top_level_exprs {
+            let success = unsafe { self.run_native_unverified(native) };
+            if native.is_test() {
+                match success {
+                    Ok(_) => successful += 1,
+                    Err(reason) => fail_messages.push(reason),
+                }
+            }
+        }
+        summarize_tests(successful, &fail_messages, self.quiet_mode);
+    }
+
     fn build_lib(&mut self) {
         let addr_space = AddressSpace::default();
         let int_type = self.context.i32_type();
@@ -192,42 +213,29 @@ impl<'ctx> Compiler<'ctx> {
             NativeTopLevel::FreeAll(fn_value) => {
                 let cleanup_code = unsafe { self.execution_engine.run_function(fn_value, &[]) };
                 if cleanup_code.as_int(true) == 1 {
-                    eprintln!("ERROR: failed to free memory exiting with code 1",)
+                    eprintln!("FATAL ERROR: failed to free memory. exiting with code 1");
+                    process::exit(1);
                 }
             }
             _ => {}
         };
         Ok(())
     }
+}
 
-    pub fn native_run_one(&mut self, def: &NativeTopLevel<'ctx>) -> Result<(), String> {
-        self.verify_engine();
-        unsafe { self.run_native_unverified(def) }
-    }
-
-    pub fn native_run_all(&mut self, native_top_level_exprs: &[NativeTopLevel<'ctx>]) {
-        self.verify_engine();
-        let mut successful = 0;
-        let mut fail_messages = vec![];
-        for native in native_top_level_exprs {
-            let success = unsafe { self.run_native_unverified(native) };
-            if native.is_test() {
-                match success {
-                    Ok(_) => successful += 1,
-                    Err(reason) => fail_messages.push(reason),
+fn summarize_tests(successful: usize, fail_messages: &[String], quiet_mode: bool) {
+    let n_tests = successful + fail_messages.len();
+    if n_tests != 0 {
+        for reason in fail_messages {
+            eprintln!("{}", reason);
+        }
+        match fail_messages.len() == 0 {
+            true => {
+                if !quiet_mode {
+                    eprintln!("All {} tests successful", successful)
                 }
             }
-        }
-
-        for reason in &fail_messages {
-            println!("{}", reason);
-        }
-
-        let n_tests = successful + fail_messages.len();
-        if successful == n_tests && n_tests != 0 {
-            eprintln!("All {} tests successful", successful)
-        } else {
-            eprintln!("Passed {} of {} tests", successful, n_tests)
+            false => eprintln!("Passed {} of {} tests", successful, n_tests),
         }
     }
 }

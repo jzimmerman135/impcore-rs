@@ -179,17 +179,9 @@ impl<'a> AstExpr<'a> {
             Self::Unary(_, body) | Self::Assign(_, body, None) | Self::Variable(_, Some(body)) => {
                 *body = Box::new(mem::take(body).reconstruct(construct)?);
             }
-            Self::Binary(_, lhs, rhs) => {
-                *lhs = Box::new(mem::take(lhs).reconstruct(construct)?);
-                *rhs = Box::new(mem::take(rhs).reconstruct(construct)?);
-            }
-            Self::While(cond, body) => {
-                *cond = Box::new(mem::take(cond).reconstruct(construct)?);
-                *body = Box::new(mem::take(body).reconstruct(construct)?);
-            }
-            Self::Assign(_, body, Some(index)) => {
-                *body = Box::new(mem::take(body).reconstruct(construct)?);
-                *index = Box::new(mem::take(index).reconstruct(construct)?);
+            Self::Binary(_, x, y) | Self::While(x, y) | Self::Assign(_, x, Some(y)) => {
+                *x = Box::new(mem::take(x).reconstruct(construct)?);
+                *y = Box::new(mem::take(y).reconstruct(construct)?);
             }
             Self::Begin(exprs) | Self::Call(_, exprs) => {
                 *exprs = mem::take(exprs)
