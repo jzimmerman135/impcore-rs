@@ -36,7 +36,7 @@ impl<'a> AstExpr<'a> {
 pub fn parse_literal(expr: Pair<Rule>) -> AstExpr {
     let numstr = expr.as_str();
     let number = if let Some(hexadecimal_str) = numstr.strip_prefix("0x") {
-        i32::from_str_radix(hexadecimal_str, 16).unwrap()
+        u32::from_str_radix(hexadecimal_str, 16).unwrap() as i32
     } else {
         numstr.parse().unwrap()
     };

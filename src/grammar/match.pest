@@ -42,7 +42,7 @@ arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
 bitwise_operator = { ">>>" | ">>" | "<<" | "^" | "&&" | "||" | "&" | "|" }
 comparison_operator = { ">="  | "<=" | ">" | "<" |  "=" }
 print_operator = { "println" | "printu" | "print" | "printc" }
-unary_operator = { "++" | "--" | "not" | "!" }
+unary_operator = { "++" | "--" | "not" | "!" | "~" }
 binary_operator = @{ bitwise_operator | comparison_operator | arithmetic_operator }
 
 unary = { unary_operator ~ WSP+ ~ exp }

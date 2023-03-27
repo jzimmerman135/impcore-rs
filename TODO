@@ -22,10 +22,12 @@ Runtime checked error handling
 ------------------------------
     Add llvm landing pad
 
-REPL mode? Single pass modification
+;; DONT BE TEMPED HAHA
+REPL mode? Single pass modification 
 -----------------------------------
     (requires overhaul of lifetimes and dependencies)
     -> Get input
+    -> Move input into input container
     -> parse def 
     -> ignore tests/macros
     -> add to lazy table 
