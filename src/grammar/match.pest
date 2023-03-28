@@ -38,7 +38,7 @@ undef = { "undef" ~ WSP+ ~ macroval ~ WSP* }
 
 macrodef = _{ "#" ~ LPAREN ~ ( fileimport | libimport | replacer | undef | inliner ) ~ RPAREN ~ NEWLINE }
 
-arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
+arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" | "udiv" }
 bitwise_operator = { ">>>" | ">>" | "<<" | "^" | "&&" | "||" | "&" | "|" }
 comparison_operator = { ">="  | "<=" | ">" | "<" |  "=" }
 print_operator = { "println" | "printu" | "print" | "printc" }

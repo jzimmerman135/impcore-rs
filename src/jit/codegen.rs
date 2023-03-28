@@ -108,6 +108,7 @@ pub fn codegen_binary<'a>(
         match operator {
             "*" => builder.build_int_mul(lhs, rhs, "mul"),
             "/" => builder.build_int_signed_div(lhs, rhs, "div"),
+            "udiv" => builder.build_int_unsigned_div(lhs, rhs, "div"),
             "+" => builder.build_int_add(lhs, rhs, "mul"),
             "-" => builder.build_int_sub(lhs, rhs, "sub"),
             "%" | "mod" => builder.build_int_signed_rem(lhs, rhs, "mod"),
@@ -164,6 +165,7 @@ pub fn codegen_unary<'a>(
         match operator {
             "++" => builder.build_int_add(body, one, "incr"),
             "--" => builder.build_int_sub(body, one, "decr"),
+            "~" => builder.build_int_nsw_neg(body, "neg"),
             "!" | "not" => builder.build_int_compare(IntPredicate::EQ, body, zero, "not"),
             "println" | "printu" | "print" => builder
                 .build_call(
