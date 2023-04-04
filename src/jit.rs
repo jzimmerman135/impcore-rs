@@ -19,7 +19,7 @@ pub struct Compiler<'ctx> {
     pub context: &'ctx Context,
     pub module: Module<'ctx>,
     pub builder: Builder<'ctx>,
-    pub fpm: PassManager<FunctionValue<'ctx>>,
+    pub optimizer: PassManager<FunctionValue<'ctx>>,
     pub execution_engine: ExecutionEngine<'ctx>,
     pub quiet_mode: bool,
     param_table: HashMap<&'ctx str, PointerValue<'ctx>>,
@@ -67,12 +67,12 @@ impl<'ctx> Compiler<'ctx> {
             ExecutionMode::Dead => panic!("Cannot create a compiler with dead execution engine"),
         };
 
-        let fpm = Self::get_optimization_pass_manager(&module);
+        let optimizer = Self::create_optimization_pass_manager(&module);
 
         let mut compiler = Self {
             context,
             module,
-            fpm,
+            optimizer,
             builder,
             execution_engine,
             quiet_mode: false,
@@ -128,7 +128,7 @@ impl<'ctx> Compiler<'ctx> {
         name.ends_with('[')
     }
 
-    fn get_optimization_pass_manager(module: &Module<'ctx>) -> PassManager<FunctionValue<'ctx>> {
+    fn create_optimization_pass_manager(module: &Module<'ctx>) -> PassManager<FunctionValue<'ctx>> {
         let fpm = PassManager::create(module);
         fpm.add_instruction_combining_pass();
         fpm.add_reassociate_pass();
@@ -137,6 +137,7 @@ impl<'ctx> Compiler<'ctx> {
         fpm.add_basic_alias_analysis_pass();
         fpm.add_promote_memory_to_register_pass();
         fpm.add_tail_call_elimination_pass();
+        fpm.add_jump_threading_pass();
         fpm.initialize();
         fpm
     }

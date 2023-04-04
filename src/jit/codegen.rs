@@ -39,8 +39,9 @@ pub fn codegen_variable<'a>(
     maybe_index: Option<&AstExpr<'a>>,
     compiler: &mut Compiler<'a>,
 ) -> Result<IntValue<'a>, String> {
+    let itype = compiler.context.i32_type();
     let addr = index_address(get_address(name, compiler)?, maybe_index, compiler)?;
-    let value = compiler.builder.build_load(addr, "load");
+    let value = compiler.builder.build_load(itype, addr, "load");
     Ok(value.into_int_value())
 }
 
@@ -62,21 +63,27 @@ fn index_address<'a>(
     compiler: &mut Compiler<'a>,
 ) -> Result<PointerValue<'a>, String> {
     if let Some(index_expr) = index {
+        let itype = compiler.context.i32_type();
         let index_value = index_expr.codegen(compiler)?;
-        Ok(unsafe { compiler.builder.build_gep(addr, &[index_value], "index") })
+        Ok(unsafe {
+            compiler
+                .builder
+                .build_gep(itype, addr, &[index_value], "index")
+        })
     } else {
         Ok(addr)
     }
 }
 
 fn get_address<'a>(name: &str, compiler: &Compiler<'a>) -> Result<PointerValue<'a>, String> {
+    let itype = compiler.context.i32_type();
     let local_variable = compiler.param_table.get(name);
     match local_variable {
         Some(&local) => match compiler.is_pointer(name) {
             true => Some(
                 compiler
                     .builder
-                    .build_load(local, "load")
+                    .build_load(itype.ptr_type(AddressSpace::default()), local, "load")
                     .into_pointer_value(),
             ),
             false => Some(local),
@@ -87,7 +94,11 @@ fn get_address<'a>(name: &str, compiler: &Compiler<'a>) -> Result<PointerValue<'
             .map(|g| match compiler.is_pointer(name) {
                 true => compiler
                     .builder
-                    .build_load(g.as_basic_value_enum().into_pointer_value(), "load")
+                    .build_load(
+                        itype.ptr_type(AddressSpace::default()),
+                        g.as_basic_value_enum().into_pointer_value(),
+                        "load",
+                    )
                     .into_pointer_value(),
                 false => g.as_pointer_value(),
             }),
@@ -194,6 +205,7 @@ pub fn codegen_call<'a>(
         .module
         .get_function(name)
         // error handling is really hacky, risky and slow... but not worth changing
+        // returns a special string that gets reformatted upstream
         .ok_or(format!("{}{}", UNBOUND_FUNCTION, name))?;
 
     let expected_argcount = function.get_params().len();
@@ -357,9 +369,10 @@ fn codegen_match<'a>(
     }
 
     compiler.builder.position_at_end(merge_block);
+    let itype = compiler.context.i32_type();
     let v = compiler
         .builder
-        .build_load(res_alloca, "load")
+        .build_load(itype, res_alloca, "load")
         .into_int_value();
 
     Ok(v)

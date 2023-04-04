@@ -13,9 +13,11 @@ pub fn build_cleanup<'a>(compiler: &mut Compiler<'a>) -> Result<FunctionValue<'a
         if name.starts_with('#') || !name.ends_with('[') {
             continue;
         }
-        let array = compiler
-            .builder
-            .build_load(global_ptr.as_pointer_value(), "load");
+        let array = compiler.builder.build_load(
+            itype.ptr_type(AddressSpace::default()),
+            global_ptr.as_pointer_value(),
+            "load",
+        );
         compiler.builder.build_free(array.into_pointer_value());
     }
 
@@ -84,7 +86,7 @@ pub mod output {
                 AstType::Pointer => int_type.const_zero(),
             };
             builder.build_return(Some(&retval));
-            compiler.fpm.run_on(&print_fn);
+            compiler.optimizer.run_on(&print_fn);
             print_functions.push((printer_name, print_fn));
         }
 
@@ -173,7 +175,7 @@ pub mod input {
 
         let ptr_to_global = compiler
             .builder
-            .build_load(alloca, "load")
+            .build_load(str_type, alloca, "load")
             .into_pointer_value();
 
         compiler.builder.build_store(ptr_to_global, stdin_void_ptr);
@@ -204,7 +206,7 @@ pub mod input {
         let global_stdin = compiler.global_table.get("#__stdin").unwrap();
         let stdin_ptr = compiler
             .builder
-            .build_load(global_stdin.as_pointer_value(), "stdin")
+            .build_load(fileptr_type, global_stdin.as_pointer_value(), "stdin")
             .into_pointer_value();
         let fileptr = compiler
             .builder

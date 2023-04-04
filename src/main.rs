@@ -9,6 +9,7 @@ use clap::Parser as ArgParser;
 use impcore_rs::jit;
 use impcore_rs::preprocessor;
 use impcore_rs::{print_ast, print_ir, rip};
+use std::env;
 use std::path::PathBuf;
 
 #[derive(ArgParser)]
@@ -26,6 +27,7 @@ struct Cli {
 }
 
 fn main() {
+    env::set_var("RUST_BACKTRACE", "1");
     let cli = Cli::parse();
 
     let entry_filepath = PathBuf::from(cli.filename.as_deref().unwrap_or("./imp/basic.imp"));

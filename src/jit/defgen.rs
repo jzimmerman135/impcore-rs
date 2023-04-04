@@ -153,7 +153,7 @@ pub fn defgen_function<'a>(
     let body = body.codegen(compiler)?;
     compiler.builder.build_return(Some(&body));
 
-    compiler.fpm.run_on(&fn_value);
+    compiler.optimizer.run_on(&fn_value);
 
     if !fn_value.verify(true) {
         compiler.module.print_to_stderr();
@@ -216,7 +216,11 @@ pub fn defgen_global<'a>(
     let retval = if AstType::Pointer == var_type {
         let old_array = compiler
             .builder
-            .build_load(global_value.as_pointer_value(), "load")
+            .build_load(
+                int_type.ptr_type(AddressSpace::default()),
+                global_value.as_pointer_value(),
+                "load",
+            )
             .into_pointer_value();
         compiler.builder.build_free(old_array);
 
