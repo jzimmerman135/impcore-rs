@@ -29,7 +29,7 @@ struct Cli {
 }
 
 fn main() {
-    env::set_var("RUST_BACKTRACE", "1");
+    // env::set_var("RUST_BACKTRACE", "1");
     let cli = Cli::parse();
 
     let entry_filepath = PathBuf::from(cli.filename.as_deref().unwrap_or("./imp/basic.imp"));

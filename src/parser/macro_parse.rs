@@ -31,6 +31,12 @@ pub fn parse_inliner(def: Pair<Rule>) -> AstDef {
     AstDef::MacroDef(AstMacro::Inliner(identifier, params, replacement))
 }
 
+pub fn parse_macroparam(def: Pair<Rule>) -> AstExpr {
+    let mut innerdef = def.into_inner();
+    let param = innerdef.next().unwrap();
+    AstExpr::parse(param)
+}
+
 pub fn parse_undef(def: Pair<Rule>) -> AstDef {
     let mut innerdef = def.into_inner();
     let name = innerdef.next().unwrap().as_str();

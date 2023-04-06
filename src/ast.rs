@@ -260,3 +260,11 @@ impl<'a> Ast<'a> {
         self.defs.iter_mut()
     }
 }
+
+pub fn get_variable_name<'a>(exp: &AstExpr<'a>) -> &'a str {
+    if let AstExpr::Pointer(name) | AstExpr::Variable(name, ..) = exp {
+        name
+    } else {
+        panic!("Called get variable name on non-variable {:?}", exp)
+    }
+}

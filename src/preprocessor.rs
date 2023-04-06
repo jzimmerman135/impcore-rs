@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    ast::{Ast, AstDef, AstExpr, AstMacro},
+    ast::{get_variable_name, Ast, AstDef, AstExpr, AstMacro},
     errors::MACRO_LOOP,
     MAX_MACRO_DEPTH,
 };
@@ -129,7 +129,7 @@ impl<'a> Ast<'a> {
 #[derive(Debug)]
 struct MacroEnv<'a> {
     pub replacers: HashMap<AstExpr<'a>, AstExpr<'a>>,
-    pub functions: HashMap<&'a str, (Vec<AstExpr<'a>>, AstExpr<'a>)>,
+    pub functions: HashMap<&'a str, (Vec<&'a str>, AstExpr<'a>)>,
 }
 
 impl<'a> MacroEnv<'a> {
@@ -147,7 +147,10 @@ impl<'a> MacroEnv<'a> {
             AstDef::MacroDef(m) => match m {
                 AstMacro::ImportFile(_) => {}
                 AstMacro::Inliner(name, args, body) => {
-                    self.functions.insert(name, (args, body));
+                    self.functions.insert(
+                        name,
+                        (args.iter().map(get_variable_name).collect::<Vec<_>>(), body),
+                    );
                 }
                 AstMacro::Replacer(macroval, expr) => {
                     self.replacers.insert(macroval, expr);
@@ -171,7 +174,10 @@ impl<'a> AstExpr<'a> {
             AstExpr::Call(name, ..) if name.starts_with('\'') => name,
             _ => return Ok(self),
         };
-        self.try_expand_macros_recursive(macro_env, 0).map_err(|s| {
+
+        println!("trying to expand macro {:?}", self);
+
+        let res = self.try_expand_macros_recursive(macro_env, 0).map_err(|s| {
             if s.starts_with(MACRO_LOOP) {
                 return format!(
                     "Recursive macro, depth {} exceeded on {}",
@@ -179,7 +185,11 @@ impl<'a> AstExpr<'a> {
                 );
             }
             s
-        })
+        });
+
+        println!("expanded macro into {:?}", res);
+
+        res
     }
 
     fn try_expand_macros_recursive(
@@ -191,29 +201,42 @@ impl<'a> AstExpr<'a> {
             return Err(MACRO_LOOP.to_string());
         }
 
-        match &self {
+        let updated_expr = match &self {
             AstExpr::MacroVal(name) => macro_env
                 .replacers
                 .get(&self)
                 .ok_or(format!("Macro {} not defined", name))
-                .cloned()?
-                .try_expand_macros_recursive(macro_env, depth + 1),
+                .cloned()?,
             AstExpr::Call(name, args) if name.starts_with('\'') => {
                 let (formals, body) = macro_env
                     .functions
                     .get(name)
                     .ok_or(format!("Inline function macro {} not defined", name))?;
-                let argmap = formals
-                    .iter()
-                    .zip(args)
-                    .collect::<HashMap<&AstExpr, &AstExpr>>();
-                let newbody = body.clone().reconstruct(&|e| match &argmap.get(&e) {
-                    Some(&v) => Ok(v.clone()),
-                    None => Ok(e),
-                })?;
-                newbody.try_expand_macros_recursive(macro_env, depth + 1)
+                println!("macro {} becomes body {:?}", name, body);
+                let formals = formals.as_slice();
+                let argmap = formals.into_iter().zip(args).collect::<HashMap<_, _>>();
+                println!("argmap is {:?}", argmap);
+                body.clone().reconstruct(&|e| {
+                    println!("reconstructing {:?}", body);
+                    if let AstExpr::Variable(tmpname, maybe_index) = e {
+                        Ok(match argmap.get(&tmpname) {
+                            Some(AstExpr::Variable(newname, ..)) => {
+                                AstExpr::Variable(newname, maybe_index)
+                            }
+                            Some(AstExpr::Pointer(newname)) if maybe_index.is_some() => {
+                                AstExpr::Variable(newname, maybe_index)
+                            }
+                            Some(&x @ _) => x.clone(),
+                            None => AstExpr::Variable(tmpname, maybe_index),
+                        })
+                    } else {
+                        Ok(e)
+                    }
+                })?
             }
-            _ => Ok(self),
-        }
+            _ => return Ok(self),
+        };
+
+        updated_expr.try_expand_macros_recursive(macro_env, depth + 1)
     }
 }
