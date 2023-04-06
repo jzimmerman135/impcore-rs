@@ -1,7 +1,6 @@
-(define add-one (x) (+ x 1))
-(define add-two (x) (add-one (add-one x)))
-(add-two 0)
-(define add-one (x) (+ x 100))
-(add-two 0)
-(add-one 0)
+#(replace ('LOAD4 ptr[] ofs) ptr[(/ ofs 4)])
+(val array[] 30)
+
+('LOAD4 array[] 8)
+array[20]
 

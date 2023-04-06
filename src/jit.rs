@@ -118,7 +118,6 @@ impl<'ctx> Compiler<'ctx> {
             .module
             .add_function("printf", printf_type, Some(Linkage::External));
         self.lib.insert("__printf", printf_fn);
-
         self.add_print_functions();
     }
 

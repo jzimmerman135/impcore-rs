@@ -1,3 +1,7 @@
+----- bugs ------
+PTRS inside FUNCTION MACROS 
+-----------------
+
 Add more tests to basic.imp
 ------------------------
     match
@@ -17,19 +21,3 @@ LINKING:
 Error handling with linecol info
 --------------------------------
     Info struct attached to every AstExpr or AstDef
-
-Runtime checked error handling
-------------------------------
-    Add llvm landing pad
-
-;; DONT BE TEMPED HAHA
-REPL mode? Single pass modification 
------------------------------------
-    (requires overhaul of lifetimes and dependencies)
-    -> Get input
-    -> Move input into input container
-    -> parse def 
-    -> ignore tests/macros
-    -> add to lazy table 
-    -> defgen all 
-    -> run native def function 

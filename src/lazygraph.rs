@@ -3,7 +3,7 @@ use crate::{
     errors::UNBOUND_FUNCTION,
     jit::Compiler,
 };
-use petgraph::graph::NodeIndex;
+use petgraph::{graph::NodeIndex, Direction};
 use petgraph::{Direction::Outgoing, Graph};
 use std::collections::HashMap;
 
@@ -51,6 +51,26 @@ impl<'a> LazyGraph<'a> {
             def_table: HashMap::new(),
             graph: Graph::new(),
         }
+    }
+
+    pub fn lookup(&self, name: &str) -> Result<String, String> {
+        let dep = LazyDep::Function(name);
+        let g = &self.graph;
+        let node_index = g
+            .node_indices()
+            .find(|i| g[*i] == dep)
+            .ok_or(format!("Could not find function {}", name))?;
+
+        let neighbors = g.neighbors_directed(node_index, Direction::Outgoing);
+
+        let mut message = String::from("Found neighbors:\n");
+
+        for neighbor in neighbors {
+            let weight = g.node_weight(neighbor).unwrap();
+            message += &format!("{:?}\n", weight);
+        }
+
+        Ok(message)
     }
 
     /// Trace unresolved dependencies and return an appropriate error message
@@ -106,13 +126,18 @@ impl<'a> LazyGraph<'a> {
 
     /// Adds function to the dependency graph with edges to all needs, also stores the def in the lazy table
     fn add(&mut self, function: (LazyDep<'a>, &'a AstDef), needs: Vec<LazyDep<'a>>) {
+        let graph = &mut self.graph;
         let (dependee, def) = function;
         if let LazyDep::Function(..) = dependee {
-            let dependee_node = self.graph.add_node(dependee);
+            let dependee_node = find_node(graph, dependee)
+                .or(Some(graph.add_node(dependee)))
+                .unwrap();
             self.def_table.insert(dependee, def);
             for dependency in needs {
-                let dependency_node = self.graph.add_node(dependency);
-                self.graph.add_edge(dependee_node, dependency_node, 1);
+                let dependency_node = find_node(graph, dependency)
+                    .or(Some(graph.add_node(dependency)))
+                    .unwrap();
+                graph.add_edge(dependee_node, dependency_node, 1);
             }
         }
     }
@@ -151,6 +176,10 @@ impl<'a> LazyGraph<'a> {
     fn find(&self, dep: LazyDep) -> Option<NodeIndex> {
         self.graph.node_indices().find(|&i| self.graph[i] == dep)
     }
+}
+
+fn find_node(graph: &Graph<LazyDep, i32>, dep: LazyDep) -> Option<NodeIndex> {
+    graph.node_indices().find(|&i| graph[i] == dep)
 }
 
 impl<'a> AstDef<'a> {

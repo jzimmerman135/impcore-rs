@@ -24,6 +24,8 @@ struct Cli {
     debug: bool,
     #[arg(long)]
     emit_llvm: bool,
+    #[arg(long)]
+    explain: Option<String>,
 }
 
 fn main() {
@@ -54,10 +56,17 @@ fn main() {
         return;
     }
 
+    if cli.explain.is_some() {
+        compiler.try_explain_missing_function(&ast, &cli.explain.unwrap())
+    }
+
     let native_top_level_functions = compiler.compile(&ast).unwrap_or_else(|e| rip(e));
 
     if cli.emit_llvm {
-        compiler.module.print_to_file("error.ll").unwrap();
+        compiler
+            .module
+            .print_to_file(format!("{}.ll", cli.filename.unwrap()))
+            .unwrap();
     }
 
     if cli.debug {

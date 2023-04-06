@@ -1,3 +1,5 @@
+use std::process;
+
 #[allow(unused_imports)]
 use crate::{
     ast::{Ast, AstDef},
@@ -48,6 +50,15 @@ impl<'a> Compiler<'a> {
             }
         }
         Ok(())
+    }
+
+    pub fn try_explain_missing_function(&mut self, ast: &'a Ast, name: &str) -> ! {
+        let mut lazy_table = LazyGraph::new();
+        for def in ast.defs.iter() {
+            let _ = lazy_table.eval(def, self);
+        }
+        println!("{}", lazy_table.lookup(name).unwrap());
+        process::exit(1);
     }
 }
 
