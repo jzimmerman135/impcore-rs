@@ -1,5 +1,7 @@
-use ast::Ast;
-use std::process;
+use std::{fmt::Display, process::exit};
+
+use colored::Colorize;
+use env::Name;
 
 extern crate pest;
 
@@ -7,35 +9,53 @@ extern crate pest;
 extern crate pest_derive;
 
 pub mod ast;
-pub mod compile;
-pub mod jit;
+pub mod codegen;
+pub mod compiler;
+pub mod env;
+pub mod implib;
 pub mod lazygraph;
-pub mod parser;
+pub mod parse;
 pub mod preprocessor;
-pub mod static_analysis;
+pub mod types;
 
-pub const MAX_MACRO_DEPTH: u32 = 15;
+pub const IMPLIB_PATH: &str = "linklibs/";
+pub const EXTERNAL_PARAM: Name = -1;
 
-pub mod errors {
-    pub static UNBOUND_FUNCTION: &str = "#$@UBF";
-    pub static MACRO_LOOP: &str = "#$@RCM";
+pub fn usage() -> ! {
+    eprintln!(
+        "{}: ./impcore {} {}{}{}
+                            {}
+                            {}
+                            {}
+                            {}",
+        "Usage".bold().cyan(),
+        "<filename>".blue(),
+        "[-I ".yellow(),
+        "<include_dir>".blue(),
+        "]".yellow(),
+        "[-e/--early]".yellow(),
+        "[-a/--ast]".yellow(),
+        "[-d/--debug]".yellow(),
+        "[-q/--quiet]".yellow(),
+    );
+    exit(1)
 }
 
-#[allow(unused)]
-pub fn print_ast(ast: &Ast) {
-    eprintln!("\nPRINTING AST\n------------");
-    for node in ast.iter() {
-        eprintln!("{:?}", node);
+pub trait Rip<T> {
+    fn rip(self) -> T;
+}
+
+impl<T, E> Rip<T> for Result<T, E>
+where
+    E: Display,
+{
+    fn rip(self) -> T {
+        match self {
+            Ok(x) => x,
+            Err(msg) => {
+                eprintln!("{}: {}", "Impcore error".red().bold(), msg);
+                exit(1)
+            }
+        }
     }
-}
-
-#[allow(unused)]
-pub fn print_ir(compiler: &jit::Compiler) {
-    eprintln!("\nLLVM IR\n--------------------------------------------------");
-    compiler.module.print_to_stderr();
-}
-
-pub fn rip(e: String) -> ! {
-    eprintln!("error: {}", e);
-    process::exit(1)
 }

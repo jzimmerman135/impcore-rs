@@ -1,0 +1,9 @@
+(define abc (z) (+ x (+ y z)))
+(define def (z) (abc x y z))
+(+ 2 3)
+
+(val y 4)
+;; (val x 4)
+(def 4 3)
+
+

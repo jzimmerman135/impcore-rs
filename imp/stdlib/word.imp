@@ -1,6 +1,0 @@
-#(replace ('CHAR x) (& x 0xff))
-(define word (a b c d)
-  (| ('CHAR a)
-     (| (<< ('CHAR b) 8)
-        (| (<< ('CHAR c) 16)
-           (<< ('CHAR d) 24)))))

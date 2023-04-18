@@ -1,0 +1,72 @@
+;; lit
+1
+-1
+0x1
+-0x1
+0b1
+0b0
+-0b0
+
+;; var
+x
+x[2]
+_x
+
+;; macrox
+'MACRO
+
+;; apply
+(+ 1 2)
+(-- x[1])
+(- (-- 1) (++ 2))
+(~ (+ 1 2))
+(varfunc x y z)
+(ptrfunc x[] y z)
+(ptrfunc x[] y[2] z)
+
+;; setx
+(set x 12)
+(set x (if 1 2 3))
+(set x[y] (if 1 2 3))
+
+;; ifx
+(if 0 1 0)
+(if (= 0 0) (++ 2) (if (= 0 1) 1 0))
+
+;; whilex
+(while 0 1)
+(while (++ 1) (set x (++ x)))
+ 
+;; begin
+(begin 1 2 3)
+(begin (+ 1 0))
+
+;; matchx
+(match x (2 => (+ x 3)) (_ => 0))
+(match 1 (_ => 0))
+
+;; define
+(define abc (x y z) (begin 0))
+(define abc (x y[] z) (begin 0))
+
+;; val
+(val x 20)
+(val yz[] 20)
+
+;; alias
+#(replace 'MACRO 2)
+#(replace 'MACRO (if x 0 1))
+
+;; inline
+#(replace ('M x) x)
+#(replace ('M x) (if x 0 1))
+#(undef 'M)
+#(replace ('ID x) x)
+#(replace ('MACRO x[] y) (if x[0] y 1))
+
+;; macrocall
+('ID 2)
+('MACRO yz[] x[3])
+
+;; import
+#(import "imp/import.imp")

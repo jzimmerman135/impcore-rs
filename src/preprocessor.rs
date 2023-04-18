@@ -1,233 +1,351 @@
-/**
- * PREPROCESSOR
- * This module contains all the macro expansion and tracking
- * */
 use std::{
-    collections::HashMap,
-    fs, mem,
-    path::{Path, PathBuf},
+    collections::{hash_map::DefaultHasher, HashMap, HashSet},
+    fs,
+    hash::{Hash, Hasher},
+    path::PathBuf,
 };
 
 use crate::{
-    ast::{get_variable_name, Ast, AstDef, AstExpr, AstMacro},
-    errors::MACRO_LOOP,
-    MAX_MACRO_DEPTH,
+    ast::{Ast, Def, Exp},
+    env::{Name, Tokens},
 };
-use rayon::prelude::*;
+
+const MAX_MACRO_DEPTH: u32 = 15;
+
+enum MacroError {
+    RecursiveDepthError,
+    MismatchError(Name, usize, usize),
+    NotAnInliner(Name),
+    UnboundMacro(Name),
+    ShouldntBePtr(Name, Name, Name),
+    ShouldBePtr(Name, Name, Exp),
+}
+
+enum CodeCollectError {
+    CannotOpen(String),
+    AlreadyIncluded,
+}
+
 use regex::Regex;
+use CodeCollectError::*;
+use MacroError::*;
 
-/// Stores translation units and their path names
-pub struct CodeBase(HashMap<String, String>);
-impl CodeBase {
-    pub fn get(&self, filepath: &str) -> Result<&String, String> {
-        self.0
-            .get(filepath)
-            .ok_or(format!("Could not locate file {}", filepath))
-    }
+// Collect code
 
-    // Opens multiple files and parses their asts in parallel
-    fn parse_asts(&self) -> Result<HashMap<AstMacro, Ast>, String> {
-        let map = self
-            .0
-            .par_iter()
-            .map(|(name, contents)| Ok((AstMacro::ImportFile(name.as_str()), Ast::from(contents)?)))
-            .collect::<Result<HashMap<AstMacro, Ast>, String>>()?;
-        Ok(map)
-    }
+type IncludedFileEnv = HashSet<u64>;
 
-    pub fn build_ast<'a>(&'a self, entry_filepath: &'a Path) -> Result<Ast<'a>, String> {
-        let mut asts = self.parse_asts()?;
-        let entry_import =
-            AstMacro::ImportFile(entry_filepath.file_name().unwrap().to_str().unwrap());
-        let ast = join_ast_trees(&mut asts, entry_import)?;
-        Ok(ast.expand_macros()?.prepare())
-    }
+// Returns true if filename was present in env
+fn contains_or_add(env: &mut IncludedFileEnv, filename: &str) -> bool {
+    let mut hasher = DefaultHasher::new();
+    filename.trim().hash(&mut hasher);
+    let filehash = hasher.finish();
+    !env.insert(filehash)
+}
 
-    pub fn collect(entry_filepath: &PathBuf) -> Result<Self, String> {
-        let mut path = PathBuf::from(entry_filepath);
-        // Get filename as a String (hack to extract the filename from stem)
-        let filename = path.file_name().unwrap().to_str().unwrap().to_string();
-        path.pop();
-        let import_pattern =
-            Regex::new(r#"#\(import\s+"(?P<filename>\S*)"\s*\)"#).expect("Failed regex build");
-        let map = collect_code_recurse(&filename, &path, HashMap::new(), &import_pattern)?;
-        return Ok(CodeBase(map));
+pub fn collect_code(entry_filename: &str, dirs: &[&str]) -> Result<String, String> {
+    let import_regex = Regex::new(r###"#\(import\s+"\s*(.*)\s*"\)"###).unwrap();
 
-        fn collect_code_recurse(
-            filename: &str,
-            basedir: &PathBuf,
-            mut included_files: HashMap<String, String>,
-            import_pattern: &Regex,
-        ) -> Result<HashMap<String, String>, String> {
-            let mut dirclone = basedir.clone();
-            dirclone.push(filename);
-            let pathstring = dirclone.to_str().unwrap().to_string();
-            let filename = filename.to_string();
-
-            if included_files.contains_key(&filename) {
-                return Ok(included_files);
-            }
-
-            let contents = fs::read_to_string(&pathstring)
-                .map_err(|_| format!("Failed to open file '{}'", pathstring))?;
-
-            included_files.insert(filename.clone(), String::new());
-
-            for capture in import_pattern.captures_iter(&contents) {
-                let filename = &capture["filename"];
-                included_files =
-                    collect_code_recurse(filename, basedir, included_files, import_pattern)?;
-            }
-
-            included_files.insert(filename, contents);
-            Ok(included_files)
+    collect_code_recursive(
+        entry_filename,
+        &import_regex,
+        dirs,
+        &mut IncludedFileEnv::new(),
+    )
+    .map_err(|e| match e {
+        CannotOpen(badfile) => format!("Failed to open file '{}'", badfile),
+        AlreadyIncluded => {
+            panic!("Compiler bug: weird already included {}", entry_filename)
         }
-    }
+    })
 }
 
-fn join_ast_trees<'a>(
-    asts: &mut HashMap<AstMacro<'a>, Ast<'a>>,
-    entrypoint: AstMacro<'a>,
-) -> Result<Ast<'a>, String> {
-    let base = asts
-        .remove(&entrypoint)
-        .ok_or(format!("Missing import {:?}", &entrypoint))?;
-
-    let defs = base
-        .defs
-        .into_iter()
-        .flat_map(|d| match d {
-            AstDef::MacroDef(mut import @ AstMacro::ImportFile(..))
-                if asts.contains_key(&import) =>
-            {
-                join_ast_trees(asts, mem::take(&mut import))
-                    .unwrap_or(Ast { defs: vec![] })
-                    .defs
-            }
-            AstDef::MacroDef(AstMacro::ImportFile(..)) => vec![],
-            _ => vec![d],
-        })
-        .collect();
-    Ok(Ast { defs })
-}
-
-impl<'a> Ast<'a> {
-    pub fn expand_macros(mut self) -> Result<Self, String> {
-        let mut macro_env = MacroEnv::new();
-        self.defs = self
-            .defs
-            .into_iter()
-            .filter_map(|def| match macro_env.try_push(def) {
-                Ok(_) => None,
-                Err(def) => Some(def.reconstruct(&|e| e.try_expand_macros(&macro_env))),
-            })
-            .collect::<Result<_, _>>()?;
-        Ok(self)
-    }
-}
-
-#[derive(Debug)]
-struct MacroEnv<'a> {
-    pub replacers: HashMap<AstExpr<'a>, AstExpr<'a>>,
-    pub functions: HashMap<&'a str, (Vec<&'a str>, AstExpr<'a>)>,
-}
-
-impl<'a> MacroEnv<'a> {
-    pub fn new() -> Self {
-        Self {
-            replacers: HashMap::new(),
-            functions: HashMap::new(),
-        }
+fn collect_code_recursive(
+    filename: &str,
+    import_re: &Regex,
+    dirs: &[&str],
+    included: &mut IncludedFileEnv,
+) -> Result<String, CodeCollectError> {
+    if contains_or_add(included, filename) {
+        return Err(AlreadyIncluded);
     }
 
-    // Will either add a macrodef to the environment, pop a macrodef from the environment.
-    // If def isn't a macro then it will be returned as in the error
-    pub fn try_push(&mut self, def: AstDef<'a>) -> Result<(), AstDef<'a>> {
-        match def {
-            AstDef::MacroDef(m) => match m {
-                AstMacro::ImportFile(_) => {}
-                AstMacro::Inliner(name, args, body) => {
-                    self.functions.insert(
-                        name,
-                        (args.iter().map(get_variable_name).collect::<Vec<_>>(), body),
-                    );
-                }
-                AstMacro::Replacer(macroval, expr) => {
-                    self.replacers.insert(macroval, expr);
-                }
-                AstMacro::Undef(macroval) => {
-                    let replacer_macro = AstExpr::MacroVal(macroval);
-                    self.replacers.remove(&replacer_macro);
-                    self.functions.remove(&macroval);
-                }
+    let contents = try_open(filename, dirs)?;
+
+    let mut imported = import_re
+        .captures_iter(&contents)
+        .map(|c| c.iter().nth(1).unwrap().unwrap().as_str())
+        .filter_map(
+            |f| match collect_code_recursive(f, import_re, dirs, included) {
+                Err(AlreadyIncluded) => None,
+                e @ Err(CannotOpen(..)) => Some(e),
+                ok => Some(ok),
             },
-            _ => return Err(def),
+        )
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter();
+
+    let mut newcontents = String::new();
+    for section in import_re.split(&contents) {
+        newcontents += section;
+        if let Some(imported_contents) = imported.next() {
+            newcontents += &imported_contents;
+        }
+    }
+
+    Ok(newcontents)
+}
+
+fn try_open(filename: &str, dirs: &[&str]) -> Result<String, CodeCollectError> {
+    for dir in [""].iter().chain(dirs) {
+        let mut path = PathBuf::from(dir);
+        path.push(filename);
+        if let Ok(contents) = fs::read_to_string(path) {
+            return Ok(contents);
+        }
+    }
+    Err(CannotOpen(filename.to_string()))
+}
+
+// Ast-level macro expansion
+
+pub type MacroEnv = HashMap<Name, (Vec<Name>, Exp)>;
+
+pub fn preprocessor(ast: Ast, tokens: &Tokens) -> Result<Ast, String> {
+    let mut macros = MacroEnv::new();
+    ast.into_iter()
+        .filter_map(|def| match def {
+            Def::Alias(name, exp) => {
+                macros.insert(name, (vec![], exp));
+                None
+            }
+            Def::Inline(name, params, exp) => {
+                macros.insert(name, (params, exp));
+                None
+            }
+            Def::Undef(name) => {
+                macros.remove(&name);
+                None
+            }
+            Def::Import(..) => Some(Ok(def)),
+            _ => Some(def.expand_macros(&macros, tokens)),
+        })
+        .collect::<Result<_, _>>()
+}
+
+impl Def {
+    fn expand_macros(self, macros: &MacroEnv, tokens: &Tokens) -> Result<Self, String> {
+        let newdef = match self {
+            Def::Define(n, a, e) => Def::Define(n, a, e.expand_macros(macros, tokens)?),
+            Def::Val(n, e) => Def::Val(n, e.expand_macros(macros, tokens)?),
+            Def::CheckAssert(e) => Def::CheckAssert(e.expand_macros(macros, tokens)?),
+            Def::CheckExpect(l, r) => Def::CheckExpect(
+                l.expand_macros(macros, tokens)?,
+                r.expand_macros(macros, tokens)?,
+            ),
+            Def::Exp(e) => Def::Exp(e.expand_macros(macros, tokens)?),
+            Def::Alias(..) | Def::Undef(..) | Def::Inline(..) | Def::Import(..) => unreachable!(),
         };
-        Ok(())
+        Ok(newdef)
     }
 }
 
-impl<'a> AstExpr<'a> {
-    fn try_expand_macros(self, macro_env: &MacroEnv<'a>) -> Result<AstExpr<'a>, String> {
-        let macroname = match self {
-            AstExpr::MacroVal(name, ..) => name,
-            AstExpr::Call(name, ..) if name.starts_with('\'') => name,
-            _ => return Ok(self),
-        };
-
-        self.try_expand_macros_recursive(macro_env, 0).map_err(|s| {
-            if s.starts_with(MACRO_LOOP) {
-                return format!(
-                    "Recursive macro, depth {} exceeded on {}",
-                    MAX_MACRO_DEPTH, &macroname
-                );
+impl Exp {
+    fn expand_macros(self, macros: &MacroEnv, tokens: &Tokens) -> Result<Self, String> {
+        let mut formals = MacroEnv::new();
+        let res = expand_macros(self, macros, &mut formals, tokens, 0);
+        match res {
+            Ok(e) => Ok(e),
+            Err(RecursiveDepthError) => Err(format!(
+                "Preprocessor recursive depth {} exceeded",
+                MAX_MACRO_DEPTH
+            )),
+            Err(MismatchError(name, expected, got)) => Err(format!(
+                "Inline argument mismatch on macro ({} ...) expected {} args, got {}",
+                tokens.translate(&name),
+                expected,
+                got
+            )),
+            Err(NotAnInliner(name)) => Err(format!(
+                "Macro {} cannot be used as inline ('{} ...)",
+                tokens.translate(&name),
+                tokens.translate(&name),
+            )),
+            Err(UnboundMacro(name)) => {
+                Err(format!("Macro {} is not bound", tokens.translate(&name),))
             }
-            s
-        })
-    }
-
-    fn try_expand_macros_recursive(
-        self,
-        macro_env: &MacroEnv<'a>,
-        depth: u32,
-    ) -> Result<AstExpr<'a>, String> {
-        if depth > MAX_MACRO_DEPTH {
-            return Err(MACRO_LOOP.to_string());
+            Err(ShouldntBePtr(name, expected, got)) => Err(format!(
+                "In macro ({} ...) got unexpected pointer argument '{}]' for param '{}'",
+                tokens.translate(&name),
+                tokens.translate(&got),
+                tokens.translate(&expected),
+            )),
+            Err(ShouldBePtr(name, expected, got)) => Err(format!(
+                "In macro ({} ...) got unexpected non-pointer argument '{}' for pointer param '{}]'",
+                tokens.translate(&name),
+                got.to_string(tokens),
+                tokens.translate(&expected),
+            )),
         }
+    }
+}
 
-        let updated_expr = match &self {
-            AstExpr::MacroVal(name) => macro_env
-                .replacers
-                .get(&self)
-                .ok_or(format!("Macro {} not defined", name))
-                .cloned()?,
-            AstExpr::Call(name, args) if name.starts_with('\'') => {
-                let (formals, body) = macro_env
-                    .functions
-                    .get(name)
-                    .ok_or(format!("Inline function macro {} not defined", name))?;
-                let formals = formals.as_slice();
-                let argmap = formals.into_iter().zip(args).collect::<HashMap<_, _>>();
-                body.clone().reconstruct(&|e| {
-                    if let AstExpr::Variable(tmpname, maybe_index) = e {
-                        Ok(match argmap.get(&tmpname) {
-                            Some(AstExpr::Variable(newname, ..)) => {
-                                AstExpr::Variable(newname, maybe_index)
-                            }
-                            Some(AstExpr::Pointer(newname)) if maybe_index.is_some() => {
-                                AstExpr::Variable(newname, maybe_index)
-                            }
-                            Some(&x @ _) => x.clone(),
-                            None => AstExpr::Variable(tmpname, maybe_index),
-                        })
-                    } else {
-                        Ok(e)
-                    }
-                })?
+fn expand_macros(
+    exp: Exp,
+    macros: &MacroEnv,
+    formals: &mut MacroEnv,
+    tokens: &Tokens,
+    depth: u32,
+) -> Result<Exp, MacroError> {
+    if depth > MAX_MACRO_DEPTH {
+        return Err(RecursiveDepthError);
+    }
+    match exp {
+        Exp::Var(name, None) if formals.contains_key(&name) => {
+            let (_, argbody) = formals.get(&name).unwrap();
+            Ok(argbody.clone())
+        }
+        Exp::Var(name, Some(i)) if formals.contains_key(&name) => {
+            let (_, argbody) = formals.get(&name).unwrap();
+            if let Exp::Var(newname, ..) = argbody {
+                expand_macros(Exp::Var(*newname, Some(i)), macros, formals, tokens, depth)
+            } else {
+                panic!()
             }
-            _ => return Ok(self),
-        };
+        }
+        Exp::Var(name, None) if macros.contains_key(&name) => {
+            let (params, macrobody) = macros.get(&name).unwrap();
+            if !params.is_empty() {
+                Err(NotAnInliner(name))
+            } else {
+                Ok(expand_macros(
+                    macrobody.clone(),
+                    macros,
+                    formals,
+                    tokens,
+                    depth + 1,
+                )?)
+            }
+        }
+        Exp::Apply(name, args) if macros.contains_key(&name) => {
+            let (params, macrobody) = macros.get(&name).unwrap();
+            if params.len() != args.len() {
+                Err(MismatchError(name, params.len(), args.len()))
+            } else {
+                let oldargs = params
+                    .iter()
+                    .zip(args)
+                    .map(|(param, arg)| match &arg {
+                        Exp::Var(n, None)
+                            if tokens.translate(n).ends_with('[')
+                                && !tokens.translate(param).ends_with('[') =>
+                        {
+                            Err(ShouldntBePtr(name, *param, *n))
+                        }
+                        Exp::Var(n, None)
+                            if tokens.translate(param).ends_with('[')
+                                && !tokens.translate(n).ends_with('[') =>
+                        {
+                            Err(ShouldBePtr(name, *param, arg))
+                        }
+                        Exp::Var(n, Some(..))
+                            if tokens.translate(param).ends_with('[')
+                                && tokens.translate(n).ends_with('[') =>
+                        {
+                            Err(ShouldBePtr(name, *param, arg))
+                        }
+                        _ => Ok((param, arg)),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .map(|(param, arg)| (param, formals.insert(*param, (vec![], arg))))
+                    .collect::<Vec<_>>();
+                let finalexp =
+                    expand_macros(macrobody.clone(), macros, formals, tokens, depth + 1)?;
+                for (param, arg) in oldargs {
+                    if let Some(oldarg) = arg {
+                        formals.insert(*param, oldarg);
+                    } else {
+                        formals.remove(param);
+                    }
+                }
+                Ok(finalexp)
+            }
+        }
+        Exp::Var(n, ..) if tokens.translate(&n).starts_with('\'') => Err(UnboundMacro(n)),
+        Exp::Apply(n, ..) if tokens.translate(&n).starts_with('\'') => Err(UnboundMacro(n)),
+        _ => expand_macros_in_children(exp, macros, formals, tokens, depth),
+    }
+}
 
-        updated_expr.try_expand_macros_recursive(macro_env, depth + 1)
+fn expand_macros_in_children(
+    exp: Exp,
+    macros: &MacroEnv,
+    formals: &mut MacroEnv,
+    tokens: &Tokens,
+    depth: u32,
+) -> Result<Exp, MacroError> {
+    match exp {
+        Exp::Literal(_) => Ok(exp),
+        Exp::Var(_, None) => Ok(exp),
+        Exp::Var(n, Some(mut e)) => {
+            *e = expand_macros(*e, macros, formals, tokens, depth)?;
+            Ok(Exp::Var(n, Some(e)))
+        }
+        Exp::Set(n, Some(mut e), mut v) => {
+            *e = expand_macros(*e, macros, formals, tokens, depth)?;
+            *v = expand_macros(*v, macros, formals, tokens, depth)?;
+            Ok(Exp::Set(n, Some(e), v))
+        }
+        Exp::Set(n, None, mut v) => {
+            *v = expand_macros(*v, macros, formals, tokens, depth)?;
+            Ok(Exp::Set(n, None, v))
+        }
+        Exp::Binary(p, mut l, mut r) => {
+            *l = expand_macros(*l, macros, formals, tokens, depth)?;
+            *r = expand_macros(*r, macros, formals, tokens, depth)?;
+            Ok(Exp::Binary(p, l, r))
+        }
+        Exp::Unary(p, mut e) => {
+            *e = expand_macros(*e, macros, formals, tokens, depth)?;
+            Ok(Exp::Unary(p, e))
+        }
+        Exp::Apply(n, es) => Ok(Exp::Apply(
+            n,
+            es.into_iter()
+                .map(|e| expand_macros(e, macros, formals, tokens, depth))
+                .collect::<Result<_, _>>()?,
+        )),
+        Exp::If(mut c, mut t, mut e) => {
+            *c = expand_macros(*c, macros, formals, tokens, depth)?;
+            *t = expand_macros(*t, macros, formals, tokens, depth)?;
+            *e = expand_macros(*e, macros, formals, tokens, depth)?;
+            Ok(Exp::If(c, t, e))
+        }
+        Exp::While(mut g, mut b) => {
+            *g = expand_macros(*g, macros, formals, tokens, depth)?;
+            *b = expand_macros(*b, macros, formals, tokens, depth)?;
+            Ok(Exp::While(g, b))
+        }
+        Exp::Begin(es) => Ok(Exp::Begin(
+            es.into_iter()
+                .map(|e| expand_macros(e, macros, formals, tokens, depth))
+                .collect::<Result<_, _>>()?,
+        )),
+        Exp::Match(mut p, cs, mut d) => {
+            *p = expand_macros(*p, macros, formals, tokens, depth)?;
+            *d = expand_macros(*d, macros, formals, tokens, depth)?;
+            Ok(Exp::Match(
+                p,
+                cs.into_iter()
+                    .map(|(l, r)| {
+                        Ok((
+                            expand_macros(l, macros, formals, tokens, depth)?,
+                            expand_macros(r, macros, formals, tokens, depth)?,
+                        ))
+                    })
+                    .collect::<Result<_, _>>()?,
+                d,
+            ))
+        }
     }
 }

@@ -1,76 +1,109 @@
-impcore = { SOI ~ ( macrodef | def | tle | WSP )* ~ EOI }
-interpreted_impcore = { SOI ~ ( def | tle | WSP )* ~ EOI }
+impcore = { SOI ~ def* ~ EOI }
 
-WSP = _{ " " | NEWLINE }
-COMMENT = _{ ";;" ~ ( !NEWLINE ~ ANY )* }
-LPAREN = _{ "(" ~ WSP* }
-RPAREN = _{ WSP* ~ ")" }
-LBRACK = _{ "[" ~ WSP* }
-RBRACK = _{ WSP* ~ "]" }
+COMMENT    = _{ ";;" ~ ( !NEWLINE ~ ANY )* }
+WHITESPACE = _{ " " 
+              | "\t"
+              | NEWLINE }
 
-keyword = _{ "define" | "set" | "if" | "begin" | "while" | "val" | "error" | "check-assert" | "check-expect" | "check-error" | binary_operator | unary_operator | print }
-RESERVED = _{ keyword ~ WSP+ }
+NUMBER = @{ ( "-" )?  ~ ASCII_DIGIT+ }
+HEXNUM = @{ ( "-" )? ~ "0x" ~ ASCII_HEX_DIGIT+ }
+BINNUM = @{ ( "-" )? ~ "0b" ~ ("0" | "1")+ }
+NAME = @{ !(keyword ~ " ") ~ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-" )* }
+PTR  = @{ NAME ~ "[" }
+FILENAME = @{ ( LETTER | SYMBOL | MARK | "." | "/" )* }
 
-NUMBER = _{ ( "-" )?  ~ ASCII_DIGIT+ }
-HEXNUM = _ { ( "-" )? ~ "0x" ~ ASCII_HEX_DIGIT+ }
-NAMED = _{ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-" )* }
+keyword  = @{ "begin"
+            | "define"
+            | "if"
+            | "set"
+            | "val"
+            | "while"
+            | "match"
+            | "inline"
+            | "replace"
+            | "import"
+            | "it"
+            | "undef"
+            | "check-assert"
+            | "check-expect"
+            | binary
+            | unary }
+            
+unary = @{ "++"
+         | "--"
+         | "not"
+         | "!"
+         | "~"
+         | "println"
+         | "printc"
+         | "print" }
 
-function_name = @{ !RESERVED ~ NAMED ~ "?"? }
-literal = @{ HEXNUM | NUMBER }
-pointer = @{ variable ~ "[" } 
-PTR = _{ pointer ~ RBRACK }
-parameter = ${ PTR | variable }
-variable = @{ NAMED }
-array_value = { pointer ~ exp ~ RBRACK }
-macroval = { "'" ~ ( NAMED )+ }
-ACCESSOR = _{ (macroval | literal | array_value | variable) ~ &(WSP | RPAREN | RBRACK) }
+binary = @{ "/"
+          | "*"
+          | "%"
+          | "mod"
+          | "udiv"
+          | ">>>" 
+          | ">>" 
+          | "<<" 
+          | "^" 
+          | "&&" 
+          | "||" 
+          | "&" 
+          | "|"
+          | ">=" 
+          | "<="
+          | ">" 
+          | "<" 
+          | "="
+          | "+"
+          | "-"  }
+             
+lit   = @{ HEXNUM
+		 | BINNUM
+         | NUMBER }
+macrox = @{ "'" ~ NAME }
+var    =  { PTR ~ exp ~ "]"
+          | NAME ~ !"[]" }
+apply  =  { (macrox | var) ~ (exp | param)* 
+          | binary ~ exp ~ exp 
+          | unary ~ exp }
+ifx    =  { "if" ~ exp ~ exp ~ exp }
+whilex =  { "while" ~ exp ~ exp }
+begin  =  { "begin" ~ exp* }
+set    =  { "set" ~ var ~ exp }
+case   =  { "(" ~ !"_" ~ exp ~ "=>" ~ exp ~ ")" }
+matchx =  { "match" ~ exp ~ case* ~ "(" ~ "_" ~ "=>" ~ exp ~ ")" }
 
-ARG = _{ (PTR ~ WSP* | exp) }
+exp = { lit
+      | var
+      | macrox
+      | "(" ~ ( ifx
+              | whilex
+              | begin
+              | set
+              | matchx
+              | apply ) ~ ")" }
 
-lib = @{ LETTER* }
-file = @{ ( LETTER | "/" | ".." | "./" )* ~ ".imp" }
-libimport = _{ "import" ~ WSP+ ~ lib }
-fileimport = _{ "import" ~ WSP+ ~ "\"" ~ file  ~ "\"" }
+param   = { PTR ~ "]"
+		  	  | NAME }
+define  = { "define" ~ var ~ "(" ~ param* ~ ")" ~ exp }
+val     = { "val" ~ param ~ exp }
+expect  = { "check-expect" ~ exp ~ exp }
+assert  = { "check-assert" ~ exp }
+alias   = { "replace" ~ macrox ~ exp }
+inline  = { "replace" ~ "(" ~ macrox ~ param* ~ ")" ~ exp }
+undef  =  { "undef" ~ macrox }
+import  = { "import" ~ ( "\"" ~ FILENAME ~ "\""
+                       | var ) }
 
-replacer = { "replace" ~ WSP+ ~ macroval ~ WSP+ ~ exp }
-inliner = { "replace" ~ WSP+ ~ LPAREN ~ macroval ~ WSP+ ~ (WSP* ~ parameter)+ ~ RPAREN ~ WSP+ ~ exp }
+def = { "(" ~ ( define 
+              | val
+              | expect 
+              | assert ) ~ ")"
+      | "#(" ~ ( alias 
+      		     | undef
+               | inline 
+               | import ) ~ ")"
+      | exp }
 
-macrodef = _{ "#" ~ LPAREN ~ ( fileimport | libimport | inliner | replacer ) ~ RPAREN ~ NEWLINE }
-
-arithmetic_operator = { "+" | "-" | "/" | "*" | "%" | "mod" }
-bitwise_operator = { ">>>" | ">>" | "<<" | "^" | "&&" | "||" | "&" | "|" }
-comparison_operator = { ">="  | "<=" | ">" | "<" |  "=" }
-print_operator = { "println" | "printu" | "print" | "printc" }
-unary_operator = { "++" | "--" | "not" | "!" }
-binary_operator = @{ bitwise_operator | comparison_operator | arithmetic_operator }
-
-unary = { unary_operator ~ WSP+ ~ exp }
-print = { print_operator ~ WSP+ ~ exp }
-binary = { binary_operator ~ WSP+ ~ exp{2} }
-user = { function_name ~ WSP* ~ ARG* }
-inline = { macroval ~ WSP* ~ ARG* }
-fgetc = { "fgetc" }
-FUNCTION_CALL = _{ unary | binary | print | fgetc | inline | user }
-
-ifx = { "if" ~ WSP+ ~ exp{3} }
-whilex = { "while" ~ WSP+ ~ exp{2} }
-begin = { "begin" ~ WSP+ ~ exp+ }
-set = { "set" ~ WSP+ ~ ( array_value | variable ) ~ WSP* ~ exp }
-error = { "error" }
-CONTROL_FLOW = _{ ifx | whilex | begin | set | error }
-
-exp = _{ ( ACCESSOR | LPAREN ~ ( CONTROL_FLOW | FUNCTION_CALL ) ~ RPAREN ) ~ WSP* }
-
-PARAMS = _{ LPAREN ~ ( WSP* ~ parameter )* ~ RPAREN }
-define = { "define" ~ WSP+ ~ function_name ~ WSP* ~ PARAMS ~ WSP* ~ exp }
-val =  { "val" ~ WSP+ ~ variable ~ WSP+ ~ exp }
-alloc = { "val" ~ WSP+ ~ PTR ~ WSP+ ~ exp }
-GLOBAL = _{ define | alloc | val }
-
-check_expect = { "check-expect" ~ WSP+ ~ exp{2} }
-check_assert = { "check-assert" ~ WSP+ ~ exp }
-check_error = { "check-error" ~ WSP+ ~ exp }
-TEST = _{ check_expect | check_assert | check_error }
-
-tle = { exp }
-def = _{ LPAREN ~ ( GLOBAL | TEST ) ~ RPAREN }

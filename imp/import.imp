@@ -1,0 +1,5 @@
+(define beforeimport (x y z) (+ x (- y z)))
+#(import "other.imp")
+(define afterimport (x y z) (+ x (- y z)))
+#(import "other.imp")
+(define afterlastimport (x y z) (+ x (- y z)))

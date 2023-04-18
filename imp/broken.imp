@@ -1,4 +1,0 @@
-#(replace ('LOAD4 ptr[] ofs) ptr[(/ ofs 4)])
-(val array[] 30)
-('LOAD4 array[] 8)
-

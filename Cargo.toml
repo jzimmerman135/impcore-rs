@@ -1,21 +1,14 @@
 [package]
-name = "impcore-rs"
+name = "newimpcore"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.1.6", features = ["derive"] }
+colored = "2.0.0"
 inkwell = { version = "0.1.0", features = ["llvm15-0"] }
+itertools = "0.10.5"
 pest = "2.5.4"
 pest_derive = "2.5.4"
-petgraph = "0.6.3"
-rayon = "1.6.1"
-regex = "1.7.1"
-
-[dev-dependencies]
-lazy_static = "1.4.0"
-regex = "1.7.1"
-
-
+regex = "1.7.3"

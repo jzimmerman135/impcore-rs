@@ -1,4 +1,11 @@
-#(import "stdlib/word.imp")
+#(replace ('CHAR x) (& x 0xff))
+(define word (a b c d)
+  (| ('CHAR a)
+     (| (<< ('CHAR b) 8)
+        (| (<< ('CHAR c) 16)
+           (<< ('CHAR d) 24)))))
+#(undef 'CHAR)
+
 #(replace 'EOF -1)
 #(replace 'NEWLINE 10)
 #(replace 'NULL 0)

@@ -1,270 +1,375 @@
-use crate::parser::ImpcoreParser;
-use std::{
-    mem,
-    slice::{Iter, IterMut},
-};
+use std::{fmt::Debug, ops::Deref};
+
+use crate::env::{Name, Tokens};
+use colored::Colorize;
+
+pub type Ast = Vec<Def>;
+
+#[derive(Clone, Debug)]
+pub enum Exp {
+    Literal(i32),
+    Var(Name, Option<Box<Exp>>),
+    Binary(Primitive, Box<Exp>, Box<Exp>),
+    Unary(Primitive, Box<Exp>),
+    Apply(Name, Vec<Exp>),
+    If(Box<Exp>, Box<Exp>, Box<Exp>),
+    While(Box<Exp>, Box<Exp>),
+    Begin(Vec<Exp>),
+    Set(Name, Option<Box<Exp>>, Box<Exp>),
+    Match(Box<Exp>, Vec<(Exp, Exp)>, Box<Exp>),
+}
 
 #[derive(Clone)]
-pub struct Ast<'a> {
-    pub defs: Vec<AstDef<'a>>,
+pub enum Def {
+    Define(Name, Vec<Name>, Exp),
+    Val(Name, Exp),
+    Exp(Exp),
+    CheckExpect(Exp, Exp),
+    CheckAssert(Exp),
+    Import(String),
+    Alias(Name, Exp),
+    Inline(Name, Vec<Name>, Exp),
+    Undef(Name),
 }
 
-pub struct AstDefWrap<'a>(AstDef<'a>, (u32, u32));
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum AstExpr<'a> {
-    Literal(i32),
-    Variable(&'a str, Option<Box<AstExpr<'a>>>),
-    Pointer(&'a str),
-    Binary(&'a str, Box<AstExpr<'a>>, Box<AstExpr<'a>>),
-    Unary(&'a str, Box<AstExpr<'a>>),
-    Call(&'a str, Vec<AstExpr<'a>>),
-    If(Box<AstExpr<'a>>, Box<AstExpr<'a>>, Box<AstExpr<'a>>),
-    While(Box<AstExpr<'a>>, Box<AstExpr<'a>>),
-    Begin(Vec<AstExpr<'a>>),
-    Assign(&'a str, Box<AstExpr<'a>>, Option<Box<AstExpr<'a>>>),
-    MacroVal(&'a str),
-    Match(
-        Box<AstExpr<'a>>,
-        Vec<(AstExpr<'a>, AstExpr<'a>)>,
-        Box<AstExpr<'a>>,
-    ),
-    Error,
+#[derive(Clone, Copy, Debug)]
+pub enum Primitive {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    UDiv,
+    Mod,
+    LShift,
+    RShift,
+    URShift,
+    And,
+    Or,
+    Eq,
+    Neq,
+    Lte,
+    Lt,
+    Gte,
+    Gt,
+    Not,
+    BitXor,
+    BitAnd,
+    BitOr,
+    Print,
+    Println,
+    Printc,
+    Incr,
+    Decr,
+    Neg,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum AstType {
-    Integer,
-    Pointer,
-}
+// String conversions
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum AstDef<'a> {
-    ImportLib(&'a str),
-    TopLevelExpr(AstExpr<'a>),
-    Function(&'a str, Vec<(&'a str, AstType)>, AstExpr<'a>),
-    Global(&'a str, AstExpr<'a>, AstType),
-    CheckExpect(AstExpr<'a>, AstExpr<'a>, &'a str),
-    CheckAssert(AstExpr<'a>, &'a str),
-    CheckError(AstExpr<'a>, &'a str),
-    DeclareGlobal(&'a str, AstType),
-    MacroDef(AstMacro<'a>),
-}
-
-#[derive(Debug, PartialEq, Hash, Eq, Clone)]
-pub enum AstMacro<'a> {
-    ImportFile(&'a str),
-    Replacer(AstExpr<'a>, AstExpr<'a>),
-    Inliner(&'a str, Vec<AstExpr<'a>>, AstExpr<'a>),
-    Undef(&'a str),
-}
-
-impl<'a> Ast<'a> {
-    pub fn from(contents: &str) -> Result<Ast, String> {
-        ImpcoreParser::generate_ast(contents)
+impl Primitive {
+    pub fn from(op: &str) -> Option<Primitive> {
+        Some(match op.trim() {
+            "+" => Primitive::Add,
+            "-" => Primitive::Sub,
+            "*" => Primitive::Mul,
+            "/" => Primitive::Div,
+            "udiv" => Primitive::UDiv,
+            "%" | "mod" => Primitive::Mod,
+            ">>" => Primitive::RShift,
+            ">>>" => Primitive::URShift,
+            "<<" => Primitive::LShift,
+            "&&" | "and" => Primitive::And,
+            "||" | "or" => Primitive::Or,
+            "=" => Primitive::Eq,
+            "!=" => Primitive::Neq,
+            "<=" => Primitive::Lte,
+            "<" => Primitive::Lt,
+            ">=" => Primitive::Gte,
+            ">" => Primitive::Gt,
+            "!" | "not" => Primitive::Not,
+            "^" => Primitive::BitXor,
+            "&" => Primitive::BitAnd,
+            "|" => Primitive::BitOr,
+            "print" => Primitive::Print,
+            "println" => Primitive::Println,
+            "printc" => Primitive::Printc,
+            "++" => Primitive::Incr,
+            "--" => Primitive::Decr,
+            "~" => Primitive::Neg,
+            _ => return None,
+        })
     }
-}
 
-pub trait AstChildren<'a> {
-    fn children(&self) -> Vec<&AstExpr<'a>>;
-}
-
-impl<'a> AstChildren<'a> for AstDef<'a> {
-    fn children(&self) -> Vec<&AstExpr<'a>> {
+    pub fn to_str(&self) -> &'static str {
         match self {
-            Self::Function(_, _, body) => vec![body],
-            Self::TopLevelExpr(body) => vec![body],
-            Self::Global(_, body, _) => vec![body],
-            Self::CheckAssert(body, _) | Self::CheckError(body, _) => vec![body],
-            Self::CheckExpect(lhs, rhs, _) => vec![lhs, rhs],
-            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) => {
-                vec![]
-            }
+            Primitive::Add => "+",
+            Primitive::Sub => "-",
+            Primitive::Mul => "*",
+            Primitive::Div => "/",
+            Primitive::UDiv => "udiv",
+            Primitive::Mod => "%",
+            Primitive::RShift => ">>",
+            Primitive::URShift => ">>>",
+            Primitive::LShift => "<<",
+            Primitive::And => "&&",
+            Primitive::Or => "||",
+            Primitive::Eq => "=",
+            Primitive::Neq => "!=",
+            Primitive::Lte => "<=",
+            Primitive::Lt => "<",
+            Primitive::Gte => ">=",
+            Primitive::Gt => ">",
+            Primitive::Not => "!",
+            Primitive::BitXor => "^",
+            Primitive::BitAnd => "&",
+            Primitive::BitOr => "|",
+            Primitive::Print => "print",
+            Primitive::Println => "println",
+            Primitive::Printc => "printc",
+            Primitive::Incr => "++",
+            Primitive::Decr => "--",
+            Primitive::Neg => "~",
         }
     }
 }
 
-impl<'a> AstChildren<'a> for AstExpr<'a> {
-    fn children(&self) -> Vec<&Self> {
-        fn matchx_children<'a, 'b>(
-            scrut: &'b AstExpr<'a>,
-            arms: &'b [(AstExpr<'a>, AstExpr<'a>)],
-            default: &'b AstExpr<'a>,
-        ) -> Vec<&'b AstExpr<'a>> {
-            let mut children = vec![scrut, default];
-            children.append(
-                &mut arms
-                    .iter()
-                    .flat_map(|(pred, then)| vec![pred, then])
-                    .collect(),
-            );
-            children
-        }
+pub trait TokenString {
+    fn to_string(&self, tokens: &Tokens) -> String;
+}
 
+impl TokenString for Ast {
+    fn to_string(&self, tokens: &Tokens) -> String {
+        let ast = self;
+        ast.iter()
+            .map(|d| d.to_string(tokens) + "\n")
+            .collect::<String>()
+    }
+}
+
+impl Def {
+    pub fn to_string(&self, tokens: &Tokens) -> String {
         match self {
-            Self::Variable(_, Some(body)) => vec![body],
-            Self::Binary(_, lhs, rhs) => vec![lhs, rhs],
-            Self::Unary(_, body) | Self::Assign(_, body, None) => vec![body],
-            Self::While(cond, body) => vec![cond, body],
-            Self::Assign(_, body, Some(index)) => vec![body, index],
-            Self::Begin(exprs) | Self::Call(_, exprs) => exprs.iter().collect::<Vec<_>>(),
-            Self::Match(scrut, arms, default) => matchx_children(scrut, arms, default),
-            Self::If(c, t, f) => {
-                vec![c, t, f]
+            Def::Exp(e) => e.to_string(tokens),
+            Def::Val(n, e) if tokens.translate(n).ends_with('[') => {
+                format!(
+                    "({} {}] {})",
+                    "val".purple(),
+                    tokens.translate(n),
+                    e.to_string(tokens)
+                )
             }
-            Self::MacroVal(_)
-            | Self::Error
-            | Self::Variable(_, None)
-            | Self::Literal(..)
-            | Self::Pointer(..) => vec![],
+            Def::Val(n, e) => format!(
+                "({} {} {})",
+                "val".purple(),
+                tokens.translate(n),
+                e.to_string(tokens)
+            ),
+            Def::Define(n, ps, b) => format!(
+                "({} {} ({}) {})",
+                "define".purple(),
+                tokens.translate(n).cyan(),
+                ps.iter()
+                    .flat_map(|n| translate_param(n, tokens))
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                b.to_string(tokens),
+            ),
+            Def::CheckExpect(l, r) => format!(
+                "({} {} {})",
+                "check-expect".purple(),
+                l.to_string(tokens),
+                r.to_string(tokens),
+            ),
+            Def::CheckAssert(e) => {
+                format!("({} {})", "check-assert".purple(), e.to_string(tokens))
+            }
+            Def::Import(n) => format!("#({} {})", "replace".purple(), n.yellow()),
+            Def::Alias(n, e) => {
+                format!(
+                    "#({} {} {})",
+                    "replace".purple(),
+                    tokens.translate(n).yellow(),
+                    e.to_string(tokens)
+                )
+            }
+            Def::Inline(n, ps, e) => format!(
+                "#({} ({} {}) {})",
+                "replace".purple(),
+                tokens.translate(n).yellow(),
+                ps.iter()
+                    .flat_map(|n| translate_param(n, tokens))
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                e.to_string(tokens),
+            ),
+            Def::Undef(n) => format!("#({} {})", "undef".purple(), tokens.translate(n).yellow()),
         }
     }
 }
 
-impl<'a> AstDef<'a> {
-    pub fn is_test(&self) -> bool {
-        matches!(self, AstDef::CheckAssert(..) | AstDef::CheckExpect(..))
-    }
-
-    pub fn contains<F>(&self, predicate: &mut F) -> bool
-    where
-        F: FnMut(&AstExpr<'a>) -> bool,
-    {
-        for child in self.children() {
-            if child.contains(predicate) {
-                return true;
+impl Exp {
+    pub fn to_string(&self, tokens: &Tokens) -> String {
+        match self {
+            Exp::Literal(l) => format!("{}", l).yellow().to_string(),
+            Exp::Var(n, None) if tokens.translate(n).ends_with('[') => {
+                format!("{}]", tokens.translate(n))
+            }
+            Exp::Var(n, None) => format!(
+                "{}",
+                match tokens.translate(n) {
+                    x if x.starts_with('\'') => x.yellow(),
+                    x => x.normal(),
+                }
+            ),
+            Exp::Var(n, Some(e)) => {
+                format!("{}{}]", tokens.translate(n), e.to_string(tokens))
+            }
+            Exp::Set(n, None, v) => {
+                format!(
+                    "({} {} {})",
+                    "set".purple(),
+                    tokens.translate(n),
+                    v.to_string(tokens)
+                )
+            }
+            Exp::Set(n, Some(e), v) => {
+                format!(
+                    "({} {}{}] {})",
+                    "set".purple(),
+                    tokens.translate(n),
+                    e.to_string(tokens),
+                    v.to_string(tokens)
+                )
+            }
+            Exp::Unary(p, e) => {
+                format!("({} {})", p.to_str().blue().bold(), e.to_string(tokens),)
+            }
+            Exp::Binary(p, l, r) => {
+                format!(
+                    "({} {} {})",
+                    p.to_str().blue().bold(),
+                    l.to_string(tokens),
+                    r.to_string(tokens)
+                )
+            }
+            Exp::If(c, t, e) => {
+                format!(
+                    "({} {} {} {})",
+                    "if".purple(),
+                    c.to_string(tokens),
+                    t.to_string(tokens),
+                    e.to_string(tokens)
+                )
+            }
+            Exp::While(g, b) => {
+                format!(
+                    "({} {} {})",
+                    "while".purple(),
+                    g.to_string(tokens),
+                    b.to_string(tokens),
+                )
+            }
+            Exp::Begin(es) => {
+                format!(
+                    "({} {})",
+                    "begin".purple(),
+                    es.iter()
+                        .map(|e| e.to_string(tokens))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                )
+            }
+            Exp::Apply(n, es) => {
+                format!(
+                    "({}{}{})",
+                    match tokens.translate(n) {
+                        x if x.starts_with('\'') => x.yellow(),
+                        x => x.cyan(),
+                    },
+                    if es.is_empty() { "" } else { " " },
+                    es.iter()
+                        .map(|e| e.to_string(tokens))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                )
+            }
+            Exp::Match(p, cs, d) => {
+                let arrow = "=>".blue().bold();
+                let wildcard = "_".blue().bold();
+                format!(
+                    "({} {} {} ({} {} {}))",
+                    "match".purple(),
+                    p.to_string(tokens),
+                    if cs.is_empty() {
+                        "\x08".to_string()
+                    } else {
+                        cs.iter()
+                            .map(|(e, t)| {
+                                format!(
+                                    "({} {} {})",
+                                    e.to_string(tokens),
+                                    arrow,
+                                    t.to_string(tokens)
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    },
+                    wildcard,
+                    arrow,
+                    d.to_string(tokens)
+                )
             }
         }
-        false
-    }
-
-    pub fn for_each_child<F>(&self, apply: &mut F) -> Result<(), String>
-    where
-        F: FnMut(&AstExpr<'a>) -> Result<(), String>,
-    {
-        for child in self.children() {
-            child.for_each(apply)?;
-        }
-        Ok(())
-    }
-
-    // use this instead of children mut, very powerful function
-    pub fn reconstruct<F>(mut self, construct: &F) -> Result<Self, String>
-    where
-        F: Fn(AstExpr<'a>) -> Result<AstExpr<'a>, String>,
-    {
-        match &mut self {
-            Self::CheckAssert(body, _)
-            | Self::CheckError(body, _)
-            | Self::Global(_, body, _)
-            | Self::Function(_, _, body)
-            | Self::TopLevelExpr(body) => *body = mem::take(body).reconstruct(construct)?,
-            Self::CheckExpect(lhs, rhs, _) => {
-                *lhs = mem::take(lhs).reconstruct(construct)?;
-                *rhs = mem::take(rhs).reconstruct(construct)?;
-            }
-            Self::MacroDef(..) | Self::ImportLib(..) | Self::DeclareGlobal(..) => {}
-        };
-        Ok(self)
     }
 }
 
-impl<'a> AstExpr<'a> {
-    pub fn reconstruct<F>(mut self, construct: &F) -> Result<Self, String>
-    where
-        F: Fn(AstExpr<'a>) -> Result<AstExpr<'a>, String>,
-    {
-        self = construct(self)?;
-        match &mut self {
-            Self::Unary(_, body) | Self::Assign(_, body, None) | Self::Variable(_, Some(body)) => {
-                *body = Box::new(mem::take(body).reconstruct(construct)?);
-            }
-            Self::Binary(_, x, y) | Self::While(x, y) | Self::Assign(_, x, Some(y)) => {
-                *x = Box::new(mem::take(x).reconstruct(construct)?);
-                *y = Box::new(mem::take(y).reconstruct(construct)?);
-            }
-            Self::Begin(exprs) | Self::Call(_, exprs) => {
-                *exprs = mem::take(exprs)
-                    .into_iter()
-                    .map(|e| e.reconstruct(construct))
-                    .collect::<Result<Vec<_>, String>>()?;
-            }
-            Self::If(cond, truecase, falsecase) => {
-                *cond = Box::new(mem::take(cond).reconstruct(construct)?);
-                *truecase = Box::new(mem::take(truecase).reconstruct(construct)?);
-                *falsecase = Box::new(mem::take(falsecase).reconstruct(construct)?);
-            }
-            Self::Match(cond, arms, default) => {
-                *cond = Box::new(mem::take(cond).reconstruct(construct)?);
-                *arms = mem::take(arms)
-                    .into_iter()
-                    .map(|(e1, e2)| Ok((e1.reconstruct(construct)?, e2.reconstruct(construct)?)))
-                    .collect::<Result<Vec<_>, String>>()?;
-                *default = Box::new(mem::take(default).reconstruct(construct)?);
-            }
-            Self::MacroVal(_)
-            | Self::Error
-            | Self::Variable(_, None)
-            | Self::Literal(..)
-            | Self::Pointer(..) => {}
-        };
-        Ok(self)
-    }
-}
-
-impl<'a> Default for AstExpr<'a> {
-    fn default() -> Self {
-        AstExpr::Error
-    }
-}
-
-impl<'a> Default for AstMacro<'a> {
-    fn default() -> Self {
-        AstMacro::Replacer(AstExpr::Error, AstExpr::Error)
-    }
-}
-
-impl<'a> AstExpr<'a> {
-    pub fn contains<F>(&self, predicate: &mut F) -> bool
-    where
-        F: FnMut(&AstExpr<'a>) -> bool,
-    {
-        if predicate(self) {
-            return true;
-        }
-        for child in self.children() {
-            if child.contains(predicate) {
-                return true;
-            }
-        }
-        false
-    }
-
-    pub fn for_each<F>(&self, apply: &mut F) -> Result<(), String>
-    where
-        F: FnMut(&AstExpr<'a>) -> Result<(), String>,
-    {
-        for child in self.children() {
-            child.for_each(apply)?;
-        }
-        apply(self)
-    }
-}
-
-impl<'a> Ast<'a> {
-    pub fn iter(&self) -> Iter<'_, AstDef> {
-        self.defs.iter()
-    }
-
-    pub fn iter_mut(&mut self) -> IterMut<'_, AstDef<'a>> {
-        self.defs.iter_mut()
-    }
-}
-
-pub fn get_variable_name<'a>(exp: &AstExpr<'a>) -> &'a str {
-    if let AstExpr::Pointer(name) | AstExpr::Variable(name, ..) = exp {
-        name
+fn translate_param<'a>(n: &Name, tokens: &Tokens<'a>) -> Vec<&'a str> {
+    let p = tokens.translate(n);
+    if p.ends_with('[') {
+        vec![p, "\x08]"]
     } else {
-        panic!("Called get variable name on non-variable {:?}", exp)
+        vec![p]
+    }
+}
+
+// Defaults
+
+impl Default for Exp {
+    fn default() -> Self {
+        Exp::Literal(i32::MIN)
+    }
+}
+
+// Contains
+
+impl Exp {
+    fn children(&self) -> Vec<&Self> {
+        match self {
+            Exp::Literal(_) | Exp::Var(_, None) => vec![],
+            Exp::Set(_, None, e) | Exp::Unary(_, e) | Exp::Var(_, Some(e)) => vec![e.deref()],
+            Exp::Binary(_, e1, e2) | Exp::Set(_, Some(e1), e2) | Exp::While(e1, e2) => {
+                vec![e1.deref(), e2.deref()]
+            }
+            Exp::If(e1, e2, e3) => vec![e1.deref(), e2.deref(), e3.deref()],
+            Exp::Apply(_, es) | Exp::Begin(es) => es.iter().collect(),
+            Exp::Match(e1, es, e2) => es
+                .iter()
+                .map(|(e1, e2)| [e1, e2])
+                .chain([[e1.deref(), e2.deref()]])
+                .flatten()
+                .collect(),
+        }
+    }
+
+    pub fn contains<F>(&self, mut f: F) -> bool
+    where
+        Self: Sized,
+        F: FnMut(&Self) -> bool,
+    {
+        if f(self) {
+            true
+        } else {
+            self.children().into_iter().any(f)
+        }
     }
 }

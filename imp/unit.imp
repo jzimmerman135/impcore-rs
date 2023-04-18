@@ -1,8 +1,9 @@
-(val x 10)
+#(replace 'A 0x41)
+(val x 0)
+(val n_letters 26)
+(while (< x n_letters)
+  (begin 
+    (printc (+ 'A x))
+    (printc 10)
+    (set x (++ x))))
 
-(check-expect x 10)
-(check-expect x 12)
-
-(set x 12)
-
-(check-expect x 12)
