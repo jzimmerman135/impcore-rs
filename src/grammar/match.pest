@@ -12,7 +12,7 @@ keyword = _{ "define" | "set" | "if" | "match" | "begin" | "while" | "val" | "er
 RESERVED = _{ keyword ~ WSP+ }
 
 NUMBER = _{ ( "-" )?  ~ ASCII_DIGIT+ }
-HEXNUM = _ { ( "-" )? ~ "0x" ~ ASCII_HEX_DIGIT+ }
+HEXNUM = _{ ( "-" )? ~ "0x" ~ ASCII_HEX_DIGIT+ }
 NAMED = _{ !ASCII_DIGIT ~ &(ASCII_ALPHA | "_") ~ ( ASCII_ALPHANUMERIC | "_" | "-" )* }
 
 function_name = @{ !RESERVED ~ NAMED ~ "?"? }

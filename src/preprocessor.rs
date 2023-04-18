@@ -175,9 +175,7 @@ impl<'a> AstExpr<'a> {
             _ => return Ok(self),
         };
 
-        println!("trying to expand macro {:?}", self);
-
-        let res = self.try_expand_macros_recursive(macro_env, 0).map_err(|s| {
+        self.try_expand_macros_recursive(macro_env, 0).map_err(|s| {
             if s.starts_with(MACRO_LOOP) {
                 return format!(
                     "Recursive macro, depth {} exceeded on {}",
@@ -185,11 +183,7 @@ impl<'a> AstExpr<'a> {
                 );
             }
             s
-        });
-
-        println!("expanded macro into {:?}", res);
-
-        res
+        })
     }
 
     fn try_expand_macros_recursive(
@@ -212,12 +206,9 @@ impl<'a> AstExpr<'a> {
                     .functions
                     .get(name)
                     .ok_or(format!("Inline function macro {} not defined", name))?;
-                println!("macro {} becomes body {:?}", name, body);
                 let formals = formals.as_slice();
                 let argmap = formals.into_iter().zip(args).collect::<HashMap<_, _>>();
-                println!("argmap is {:?}", argmap);
                 body.clone().reconstruct(&|e| {
-                    println!("reconstructing {:?}", body);
                     if let AstExpr::Variable(tmpname, maybe_index) = e {
                         Ok(match argmap.get(&tmpname) {
                             Some(AstExpr::Variable(newname, ..)) => {

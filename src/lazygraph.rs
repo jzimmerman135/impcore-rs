@@ -3,8 +3,7 @@ use crate::{
     errors::UNBOUND_FUNCTION,
     jit::Compiler,
 };
-use petgraph::{graph::NodeIndex, Direction};
-use petgraph::{Direction::Outgoing, Graph};
+use petgraph::{graph::NodeIndex, Direction::Outgoing, Graph};
 use std::collections::HashMap;
 
 #[derive(Debug, Hash, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
@@ -61,7 +60,7 @@ impl<'a> LazyGraph<'a> {
             .find(|i| g[*i] == dep)
             .ok_or(format!("Could not find function {}", name))?;
 
-        let neighbors = g.neighbors_directed(node_index, Direction::Outgoing);
+        let neighbors = g.neighbors(node_index);
 
         let mut message = String::from("Found neighbors:\n");
 
@@ -93,7 +92,11 @@ impl<'a> LazyGraph<'a> {
         };
 
         let mut needs = self.graph.neighbors_directed(node, Outgoing);
-        let unmet_dependency = self.graph[needs.next().unwrap()];
+        let unmet_dependency = self.graph[needs.next().expect(&format!(
+            "Compiler bug, {} {} in the dependency graph",
+            dependee.typename().to_lowercase(),
+            dependee.name()
+        ))];
         format!(
             "Unbound {} {}",
             unmet_dependency.typename().to_lowercase(),

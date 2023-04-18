@@ -24,7 +24,7 @@ impl<'a> AstExpr<'a> {
             Rule::fgetc => AstExpr::Call(expr.as_str(), vec![]),
 
             Rule::macroval => macro_parse::parse_macroval(expr),
-            Rule::parameter => macro_parse::parse_macroparam(expr),
+            Rule::parameter => macro_parse::parse_inlinerparam(expr),
             Rule::inline => expr_parse::parse_call(expr),
 
             Rule::error => AstExpr::Error,
