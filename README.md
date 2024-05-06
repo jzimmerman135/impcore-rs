@@ -6,9 +6,6 @@ This implementation of impcore is solely for the challenge of making something c
 
 This implementation uses LLVM for an optimizing backend and benchmarks up to 14000x speedups on the original C implementation. It also guarantees no memory leaks, thanks to Rust and some simple garbage collection.
 
-## Installation: 
-  - `cargo install impcore` (TODO)
-
 ## Basic Usage:
 `./impcore-rs -f myfilename.imp`
 
